@@ -1,0 +1,24 @@
+[tool.poetry]
+name = "bmx-bookmark-extractor"
+version = "0.1.0"
+description = ""
+authors = ["CooperR1 <cooperability@gmail.com>"]
+readme = "README.md"
+packages = [{include = "bmx_bookmark_extractor"}]
+
+[tool.poetry.dependencies]
+python = "^3.10"
+pip = "^23.2.1"
+spacy = "^3.6.0"
+scrapy = "^2.9.0"
+numpy = "^1.25.1"
+keras = "^2.13.1"
+matplotlib = "^3.7.2"
+pandas = "^2.0.3"
+nltk = "^3.8.1"
+scikit-learn = "^1.3.0"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
