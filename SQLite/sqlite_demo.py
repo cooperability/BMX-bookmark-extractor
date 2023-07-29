@@ -1,3 +1,6 @@
+#Constructed using Corey Schafer's SQLite Tutorial on YouTube:
+#https://www.youtube.com/watch?v=pd-0G0MigUA
+
 #included in standard library, can just import
 import sqlite3
 from employee import Employee
