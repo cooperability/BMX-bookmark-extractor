@@ -17,3 +17,4 @@ Open a new shell/terminal pointing to your desired home directory for the projec
 [General easy poetry commands] (https://medium.com/analytics-vidhya/poetry-finally-an-all-in-one-tool-to-manage-python-packages-3c4d2538e828) \
 [Managing virtual environments with Poetry](https://python-poetry.org/docs/managing-environments/) \
 [Quick Django in 20 Minutes] (https://www.youtube.com/watch?v=nGIg40xs9e4) \
+[Django+Vercel](https://github.com/vercel/examples/tree/main/python/django) \
