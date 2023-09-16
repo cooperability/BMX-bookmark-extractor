@@ -1,7 +1,7 @@
 # example/views.py
 from datetime import datetime
 from django.shortcuts import render, HttpResponse
-from .models import TodoItem
+from .models import *
 
 def home(request):
     return render(request, "home.html")
