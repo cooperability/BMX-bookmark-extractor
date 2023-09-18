@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="en">
+{%extends "base.html" %}
+{% block title %} BMX {%endblock%}
+{%block content%}
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Scraping Success</title>
+</head>
+
+<body>
+    <h1>Scraping Success</h1>
+    <p>The webpage content has been successfully scraped and saved to the database.</p>
+        <p>Webpage Content:</p>
+        <pre>{{ text_content }}</pre>
+
+    <a href="/scrape">Back to Scrape Form</a>
+</body>
+{%endblock%}
+
+</html>
