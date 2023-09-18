@@ -176,3 +176,4 @@ node_modules/to-regex-range/LICENSE
 node_modules/to-regex-range/package.json
 node_modules/to-regex-range/README.md
 yarn.lock
+.vercel

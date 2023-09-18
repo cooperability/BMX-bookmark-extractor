@@ -5,6 +5,9 @@ from .models import *
 from .forms import *
 from bs4 import BeautifulSoup
 import requests
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 def base(request):
@@ -15,13 +18,9 @@ def home(request):
     return render(request, "home.html")
 
 
-def todos(request):
-    items = TodoItem.objects.all()
-    return render(request, "todos.html", {"todos": items})
-
-
 def index(request):
     now = datetime.now()
+    logger.debug('This is the index')
     html = f'''
     <!DOCTYPE html>
 
@@ -49,6 +48,7 @@ def index(request):
 
 
 def scrape(request):
+    logger.debug('This is the scrape input form')
     if request.method == 'POST':
         form = URLForm(request.POST)
         if form.is_valid():
@@ -84,4 +84,5 @@ def scrape(request):
 
 def success(request):
     # Create a template for displaying the scraped content or download link
+    logger.debug('This is the success page')
     return render(request, 'success.html')

@@ -3,13 +3,8 @@ from django.db import models
 # Create your models here.
 
 
-class TodoItem(models.Model):
-    title = models.CharField(max_length=200)
-    completed = models.BooleanField(default=False)
-
-
 class WebPage(models.Model):
-    url = models.URLField()
+    url = models.URLField(max_length=1000)
     content = models.TextField()
 
     def __str__(self):
