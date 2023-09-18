@@ -82,15 +82,15 @@ DATABASES = {
 
         'ENGINE': 'django.db.backends.postgresql_psycopg2',
 
-        'NAME': 'pgdb',
+        'NAME': 'railway',
 
-        'USER': 'cooperreed',
+        'USER': 'postgres',
 
-        'PASSWORD': 'Psq1Mayyd7k&',
+        'PASSWORD': 'f5SPBPHWD5wygZKDaEfd',
 
-        'HOST': 'localhost',
+        'HOST': 'containers-us-west-33.railway.app',
 
-        'PORT': '5432',
+        'PORT': '5478',
     }
 }
 
@@ -130,7 +130,7 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/4.1/howto/static-files/
 
 STATIC_URL = '/static/'
-
+STATIC_ROOT = os.path.join(BASE_DIR, 'static_root')
 # Define directories to locate static files
 STATICFILES_DIRS = [os.path.join(BASE_DIR, 'static')]
 
