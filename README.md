@@ -1,5 +1,6 @@
 # BMX-bookmark-extractor
 
+![](https://github.com/cooperability/BMX-bookmark-extractor/blob/main/Screen%20Recording%202023-09-18%20at%201.07.22%20PM.gif)
 Infrastructure snippets building toward a comprehensive scraping-NLP pipeline for web links.
 
 ## Setup
