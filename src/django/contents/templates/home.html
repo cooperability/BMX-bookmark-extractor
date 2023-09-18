@@ -1,4 +1,12 @@
-{%extends "base.html" %} {% block title %} Home Page {%endblock%}
+{%extends "base.html" %}
+ {% block title %} BMX {%endblock%}
 {%block content%}
-<p>This is home</p>
-{%endblock%}
+<body>
+    <h2>Home</h2>
+    <button onclick="alert('Hola')">Greet</button>
+    <div id="content">Content</div>
+    {% load static %}
+    
+    <script src="{% static 'js/simplest.js' %}" type="module"></script>
+</body>
+    {%endblock%}

@@ -3,6 +3,7 @@ from datetime import datetime
 from django.shortcuts import render, HttpResponse
 from .models import *
 
+
 def home(request):
     return render(request, "home.html")
 
@@ -28,6 +29,8 @@ def index(request):
 <body onload="main()">
     <footer>
         <hr />
+        <script src="{'/js/simplest.js'}" type="module"></script>
+
         <h2>Created by <a href="https://cooperability.com">Cooper</a>. Opened {now}.</h2>
     </footer>
 </body>
