@@ -1,6 +1,9 @@
 from flask import Flask, request, jsonify, render_template
 import requests
 import spacy
+from bs4 import BeautifulSoup
+from gensim.summarization import summarize
+
 
 app = Flask(__name__)
 
@@ -14,22 +17,32 @@ def index():
 @app.route("/process")
 def process():
     url = request.args.get("url")
+    summary_length = int(request.args.get("length", 100))  # Default to 100 words if not provided
+    
     try:
-        # Scrape content from the URL (you can use requests or any scraping library of your choice)
+        # Scrape content from the URL
         response = requests.get(url)
-        content = response.text
+        soup = BeautifulSoup(response.text, 'html.parser')
 
+        # Extract Real Meaningful Content (RMC)
+        for script in soup(['script', 'style']):
+            script.extract()
+        RMC = " ".join(soup.stripped_strings)
+        
         # Perform NLP tasks
-        doc = nlp(content)
-        summary = doc.text[:300]  # Get the first 300 characters as a summary
-        entities = list(set([ent.text for ent in doc.ents]))  # Unique named entities
-        sentiment = "Positive"  # You can implement sentiment analysis here
+        doc = nlp(RMC)
+        
+        # Filtering out non-human-typed numbers from entities
+        entities = list(set([ent.text for ent in doc.ents if not ent.text.isnumeric()]))
+        
+        # Generate Summary
+        summary = summarize(RMC, word_count=summary_length)
 
         return jsonify({
             "summary": summary,
             "entities": entities,
-            "sentiment": sentiment,
-            "rawContent": content
+            "sentiment": "Positive",  # Placeholder sentiment
+            "rawContent": RMC
         })
 
     except Exception as e:
