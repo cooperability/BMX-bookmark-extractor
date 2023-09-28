@@ -7,9 +7,15 @@ document.addEventListener("DOMContentLoaded", () => {
 
   urlForm.addEventListener("submit", async (e) => {
     e.preventDefault();
+
+    // Display a loading message to the user
+    summaryElement.textContent = "Fetching and processing data...";
+
     const urlInput = document.getElementById("urlInput").value;
+    const lengthInput = document.getElementById("length").value;
+
     const response = await fetch(
-      `/process?url=${encodeURIComponent(urlInput)}`
+      `/process?url=${encodeURIComponent(urlInput)}&length=${lengthInput}`
     );
     const data = await response.json();
 
@@ -19,5 +25,10 @@ document.addEventListener("DOMContentLoaded", () => {
       .join("");
     sentimentElement.textContent = data.sentiment;
     rawContentElement.textContent = data.rawContent;
+  });
+
+  // Update displayed summary length when the slider is moved
+  document.getElementById("length").addEventListener("input", (e) => {
+    document.getElementById("lengthValue").textContent = e.target.value;
   });
 });

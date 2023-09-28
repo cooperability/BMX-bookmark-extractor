@@ -1,5 +1,5 @@
 # Use the official Python image as a parent image
-FROM python:3.10
+FROM python:3.9
 
 # Set the working directory to /app
 WORKDIR /app
@@ -8,12 +8,8 @@ WORKDIR /app
 COPY app/requirements.txt .
 
 # Install the required packages
-RUN pip install --no-cache-dir -r requirements.txt
-
-# Create and activate a virtual environment
-RUN python -m venv venv
-SHELL ["/bin/bash", "-c"]
-RUN source venv/bin/activate
+RUN pip install --no-cache-dir -f https://download.pytorch.org/whl/cpu/torch_stable.html -r requirements.txt
+RUN pip list
 
 # Copy the entire app directory into the container at /app
 COPY app/ .

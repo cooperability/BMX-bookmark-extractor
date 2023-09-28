@@ -2,13 +2,29 @@ from flask import Flask, request, jsonify, render_template
 import requests
 import spacy
 from bs4 import BeautifulSoup
-from gensim.summarization import summarize
+from transformers import T5Tokenizer, T5ForConditionalGeneration
 
 
 app = Flask(__name__)
 
 # Load SpaCy model
 nlp = spacy.load("en_core_web_sm")
+
+# Load T5-small model and tokenizer
+tokenizer = T5Tokenizer.from_pretrained('t5-small')
+model = T5ForConditionalGeneration.from_pretrained('t5-small')
+
+def t5_summarize(text, max_length=150):
+    """Generate a summary using T5-small model."""
+    # Prepare the text data for the T5 model
+    input_text = "summarize: " + text
+    input_ids = tokenizer.encode(input_text, return_tensors="pt", max_length=512, truncation=True)
+    
+    # Generate the summary
+    summary_ids = model.generate(input_ids, max_length=max_length, min_length=50, length_penalty=2.0, num_beams=4, early_stopping=True)
+    
+    return tokenizer.decode(summary_ids[0], skip_special_tokens=True)
+
 
 @app.route("/")
 def index():
@@ -35,8 +51,9 @@ def process():
         # Filtering out non-human-typed numbers from entities
         entities = list(set([ent.text for ent in doc.ents if not ent.text.isnumeric()]))
         
-        # Generate Summary
-        summary = summarize(RMC, word_count=summary_length)
+        #Use T5 summarization engine to summarize
+        summary = t5_summarize(RMC, max_length=summary_length)
+
 
         return jsonify({
             "summary": summary,
