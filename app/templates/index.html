@@ -3,26 +3,40 @@
 
 <head>
     <meta charset="UTF-8">
-    <title>Web App</title>
+    <title>BMX: the BookMark eXtractor</title>
     <link rel="icon" href="static/favicon.ico" type="image/x-icon">
+    <style>
+        input[type="text"] {
+            width: 50%;
+        }
+
+        div#results>* {
+            border-bottom: 1px solid #ddd;
+            padding: 10px 0;
+            margin-bottom: 10px;
+        }
+    </style>
 </head>
 
 <body>
-    <h1>Web App</h1>
+    <h1>BMX: the BookMark eXtractor, v2.1</h1>
+    <h4>A webtool for learning efficiency, built by <a href="https://cooperability.com">Cooper</a>.</h4>
+    <h4>View on <a href="https://github.com/cooperability/denser">GitHub</a>.</h4>
+    <p>Input a URL below to see the page's contents scraped, processed by AI, and parsed for sentiment. </p>
     <form id="urlForm">
         <label for="urlInput">Enter URL:</label>
         <input type="text" id="urlInput" required>
         <button type="submit">Submit</button>
     </form>
     <div id="results">
-        <h2>Summary</h2>
+        <h2>Summary (TS5 by HuggingFace)</h2>
         <label for="length">Summary Length:</label>
         <input type="range" id="length" name="length" min="50" max="500" value="100">
         <span id="lengthValue">100</span> words
         <p id="summary"></p>
-        <h2>Named Entities</h2>
+        <h2>Named Entities (by spaCy)</h2>
         <ul id="entities"></ul>
-        <h2>Sentiment</h2>
+        <h2>Sentiment (by spaCy)</h2>
         <p id="sentiment"></p>
         <details>
             <summary>Raw Content</summary>
