@@ -19,13 +19,12 @@ def t5_summarize(text, max_length=500):
     print("Generated summary:", tokenizer.decode(summary_ids[0], skip_special_tokens=True)[:100])
     return tokenizer.decode(summary_ids[0], skip_special_tokens=True)
 
-def rank_sentences_by_vector(sentences, nlp_model, top_n=5):
+def rank_sentences_by_vector(doc, top_n=5):
     """Rank sentences using mean vector magnitude and return top N sentences."""
     sentence_scores = []
 
-    for sent in sentences:
-        doc = nlp_model(sent)
-        mean_vector = sum([word.vector for word in doc]) / len(doc)
+    for sent in doc.sents:
+        mean_vector = sum([word.vector for word in sent]) / len(sent)
         magnitude = sum(v * v for v in mean_vector) ** 0.5  # Calculating the magnitude of the vector
         sentence_scores.append((sent, magnitude))
 
@@ -71,25 +70,34 @@ def process():
         # Construct a list of top entities with counts and labels
         entities_info = []
         for text, count in top_entities:
-            entity = next(ent for ent in doc.ents if ent.text == text)
+            entity = next((ent for ent in doc.ents if ent.text == text), None)
+            if not entity:  # Ensure the token is a named entity before accessing its attributes
+                continue
             entities_info.append({
                 "text": text,
                 "count": count,
                 "label": entity.label_,
                 "label_desc": spacy.explain(entity.label_)
             })
-
+        # entity_sentences is a list that contains unique sentences in which the top entities appear, showing context.
         entity_sentences = list(set([ent.sent for ent in doc.ents if ent.text in [text for text, _ in top_entities]]))
         entities_limit = int(request.args.get("entities_limit", 15))
         top_entities = entity_counts.most_common(entities_limit)
-        RMC_sentences = RMC.split('.')
-        if not RMC_sentences:
+
+        # Check if the document contains any sentences.
+        if not list(doc.sents):
             raise ValueError("No sentences found in the content.")
-        top_sentences = rank_sentences_by_vector(RMC_sentences, nlp)
+        
+        # Get top sentences using rank_sentences_by_vector function.
+        top_sentences = rank_sentences_by_vector(doc)
+        
+        # Check if we have any top sentences selected.
         if not top_sentences:
             raise ValueError("No top sentences were selected.")
-        top_text = '. '.join(top_sentences)
-        displacy_html = displacy.render(top_sentences, style="ent", page=True)
+        
+        #The top_text is a concatenated string of the top-ranked sentences by vector magnitude. Represents most important sentences in RMC.
+        top_text = '. '.join([sent.text for sent in top_sentences])
+        #displacy_html = displacy.render(top_sentences, style="ent", page=True)
         #Use T5 summarization engine to summarize
         summary = t5_summarize(RMC, max_length=summary_length)
 
@@ -97,7 +105,7 @@ def process():
         return jsonify({
             "summary": summary,
             "entities": entities_info,
-            "displacy": displacy_html,
+            #"displacy": displacy_html,
             "sentiment": "Positive",  # Placeholder sentiment
             "rawContent": RMC
         })
