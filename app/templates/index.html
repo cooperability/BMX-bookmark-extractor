@@ -21,14 +21,49 @@
             margin: auto;
             white-space: pre-line;
         }
+
+        h1,
+        h3,
+        p {
+            margin-top: 10px;
+            margin-bottom: 10px;
+        }
+
+        pre {
+            white-space: normal;
+            max-width: 100%;
+            overflow-wrap: break-word;
+        }
+
+        .error-message {
+            color: red;
+            border: 1px solid red;
+            padding: 10px;
+            margin: 10px 0;
+            background-color: #ffe6e6;
+            /* A light red background */
+            border-radius: 5px;
+        }
+
+        details>summary {
+            font-size: 1.5em;
+            cursor: pointer;
+            /* Indicate that it's clickable */
+        }
+
+        span#timer {
+            font-weight: bold;
+            color: #555;
+        }
     </style>
 </head>
 
 <body>
     <h1>BMX: the BookMark eXtractor, v2.1</h1>
     <h3>A webtool for learning efficiency, built by <a href="https://cooperability.com">Cooper</a>.
-        View on <a href="https://github.com/cooperability/denser">GitHub</a>.
-        14mb total of code, builds locally in minutes.</h3>
+        View on <a href="https://github.com/cooperability/denser">GitHub</a>. 14mb total of code, builds locally in
+        minutes.
+    </h3>
     <p>Input a URL below to see the page's contents scraped, processed by AI, and parsed for sentiment. </p>
     <form id="urlForm">
         <label for="urlInput">Enter URL:</label>
@@ -36,15 +71,15 @@
         <button type="submit">Submit</button>
     </form>
     <div id="results">
-        <h2>Summary (TS5 by HuggingFace)</h2>
+        <h2>Summary (via TS5 by HuggingFace)</h2>
         <label for="length">Summary Length:</label>
         <input type="range" id="length" name="length" min="50" max="500" value="100">
         <span id="lengthValue">100</span> words
         <p id="summary"></p>
-        <h2>Named Entities (by spaCy)</h2>
+        <h2>Named Entities (via spaCy small model)</h2>
         <button id="moreEntities">View More</button>
         <ul id="entities"></ul>
-        <h2>Sentiment (by spaCy)</h2>
+        <h2>Sentiment (via BERT)</h2>
         <p id="sentiment"></p>
         <details>
             <summary>Raw Content</summary>
