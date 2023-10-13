@@ -3,6 +3,7 @@ import requests
 import spacy
 from bs4 import BeautifulSoup
 from transformers import T5Tokenizer, T5ForConditionalGeneration
+from transformers import MobileBertTokenizer, MobileBertForSequenceClassification, pipeline
 from collections import Counter
 from spacy import displacy
 from requests.exceptions import RequestException
@@ -32,6 +33,48 @@ def rank_sentences_by_vector(doc, top_n=5):
     ranked_sentences = [sent for sent, _ in sorted(sentence_scores, key=lambda x: x[1], reverse=True)]
     return ranked_sentences[:top_n]
 
+def determine_sentiment(text):
+    # Tokenize the text
+    tokens = mbert_tokenizer.tokenize(text)
+    print(f"Total tokens: {len(tokens)}")  # Logging total token count
+
+    # Parameters for the sliding window
+    window_size = 510  # Adjusting for [CLS] and [SEP]
+    stride = 256  # Overlap of 256 tokens between windows
+
+    # Split tokens using the sliding window
+    token_windows = [tokens[i:i + window_size] for i in range(0, len(tokens) - window_size + 1, stride)]
+
+    # Determine sentiment for each window
+    window_sentiments = []
+    for token_window in token_windows:
+        # Adding [CLS] and [SEP] and ensure it fits the model's size limit
+        window_tokens = ['[CLS]'] + token_window + ['[SEP]']
+        truncated_tokens = window_tokens[:512]  # Ensure window tokens don't exceed 512
+
+        if len(truncated_tokens) != 512:  # We expect exactly 512 tokens
+            print(f"Unexpected token count {len(truncated_tokens)} for this window. Expected 512. Skipping this window.")
+            continue  # Skip this window
+
+        print(f"Tokens for this window: {len(truncated_tokens)}")  # Logging token count for each window
+
+        window_text = mbert_tokenizer.convert_tokens_to_string(truncated_tokens)  # Convert back to text
+        
+        # Print tokenized text before prediction to check
+        print("Sending the following tokens for prediction:")
+        print(truncated_tokens)
+        
+        result = sentiment_pipeline(window_text)
+        window_sentiments.append(result[0]['label'])
+
+    # Aggregate window sentiments (return the most common sentiment)
+    most_common_sentiment = max(set(window_sentiments), key=window_sentiments.count)
+    return most_common_sentiment
+
+
+
+
+
 
 app = Flask(__name__)
 
@@ -39,6 +82,12 @@ app = Flask(__name__)
 nlp = spacy.load("en_core_web_sm")
 tokenizer = T5Tokenizer.from_pretrained('t5-small')
 model = T5ForConditionalGeneration.from_pretrained('t5-small')
+
+# Load MobileBERT for sentiment analysis
+mbert_tokenizer = MobileBertTokenizer.from_pretrained("google/mobilebert-uncased")
+mbert_model = MobileBertForSequenceClassification.from_pretrained("google/mobilebert-uncased", num_labels=3)
+sentiment_pipeline = pipeline("sentiment-analysis", model=mbert_model, tokenizer=mbert_tokenizer)
+
 
 @app.route("/")
 def index():
@@ -101,12 +150,15 @@ def process():
         #Use T5 summarization engine to summarize
         summary = t5_summarize(RMC, max_length=summary_length)
 
+        sentiment_label = determine_sentiment(RMC)
+        sentiment_mapping = {"LABEL_0": "Negative", "LABEL_1": "Neutral", "LABEL_2": "Positive"}  # this is an example mapping, actual labels might vary based on the model's training data.
+        actual_sentiment = sentiment_mapping.get(sentiment_label, "Unknown")
 
         return jsonify({
             "summary": summary,
             "entities": entities_info,
             #"displacy": displacy_html,
-            "sentiment": "Positive",  # Placeholder sentiment
+            "sentiment": actual_sentiment,
             "rawContent": RMC
         })
 

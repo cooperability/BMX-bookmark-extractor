@@ -25,8 +25,8 @@
         h1,
         h3,
         p {
-            margin-top: 10px;
-            margin-bottom: 10px;
+            margin-top: 3px;
+            margin-bottom: 0.5%;
         }
 
         pre {
@@ -64,9 +64,8 @@
         View on <a href="https://github.com/cooperability/denser">GitHub</a>. 14mb total of code, builds locally in
         minutes.
     </h3>
-    <p>Input a URL below to see the page's contents scraped, processed by AI, and parsed for sentiment. </p>
     <form id="urlForm">
-        <label for="urlInput">Enter URL:</label>
+        <label for="urlInput">Enter a URL to scrape and parse the webpage's contents using AI:</label>
         <input type="text" id="urlInput" required>
         <button type="submit">Submit</button>
     </form>
@@ -79,7 +78,7 @@
         <h2>Named Entities (via spaCy small model)</h2>
         <button id="moreEntities">View More</button>
         <ul id="entities"></ul>
-        <h2>Sentiment (via BERT)</h2>
+        <h2>Sentiment (via MobileBERT)</h2>
         <p id="sentiment"></p>
         <details>
             <summary>Raw Content</summary>
