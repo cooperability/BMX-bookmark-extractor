@@ -30,6 +30,7 @@ async function fetchDataAndUpdateUI(url, length) {
     if (data.error) {
       summaryElement.textContent = `Error: ${data.error}`;
       summaryElement.classList.add("error-message"); // Add the error styling
+      clearInterval(timer); //Stop timer if error encountered
       return; // Early exit from the function if there's an error
     }
 
@@ -59,6 +60,7 @@ async function fetchDataAndUpdateUI(url, length) {
   } catch (error) {
     summaryElement.textContent = "Error fetching data. Please try again.";
     summaryElement.classList.add("error-message"); // Add the error styling
+    clearInterval(timer);
   }
 }
 
