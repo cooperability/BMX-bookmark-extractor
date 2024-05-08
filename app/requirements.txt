@@ -8,4 +8,4 @@ sentencepiece
 torch==1.13.1
 torchvision==0.10.1+cpu
 torchaudio==0.9.1
-Werkzeug>=2.0,<3.0
+Werkzeug>=3.0.3
