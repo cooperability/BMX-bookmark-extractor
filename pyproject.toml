@@ -10,7 +10,7 @@ packages = [{include = "bmx_bookmark_extractor"}]
 python = "^3.10"
 pip = "^23.2.1"
 spacy = "^3.6.0"
-scrapy = "^2.9.0"
+scrapy = "^2.11.2"
 numpy = "^1.25.1"
 keras = "^2.13.1"
 matplotlib = "^3.7.2"
