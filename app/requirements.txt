@@ -5,7 +5,7 @@ beautifulsoup4==4.10.0
 transformers==4.38.0
 pydantic<2.8
 sentencepiece
-torch==1.13.1
+torch==2.2.0
 torchvision==0.10.1+cpu
 torchaudio==0.9.1
 Werkzeug>=3.0.3
