@@ -88,6 +88,9 @@ mbert_tokenizer = MobileBertTokenizer.from_pretrained("google/mobilebert-uncased
 mbert_model = MobileBertForSequenceClassification.from_pretrained("google/mobilebert-uncased", num_labels=3)
 sentiment_pipeline = pipeline("sentiment-analysis", model=mbert_model, tokenizer=mbert_tokenizer)
 
+@app.get("/health")
+async def health_check():
+    return {"status": "healthy"}
 
 @app.route("/")
 def index():

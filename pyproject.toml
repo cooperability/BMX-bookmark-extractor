@@ -1,27 +1,22 @@
 [tool.poetry]
-name = "bmx-bookmark-extractor"
+name = "bmx"
 version = "0.1.0"
-description = ""
+description = "A tool to extract and analyze bookmarked content"
 authors = ["CooperR1 <cooperability@gmail.com>"]
 readme = "README.md"
-packages = [{include = "bmx_bookmark_extractor"}]
 
 [tool.poetry.dependencies]
-python = "^3.10"
-pip = "^23.3"
-spacy = "^3.6.0"
-scrapy = "^2.11.2"
-numpy = "^1.25.1"
-keras = "^2.13.1"
-matplotlib = "^3.7.2"
-pandas = "^2.0.3"
-nltk = "^3.8.1"
-scikit-learn = "^1.5.0"
-django = "^4.2.11"
-psycopg2 = "^2.9.7"
-bs4 = "^0.0.1"
-requests = "^2.32.2"
-
+python = "^3.11"
+fastapi = "^0.103.0"
+uvicorn = "^0.23.2"
+sqlalchemy = "^2.0.20"
+pydantic = "^2.3.0"
+asyncpg = "^0.28.0"
+beautifulsoup4 = "^4.12.2"
+requests = "^2.31.0"
+PyPDF2 = "^3.0.1"
+spacy = "^3.7.2"
+youtube-transcript-api = "^0.6.1"
 
 [build-system]
 requires = ["poetry-core"]
