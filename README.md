@@ -5,17 +5,64 @@ Infrastructure snippets building toward a comprehensive scraping-NLP pipeline fo
 
 ## Setup
 
-Open a new shell/terminal pointing to your desired home directory for the project.
+### Prerequisites
+- Docker installed on your system
+- Git (optional, for cloning the repository)
 
-### Poetry
+### Steps
 
-**1.** `poetry init` creates pyproject.toml file with poetry section, or tells you one exists. \
-**2.** `poetry config virtualenvs.in-project true` sets a default that your created virtual environments will be created INSIDE the project folders with the pyproject.toml file. \
-**3.** `poetry install` should now create a folder called .venv INSIDE your shell directory. \
-**4.** `poetry env info -p` will show the path to your current environment. \
-**5.** If you want to use django, cd into demo and run (1) `poetry run mannage.py makemigrations` (2)`poetry run manage.py migrate` (3)`poetry run manage.py runserver`. \
+1. Clone the repository (if you haven't already):
+   ```
+   git clone https://github.com/cooperability/BMX-bookmark-extractor.git
+   cd BMX-bookmark-extractor
+   ```
 
-[General easy poetry commands] (https://medium.com/analytics-vidhya/poetry-finally-an-all-in-one-tool-to-manage-python-packages-3c4d2538e828) \
-[Managing virtual environments with Poetry](https://python-poetry.org/docs/managing-environments/) \
-[Quick Django in 20 Minutes] (https://www.youtube.com/watch?v=nGIg40xs9e4) \
-[Django+Vercel](https://github.com/vercel/examples/tree/main/python/django) \
+2. Build the Docker image:
+   ```
+   docker build -t bmx .
+   ```
+
+3. Run the Docker container:
+   ```
+   docker run -p 8080:8080 bmx
+   ```
+
+4. Access the application:
+   Open your web browser and navigate to `http://localhost:8080`
+
+### Configuration
+
+The application uses several AI models and libraries. These are automatically installed during the Docker build process. The main components are:
+
+- Flask web framework
+- spaCy for NLP tasks
+- Transformers library for T5 summarization and MobileBERT sentiment analysis
+- BeautifulSoup for web scraping
+
+You can view the full list of dependencies in the `requirements.txt` file.
+
+### Development
+
+If you want to make changes to the application:
+
+1. Modify the necessary files in the `app` directory.
+2. Rebuild the Docker image:
+   ```
+   docker build -t bmx .
+   ```
+3. Run the new container to test your changes.
+
+### Troubleshooting
+
+If you encounter any issues:
+
+1. Ensure Docker is running on your system.
+2. Check if the required ports are available (8080 by default).
+3. Review the Docker logs for any error messages:
+   ```
+   docker logs <container_id>
+   ```
+
+For more detailed information about the application structure and functionality, refer to the `app.py` file.
+
+This setup process using Docker ensures a consistent environment across different systems and simplifies the deployment process.
