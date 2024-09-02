@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BMX Health Check</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; }
+        h1 { color: #333; }
+        #health-status { margin-top: 20px; }
+        .status-ok { color: green; }
+        .status-error { color: red; }
+    </style>
+</head>
+<body>
+    <h1>BMX Health Check</h1>
+    <div id="health-status">Loading...</div>
+
+    <script>
+        async function checkHealth() {
+            try {
+                const response = await fetch('/health');
+                const data = await response.json();
+                const statusDiv = document.getElementById('health-status');
+                statusDiv.innerHTML = `
+                    <p>Status: <span class="${data.status === 'healthy' ? 'status-ok' : 'status-error'}">${data.status}</span></p>
+                    <p>Neo4j: ${data.neo4j}</p>
+                    <p>Pinecone: ${data.pinecone}</p>
+                    <p>Version: ${data.version}</p>
+                `;
+            } catch (error) {
+                console.error('Error fetching health status:', error);
+                document.getElementById('health-status').innerHTML = '<p class="status-error">Error fetching health status</p>';
+            }
+        }
+
+        checkHealth();
+        setInterval(checkHealth, 30000);  // Refresh every 30 seconds
+    </script>
+</body>
+</html>
