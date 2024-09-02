@@ -38,4 +38,8 @@ class Neo4jClient:
             logger.error(f"Error executing Neo4j query: {str(e)}")
             raise Neo4jClientError(f"Neo4j query error: {str(e)}")
 
-neo4j_client = Neo4jClient()
+neo4j_client = Neo4jClient(
+    uri="bolt://localhost:7687",
+    user="neo4j",
+    password="your_password"
+)

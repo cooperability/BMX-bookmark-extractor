@@ -66,3 +66,20 @@ If you encounter any issues:
 For more detailed information about the application structure and functionality, refer to the `app.py` file.
 
 This setup process using Docker ensures a consistent environment across different systems and simplifies the deployment process.
+
+## Dependencies
+
+- **fastapi**: Required for building the API.
+- **uvicorn**: ASGI server for running FastAPI.
+- **sqlalchemy**: ORM for database interactions.
+- **pydantic**: Data validation and settings management.
+- **asyncpg**: Async PostgreSQL client.
+- **beautifulsoup4**: HTML and XML parsing.
+- **requests**: HTTP requests.
+- **PyPDF2**: PDF manipulation.
+- **spacy**: NLP library.
+- **youtube-transcript-api**: Fetch YouTube transcripts.
+- **python-dotenv**: Load environment variables from `.env` file.
+- **neo4j**: Neo4j database driver.
+- **pinecone**: Vector database service.
+- **numpy**: Numerical computations.
