@@ -17,6 +17,10 @@ requests = "^2.31.0"
 PyPDF2 = "^3.0.1"
 spacy = "^3.7.2"
 youtube-transcript-api = "^0.6.1"
+python-dotenv = "^1.0.0"
+neo4j = "^5.10.0"
+pinecone = "^2.2.1"
+numpy = "^1.26.4"
 
 [build-system]
 requires = ["poetry-core"]
