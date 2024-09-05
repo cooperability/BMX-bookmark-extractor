@@ -1,45 +1,106 @@
 from neo4j import GraphDatabase
-from app.core.config import settings
-from app.core.logging import logger
+from neo4j.exceptions import ServiceUnavailable, AuthError
+from dotenv import load_dotenv
+import os
+import logging
+import uuid
 
-class Neo4jClientError(Exception):
-    """Neo4j client error: Verbose error message"""
-    pass
+load_dotenv()
 
-class Neo4jClient:
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+class Neo4jConnection:
     def __init__(self):
-        self._driver = None
-
-    async def connect(self):
+        uri = os.getenv("NEO4J_URI")
+        user = os.getenv("NEO4J_USER")
+        password = os.getenv("NEO4J_PASSWORD")
+        
+        if not all([uri, user, password]):
+            raise ValueError("Neo4j connection details are missing in the .env file")
+        
         try:
-            self._driver = GraphDatabase.driver(
-                settings.NEO4J_URI,
-                auth=(settings.NEO4J_USER, settings.NEO4J_PASSWORD)
-            )
-            await self._driver.verify_connectivity()
-            logger.info("Connected to Neo4j successfully")
-        except Exception as e:
+            self.driver = GraphDatabase.driver(uri, auth=(user, password))
+            logger.info("Successfully connected to Neo4j database")
+        except (ServiceUnavailable, AuthError) as e:
             logger.error(f"Failed to connect to Neo4j: {str(e)}")
-            raise Neo4jClientError(f"Failed to connect to Neo4j: {str(e)}")
+            raise
 
-    async def close(self):
-        if self._driver:
-            await self._driver.close()
+    def close(self):
+        if self.driver:
+            self.driver.close()
             logger.info("Neo4j connection closed")
 
-    async def run_query(self, query, parameters=None):
-        if not self._driver:
-            raise Neo4jClientError("Neo4j client not connected")
+    def run_query(self, query, parameters=None):
         try:
-            async with self._driver.session() as session:
-                result = await session.run(query, parameters)
-                return await result.data()
+            with self.driver.session() as session:
+                result = session.run(query, parameters)
+                return list(result)
         except Exception as e:
             logger.error(f"Error executing Neo4j query: {str(e)}")
-            raise Neo4jClientError(f"Neo4j query error: {str(e)}")
+            raise
 
-neo4j_client = Neo4jClient(
-    uri="bolt://localhost:7687",
-    user="neo4j",
-    password="your_password"
-)
+    def create_document_node(self, title, content, source_type):
+        query = """
+        CREATE (d:Document {
+            id: $id,
+            title: $title,
+            content: $content,
+            source_type: $source_type,
+            created_at: datetime()
+        })
+        RETURN d
+        """
+        parameters = {
+            "id": str(uuid.uuid4()),
+            "title": title,
+            "content": content,
+            "source_type": source_type
+        }
+        try:
+            result = self.run_query(query, parameters)
+            logger.info(f"Created document node with title: {title}")
+            return result[0]['d']
+        except Exception as e:
+            logger.error(f"Error creating document node: {str(e)}")
+            raise
+
+    def create_entity_node(self, name, entity_type):
+        query = """
+        MERGE (e:Entity {name: $name, type: $entity_type})
+        RETURN e
+        """
+        parameters = {"name": name, "entity_type": entity_type}
+        try:
+            result = self.run_query(query, parameters)
+            logger.info(f"Created or merged entity node: {name}")
+            return result[0]['e']
+        except Exception as e:
+            logger.error(f"Error creating entity node: {str(e)}")
+            raise
+
+    def create_relationship(self, document_id, entity_name, relationship_type):
+        query = """
+        MATCH (d:Document {id: $document_id})
+        MATCH (e:Entity {name: $entity_name})
+        MERGE (d)-[r:MENTIONS {type: $relationship_type}]->(e)
+        RETURN r
+        """
+        parameters = {
+            "document_id": document_id,
+            "entity_name": entity_name,
+            "relationship_type": relationship_type
+        }
+        try:
+            result = self.run_query(query, parameters)
+            logger.info(f"Created relationship between document {document_id} and entity {entity_name}")
+            return result[0]['r']
+        except Exception as e:
+            logger.error(f"Error creating relationship: {str(e)}")
+            raise
+
+try:
+    neo4j_client = Neo4jConnection()
+except Exception as e:
+    logger.critical(f"Failed to initialize Neo4j connection: {str(e)}")
+    raise
