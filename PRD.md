@@ -75,25 +75,6 @@
     - Leverage Rust's ownership system and type safety for robust, efficient code
     - Use Rust idioms and best practices for performant, maintainable APIs
     - Implement comprehensive error handling using Rust's Result type
-    
-    Me, the coder, your coworker:
-    
-    -Proficient in Python, Next.js, Typescript, React, PostgreSQL, Django
-    
-    -Almost no experience in Rust or Go
-    
-    .env:
-    
-    ```
-    # Neo4j Configuration
-    NEO4J_URI=neo4j+s://029407bd.databases.neo4j.io:7687
-    NEO4J_USER=neo4j
-    NEO4J_PASSWORD=wkdqLlBc1kdIrKo4ZkJWa7bQk0SbmY0Lsk1vMQX-MHA
-    
-    # Other configurations (to be filled later)
-    PINECONE_API_KEY=
-    PINECONE_ENVIRONMENT=
-    ```
 
 
 Rust Study Guide Outline:
