@@ -1,34 +1,28 @@
 services:
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    volumes:
+      - .app:/home/appuser/app/app
+      - ./pyproject.toml:/home/appuser/app/pyproject.toml
+    environment:
+      - DATABASE_URL=neo4j://neo4j:7687
+
   neo4j:
     image: neo4j:latest
     ports:
-      - 7687:7687
-      - 7474:7474
+      - "7687:7687"
+      - "7474:7474"
     volumes:
       - neo4j_data:/data
     environment:
-      - NEO4J_dbms_memory_heap_max_size=4G
-      - NEO4J_dbms_memory_pagecache_size=4G
+      - NEO4J_server_memory_heap_initial__size=512m
+      - NEO4J_server_memory_heap_max__size=4G
+      - NEO4J_server_memory_pagecache_size=4G
       - NEO4J_AUTH=neo4j/your_password
-
-  pinecone:
-    image: pinecone/pinecone:latest
-    environment:
-      - PINECONE_API_KEY=your_api_key
-      - PINECONE_ENV=your_environment
-      - PINECONE_INDEX_NAME=your_index_name
-  
-  web:
-    build: .
-    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
-    volumes:
-      - .:/app
-    ports:
-      - 8000:8000
-    depends_on:
-      - neo4j
-    env_file:
-      - .env
   
 volumes:
   neo4j_data:

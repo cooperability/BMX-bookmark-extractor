@@ -1,6 +1,30 @@
-import pinecone
+try:
+    import pinecone
+except ImportError:
+    print("Pinecone client not found")
+    pinecone = None
 from app.core.config import settings
 from app.core.logging import logger
+
+from app.core.config import settings
+
+def init_pinecone():
+    if pinecone is None:
+        print("Pinecone client not found")
+        return None
+    if not settings.PINECONE_API_KEY or not settings.PINECONE_ENV or not settings.PINECONE_INDEX_NAME:
+        logger.error("Pinecone credentials not found")
+        return None
+    
+    try:
+        pinecone.init(api_key=settings.PINECONE_API_KEY, environment=settings.PINECONE_ENV)
+        index = pinecone.Index(settings.PINECONE_INDEX_NAME)
+        return index
+    except Exception as e:
+        logger.error(f"Failed to connect to Pinecone: {str(e)}")
+        return None
+
+pinecone_client = init_pinecone()
 
 class PineconeClient:
     def __init__(self):

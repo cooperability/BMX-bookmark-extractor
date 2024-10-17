@@ -5,12 +5,11 @@ logger = logging.getLogger(__name__)
 
 # Load the English NLP model
 try:
+    logger.warning("Downloading spacy model...")
     nlp = spacy.load("en_core_web_sm")
 except IOError:
-    logger.warning("Downloading spacy model...")
-    from spacy.cli import download
-    download("en_core_web_sm")
-    nlp = spacy.load("en_core_web_sm")
+    logger.warning("Failed to download spacy model")
+    raise
 
 def extract_entities(text):
     try:
