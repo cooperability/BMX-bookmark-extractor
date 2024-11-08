@@ -1,4 +1,19 @@
 # Use Python Alpine as the base image for the main application
+FROM python:3.11-slim-bullseye AS builder
+
+ENV POETRY_VERSION=1.7.1 \
+    POETRY_HOME="/opt/poetry" \
+    POETRY_NO_INTERACTION=1
+
+RUN apt-get update && apt-get install -y curl && \
+    curl -sSL https://install.python-poetry.org | python3 - && \
+    ln -s /opt/poetry/bin/poetry /usr/local/bin/poetry
+
+WORKDIR /app
+COPY pyproject.toml poetry.lock ./
+RUN poetry lock --check
+
+# Main application stage
 FROM python:3.11-slim-bullseye
 
 # Set environment variables
@@ -25,22 +40,23 @@ ENV PATH="$POETRY_HOME/bin:$PATH"
 # Set up a non-root user for running the application
 RUN useradd -m appuser
 WORKDIR /app
+
+# Copy poetry files; set permissions
+COPY --from=builder /app/poetry.lock ./
+COPY pyproject.toml ./
+COPY --chown=appuser:appuser ./app ./app
+
+# Change ownership of /app directory to appuser (do this while still root)
+RUN chown -R appuser:appuser /app
+
+# Switch to appuser before running poetry install
 USER appuser
 
-# Copy poetry files
-COPY pyproject.toml poetry.lock ./
-
-# Copy project files
-COPY --chown=appuser:appuser pyproject.toml poetry.lock* ./
-
-# Install Python dependencies
-RUN poetry install --no-root --no-ansi
-
-# Install spaCy model
-RUN poetry run python -m spacy download en_core_web_sm
-
-# Copy the rest of the application
-COPY --chown=appuser:appuser ./app ./app
+# Install dependencies and spaCy model in one step
+RUN poetry install --no-root --no-ansi && \
+    poetry run pip install --no-cache-dir numpy==1.26.4 && \
+    poetry run pip install --no-cache-dir spacy==3.7.2 && \
+    poetry run python -m spacy download en_core_web_sm
 
 # Expose the port the app runs on
 EXPOSE 8000

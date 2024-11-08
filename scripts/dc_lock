@@ -1,0 +1,27 @@
+#!/bin/sh
+set -e
+
+cd "$(dirname "$0")"/..
+
+# Build a temporary container just for lock file generation
+docker build --tag temp-poetry-builder --file - . <<EOF
+FROM python:3.11-slim-bullseye
+
+ENV POETRY_VERSION=1.7.1 \
+    POETRY_HOME="/opt/poetry" \
+    POETRY_NO_INTERACTION=1
+
+RUN apt-get update && apt-get install -y curl && \
+    curl -sSL https://install.python-poetry.org | python3 - && \
+    ln -s /opt/poetry/bin/poetry /usr/local/bin/poetry
+
+WORKDIR /app
+COPY pyproject.toml ./
+RUN poetry lock
+EOF
+
+# Copy the lock file out
+docker create --name temp-poetry-builder temp-poetry-builder
+docker cp temp-poetry-builder:/app/poetry.lock ./poetry.lock
+docker rm temp-poetry-builder
+docker rmi temp-poetry-builder

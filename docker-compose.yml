@@ -6,8 +6,9 @@ services:
     ports:
       - "8000:8000"
     volumes:
-      - .app:/home/appuser/app/app
-      - ./pyproject.toml:/home/appuser/app/pyproject.toml
+      - ./app:/app/app #WORKDIR = /app
+      - ./pyproject.toml:/app/pyproject.toml
+      - ./poetry.lock:/app/poetry.lock
     environment:
       - DATABASE_URL=neo4j://neo4j:7687
 
