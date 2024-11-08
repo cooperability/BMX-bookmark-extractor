@@ -95,3 +95,8 @@ Week 1: Web frameworks (e.g., Actix, Rocket) and RESTful API design
 Week 2: Database interactions (Neo4j driver for Rust)
 Week 3: Asynchronous programming in Rust
 Week 4: Testing, benchmarking, and optimizing Rust code
+
+Pinecone alternatives:
+a. Milvus: An open-source vector database that supports similarity search and AI-powered analytics.
+b. Qdrant: A vector similarity search engine with extended filtering support.
+c. Weaviate: An open-source vector database that can be used for various AI-powered applications.

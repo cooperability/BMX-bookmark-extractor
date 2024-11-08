@@ -1,5 +1,7 @@
 from neo4j import GraphDatabase
 from neo4j.exceptions import ServiceUnavailable, AuthError
+from app.core.config import settings
+from app.core.logging import logger
 from dotenv import load_dotenv
 import os
 import logging
@@ -9,6 +11,32 @@ load_dotenv()
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+def init_neo4j():
+    if not settings.NEO4J_URI or not settings.NEO4J_USER or not settings.NEO4J_PASSWORD:
+        logger.warning("Neo4j settings not configured")
+        return None
+    
+    try:
+        driver = GraphDatabase.driver(
+            settings.NEO4J_URI,
+            auth=(settings.NEO4J_USER, settings.NEO4J_PASSWORD)
+        )
+        # Test the connection
+        with driver.session() as session:
+            session.run("RETURN 1")
+        logger.info("Successfully connected to Neo4j database")
+        return driver
+    except Exception as e:
+        logger.error(f"Failed to connect to Neo4j: {str(e)}")
+        return None
+
+neo4j_client = init_neo4j()
+
+def get_neo4j_session():
+    if neo4j_client is None:
+        raise Exception("Neo4j client not initialized")
+    return neo4j_client.session()
 
 class Neo4jConnection:
     def __init__(self):
