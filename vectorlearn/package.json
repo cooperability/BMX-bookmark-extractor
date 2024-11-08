@@ -16,7 +16,7 @@
     "autoprefixer": "10.4.14",
     "eslint": "8.42.0",
     "eslint-config-next": "13.4.4",
-    "langchain": "^0.0.91",
+    "langchain": "^0.3.5",
     "next": "14.2.10",
     "pdf-parse": "^1.1.1",
     "postcss": "8.4.31",
