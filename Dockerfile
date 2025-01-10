@@ -17,6 +17,8 @@ RUN poetry lock --check
 FROM python:3.11-slim-bullseye
 
 # Set environment variables
+#ensure Poetry operates entirely within container context
+#prevents attempts to modify host machine's files
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PIP_NO_CACHE_DIR=1 \
@@ -38,6 +40,8 @@ RUN curl -sSL https://install.python-poetry.org | python3 -
 ENV PATH="$POETRY_HOME/bin:$PATH"
 
 # Set up a non-root user for running the application
+#Helps resolve permission issues & ensure proper file ownership
+#prevents conflicts with host machine's permission restrictions
 RUN useradd -m appuser
 WORKDIR /app
 
