@@ -206,3 +206,55 @@ Pinecone alternatives:
 a. Milvus: An open-source vector database that supports similarity search and AI-powered analytics.
 b. Qdrant: A vector similarity search engine with extended filtering support.
 c. Weaviate: An open-source vector database that can be used for various AI-powered applications.
+
+## Docker Development Setup
+
+### Prerequisites
+- Docker and Docker Compose installed
+- Git (for version control)
+
+### Development Workflow
+1. Start the development environment:
+   ```bash
+   docker-compose up frontend --build
+   ```
+
+2. Access the application:
+   - Frontend: http://localhost:3000
+
+### Production Deployment
+For production deployment:
+1. Build using production target:
+   ```bash
+   docker-compose -f docker-compose.prod.yml build
+   ```
+
+2. Deploy using your preferred platform (Vercel recommended for frontend)
+
+### Security Considerations
+- Regular security audits using:
+  ```bash
+  npm audit
+  docker scan frontend
+  ```
+- Keep base images updated
+- Monitor dependencies for vulnerabilities
+
+### Performance Optimization
+- Frontend build optimization:
+  ```bash
+  docker-compose exec frontend npm run build
+  ```
+- Monitor bundle size:
+  ```bash
+  docker-compose exec frontend npm run analyze
+  ```
+
+### Troubleshooting
+If you encounter permission issues:
+1. Check volume permissions
+2. Ensure Docker daemon is running
+3. Review logs:
+   ```bash
+   docker-compose logs frontend
+   ```
