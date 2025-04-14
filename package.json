@@ -1,5 +1,6 @@
 {
   "dependencies": {
+    "next": "15.2.3",
     "react": "^18.2.0",
     "sass": "^1.66.1",
     "vercel": "^32.2.4"
