@@ -3215,3 +3215,28 @@ ggQ[4d*;z|	Basic	Psych / Socio	Procrastination	"<div>Managing emotions: you need
 <div>People who are 'social perfectionists' and are motivated to work because of other people's/society's expectations rather than their own sense of accomplishment are more likely to procrastinate.</div>
 <div>At a high level, tasks often seem insurmountable since they are so vague. e.g. ""working on my thesis"" or ""studying for my class"" often means doing nothing, whereas ""reading 4 pages of a textbook to understand a concept i need to summarize in my thesis"" is a concrete, broken down goal.</div>
 <div>Most important technique introduced at the end 54:11: Be intentional about your implementation. Instead of ""I'll work on my task all day saturday"" (which few people ever do successfully), use the formula: In situation x, I will do y to achieve subgoal z. By identifying your situation, action, and goal, you have broken down the task into an easily achievable, chewable piece.</div>"	behavior formula habit persuasion technique
+mqW%p:diqX	Basic	Psych / Socio	Never Split the Difference by Chris Voss	"<div>If someone is trying to rush you, ice them</div>
+<div>both parties must feel in control</div>
+<div>seed warmth into an aggressive interaction</div>
+<div>open-ended question is potent negotiation tool</div>
+<div>buys time, gives illusion of control, encourages them to self-constrain while you sacrifice nothing</div>
+<div>how am i supposed to pay you? divert the question and thus the urgency</div>
+<div>Passive aggressive approach: ask questions which don’t outright say no, but imply the terms of the deal are unfair or infeasible with an open-ended question. Your opponents will tire, falter, and negotiate with themselves.</div>
+<div>For tenets of fisher ury getting to yes:</div>
+<div>Separate the person/emotion from the problem</div>
+<div>Don’t get caught on specific ask but instead investigate motivation for ask</div>
+<div>Work cooperatively for win-win options</div>
+<div>Set mutually agreed upon standards for evaluating said options</div>
+<div>Getting to yes failed at ruby ridge and with the branch Davidians in the early 90s</div>
+<div>Kahneman -“ It is self evident that people are neither fully rational nor completely selfish, and that their tastes are anything but stable.”</div>
+<div>Prospect theory - we take unwarranted risks on the face of uncertain losses</div>
+<div>Loss aversion - people are statistically, more likely to act to avert a loss than to achieve an equal gain.</div>
+<blockquote>
+<div>If you believe, believed Conman, conducting negotiations based on the system, two concepts without the tools to read, understand, and manipulate the system one emotional underpinning was like trying to make an omelette without first, knowing how to crack an egg.“</div>
+</blockquote>
+<div>You’re extremely unlikely to encounter a classic bargaining situation in real life, and much more likely to encounter a dynamic, intense, uncertain environment, where a hostage taker is in emotional crisis and has no clear demands.</div>
+<div>Calm down, establish rapport, gain trust, illicit the verbalization of needs, and persuade the other person of your empathy.</div>
+<div>Listening, intensely satisfies, the cheapest the most effective concession and fulfills an essential human need. When individuals listen to, they listen to themselves more carefully and openly evaluate and clarify their own thoughts and feelings. In addition, they tend to become less defensive and oppositional and more willing to listen to other points of view, which gets them to the calm logical place where they can be good, rational problem, solvers.</div>
+<div>Negotiation serves the two distinct vital life functions of information gathering and behavior influence, and includes almost any interaction where each party wants something from the other side. effective negotiation entails, how to size someone up, how to influence their sizing up of you, and how to use these knowledge sets to get what you want.</div>
+<div>A hostage negotiator must get everything they ask for without giving anything of substance in return; unique negotiation</div>
+<div>negotiation is at the heart of collaboration and makes conflict potentially meaningful and productive for all parties.</div>"	behavior book history marketing persuasion psychology sociology trendtracking
