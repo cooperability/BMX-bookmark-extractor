@@ -1,16 +1,14 @@
 services:
-  web:
+  backend:
     build:
-      context: .
+      context: ./backend
       dockerfile: Dockerfile
     ports:
       - "8000:8000"
     volumes:
-      - ./app:/app/app #WORKDIR = /app
+      - ./backend:/app
       - ./pyproject.toml:/app/pyproject.toml
       - ./poetry.lock:/app/poetry.lock
-    environment:
-      - DATABASE_URL=neo4j://neo4j:7687
 
   neo4j:
     image: neo4j:latest
@@ -21,27 +19,9 @@ services:
       - neo4j_data:/data
     environment:
       - NEO4J_server_memory_heap_initial__size=512m
-      - NEO4J_server_memory_heap_max__size=4G
-      - NEO4J_server_memory_pagecache_size=4G
-      - NEO4J_AUTH=neo4j/your_password
-
-  frontend:
-    build:
-      context: ./frontend
-      target: development
-    ports:
-      - "3000:3000"
-    volumes:
-      - ./frontend:/app
-      - frontend_node_modules:/app/node_modules
-    environment:
-      - NODE_ENV=development
-    healthcheck:
-      test: ["CMD", "wget", "--spider", "http://localhost:3000"]
-      interval: 10s
-      timeout: 5s
-      retries: 3
+      - NEO4J_server_memory_heap_max__size=2G
+      - NEO4J_server_memory_pagecache_size=1G
+      - NEO4J_AUTH=neo4j/please_change_password
 
 volumes:
   neo4j_data:
-  frontend_node_modules:

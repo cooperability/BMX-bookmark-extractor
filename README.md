@@ -1,260 +1,206 @@
 # BMX-bookmark-extractor
 
 ![](https://github.com/cooperability/BMX-bookmark-extractor/blob/main/Screen%20Recording%202023-09-18%20at%201.07.22%20PM.gif)
-Infrastructure snippets building toward a comprehensive scraping-NLP pipeline for web links.
+Infrastructure snippets building toward a comprehensive scraping-NLP pipeline for web links, focusing on knowledge structuring and retrieval using Python, Neo4j, and PostgreSQL.
+
+## Project Update & Refocus (May 2025)
+
+Based on a review, the project scope has been significantly refined to focus on achievable goals within a reasonable timeframe. Key decisions include:
+
+*   **Backend Simplification**: The backend will be built using Python with the FastAPI framework, leveraging its performance and ease of use. The previous exploration into Rust has been removed to simplify the tech stack and learning curve.
+*   **Streamlined Structure**: The project structure has been cleaned up. All backend code now resides in the `backend/` directory. The previous `app/` directory and the `frontend/` directory (containing a Next.js app) have been removed to focus efforts on the core data pipeline and API.
+*   **Data Strategy**: The core data handling strategy involves using both Neo4j (for graph-based relationship modeling) and PostgreSQL (for structured data storage and potential future integrations), ensuring data parity between them.
+*   **Dependency Management**: Python dependencies are managed using Poetry at the project root. Commands are run *inside* the Docker container using the `scripts/dc_poetry` helper script (e.g., `./scripts/dc_poetry add <package>`).
+*   **LLM Integration**: Google's Gemini API is the recommended choice for future Large Language Model integration due to its capabilities, cost-effectiveness, and ease of integration compared to hosting a local model like LLaMa.
+*   **Timeline**: The implementation plan has been adjusted to reflect this focused scope, aiming for core data ingestion and API functionality within approximately 8-12 weeks, with LLM integration as a subsequent phase.
+
+This refocus allows for a clearer path towards building the core value proposition: structuring diverse data sources into robust, queryable knowledge bases.
 
 ## Setup
 
 ### Prerequisites
-- Docker installed on your system
-- Git (optional, for cloning the repository)
+*   Docker and Docker Compose installed on your system
+*   Git (optional, for cloning the repository)
+*   Poetry installed locally (though commands are typically run via Docker script)
 
 ### Steps
 
-1. Clone the repository (if you haven't already):
-   ```
-   git clone https://github.com/cooperability/BMX-bookmark-extractor.git
-   cd BMX-bookmark-extractor
-   ```
+1.  Clone the repository (if you haven't already):
+    ```bash
+    git clone https://github.com/cooperability/BMX-bookmark-extractor.git
+    cd BMX-bookmark-extractor
+    ```
 
-2. Build the Docker image:
-   ```
-   docker build -t bmx .
-   ```
+2.  **Initial Dependency Installation (if needed):**
+    *   If `poetry.lock` exists and is up-to-date, you might skip this.
+    *   To install dependencies based on `pyproject.toml` and create/update `poetry.lock`:
+        ```bash
+        # You might need to build the image first if running for the very first time
+        docker-compose build backend
+        # Run the install command via the helper script
+        ./scripts/dc_poetry install
+        ```
 
-3. Run the Docker container:
-   ```
-   docker run -p 8080:8080 bmx
-   ```
+3.  **Configure Environment Variables:**
+    *   Create a `.env` file in the project root directory by copying `.env.example` (you'll need to create `.env.example` first if it doesn't exist).
+    *   Add connection details for Neo4j and PostgreSQL to your `.env` file. Example content for `.env.example`:
+        ```dotenv
+        # Neo4j Connection
+        NEO4J_URI=bolt://neo4j:7687
+        NEO4J_USER=neo4j
+        NEO4J_PASSWORD=please_change_password # Match the password in docker-compose.yml
 
-4. Access the application:
-   Open your web browser and navigate to `http://localhost:8080`
+        # PostgreSQL Connection (Example DSN)
+        POSTGRES_DSN=postgresql+psycopg2://user:password@postgres:5432/mydatabase 
+        # ^^^ Adjust user, password, host (service name), and db name as needed
+        # Add a postgres service to docker-compose.yml if using
+        ```
+    *   **Important:** Add `.env` to your `.gitignore` file to avoid committing secrets.
 
-### Configuration
+4.  **Build and Run Docker Containers:**
+    ```bash
+    docker-compose up --build backend neo4j # Add postgres if you add the service
+    ```
 
-The application uses several AI models and libraries. These are automatically installed during the Docker build process. The main components are:
+5.  **Access the Application:**
+    *   The backend API will be available (e.g., `http://localhost:8000`).
+    *   Check the FastAPI documentation endpoint (e.g., `http://localhost:8000/docs` or `/redoc`) for available routes.
+    *   Neo4j Browser: `http://localhost:7474`
 
-- Flask web framework
-- spaCy for NLP tasks
-- Transformers library for T5 summarization and MobileBERT sentiment analysis
-- BeautifulSoup for web scraping
+## Core Concept
 
-You can view the full list of dependencies in the `requirements.txt` file.
+BMX (BookMark eXtractor) aims to synthesize complex, multi-disciplinary information from various sources (articles, Anki exports, web scrapes, etc.) into structured knowledge bases. It leverages both graph (Neo4j) and relational (PostgreSQL) databases to provide flexible data modeling and querying capabilities. The ultimate goal is to enable users to query this structured knowledge using advanced AI models.
 
-### Development
+*   **Pitch**: BMX structures diverse information sources into parallel graph and relational databases. By leveraging these structured representations, potentially combined with LLMs like the Gemini API, BMX aims to provide nuanced insights and synthesized knowledge from user-provided data.
+*   **Key Use Case**: Ingesting structured knowledge (like Anki decks) and unstructured data (web scrapes, PDFs), mapping them into Neo4j for relationship analysis and PostgreSQL for structured querying/backups. Later phases will involve using an LLM to query this combined knowledge base for complex questions (e.g., "Synthesize information on topic X from sources Y and Z").
+*   **Output Priorities** (for future LLM querying phase):
+    1.  **Factual:** Accurate to the source documents stored in the databases.
+    2.  **Verifiable:** Traceable back to original sources/nodes/rows.
+    3.  **Holistic:** Leverages connections discovered in the graph database.
+    4.  **Concise**: Effectively summarized.
 
-If you want to make changes to the application:
+## Stack (Simplified & Focused)
 
-1. Modify the necessary files in the `app` directory.
-2. Rebuild the Docker image:
-   ```
-   docker build -t bmx .
-   ```
-3. Run the new container to test your changes.
+*   **Backend Framework**: FastAPI (Python) - Located in `backend/src`.
+*   **Graph Database**: Neo4j (running in Docker).
+*   **Relational Database**: PostgreSQL (to be added to Docker Compose if used).
+*   **ORM/Database Clients**:
+    *   `neo4j` (Official Python driver) for Neo4j interactions.
+    *   SQLAlchemy (Python ORM) for PostgreSQL interactions.
+*   **Data Validation**: Pydantic (integrates seamlessly with FastAPI).
+*   **Containerization**: Docker & Docker Compose.
+*   **Dependency Management**: Poetry (managed via `./scripts/dc_poetry`).
+*   **Testing**: Pytest (tests located in `backend/tests`).
+*   **(Future) LLM Integration**: Google Gemini API.
+*   **(Optional) Vector Database**: Pinecone or alternatives (Milvus, Qdrant) *if* dense vector similarity search becomes a requirement later.
 
-### Troubleshooting
+## Implementation Plan (Revised ~12 Weeks Focus)
 
-If you encounter any issues:
+*   **Phase 1**: Core Infrastructure & Data Modeling (Weeks 1-2)
+    *   Set up Python FastAPI project structure within `backend/`.
+    *   Configure Docker Compose for FastAPI (`backend`), Neo4j, and optionally PostgreSQL services.
+    *   Define initial database schemas/models using Pydantic/SQLAlchemy and map out Neo4j node/relationship labels.
+    *   Implement connection logic for Neo4j (and Postgres if added).
+    *   Establish basic API endpoints (`/`, `/health`) and initial tests.
+    *   Create `.env.example` and ensure `.gitignore` is correct.
+*   **Phase 2**: Data Ingestion Pipeline (Weeks 3-6)
+    *   Develop parsers for initial data sources (e.g., Anki `.txt` exports from `source_data/`).
+    *   Implement logic to populate *both* Neo4j and PostgreSQL with parsed data, ensuring consistency.
+    *   Add basic API endpoints for triggering ingestion and performing simple queries (e.g., get card by ID, get nodes by label).
+    *   Implement web scraping (`BeautifulSoup`, `httpx`) and PDF text extraction (`PyPDF2`) services within the `backend/` structure.
+    *   Develop basic data validation for ingested content.
+*   **Phase 3**: API Expansion & Basic Querying (Weeks 7-8)
+    *   Develop more sophisticated API endpoints for querying (e.g., find related concepts via Neo4j paths, retrieve structured records with filters from PostgreSQL).
+    *   Implement basic keyword search across stored data.
+    *   Refine error handling, logging, and add more comprehensive tests.
+*   **Phase 4**: LLM Integration (Gemini API) & Advanced Features (Weeks 9-12+)
+    *   Integrate the Google Gemini API client.
+    *   Develop a service that takes a query, retrieves relevant context from Neo4j/PostgreSQL, formats it for Gemini, and processes the response.
+    *   Build API endpoints for this LLM-powered querying.
+    *   Implement testing and basic caching for LLM interactions.
+*   **Phase 5**: Deployment & Refinement (Ongoing)
+    *   Prepare Docker configuration for production (e.g., multi-stage builds, security hardening).
+    *   Deploy to a target platform (e.g., DigitalOcean Docker Droplet).
+    *   Implement production monitoring, logging, and backups.
+    *   Develop user documentation if applicable.
 
-1. Ensure Docker is running on your system.
-2. Check if the required ports are available (8080 by default).
-3. Review the Docker logs for any error messages:
-   ```
-   docker logs <container_id>
-   ```
+## Coding Form Guidelines
 
-For more detailed information about the application structure and functionality, refer to the `app.py` file.
+*   Provide context for code changes, specifying WHERE TO ADD/MODIFY CODE/FILES/DEPENDENCIES within the `backend/` directory.
+*   Prioritize readability, modifiability, clarity, logic, best practices.
+*   Include robust error handling (`try...except` blocks) and log informative errors using Python's `logging` module.
+*   Build robust, flexible, and scalable interfaces.
+*   Implement comprehensive logging.
+*   Format responses in markdown.
+*   Specify language identifiers in code blocks.
+*   Use type hints extensively in Python code (`backend/`).
 
-This setup process using Docker ensures a consistent environment across different systems and simplifies the deployment process.
+## Environment & Setup Notes
 
-## Dependencies
-
-- **fastapi**: Required for building the API.
-- **uvicorn**: ASGI server for running FastAPI.
-- **sqlalchemy**: ORM for database interactions.
-- **pydantic**: Data validation and settings management.
-- **asyncpg**: Async PostgreSQL client.
-- **beautifulsoup4**: HTML and XML parsing.
-- **requests**: HTTP requests.
-- **PyPDF2**: PDF manipulation.
-- **spacy**: NLP library.
-- **youtube-transcript-api**: Fetch YouTube transcripts.
-- **python-dotenv**: Load environment variables from `.env` file.
-- **neo4j**: Neo4j database driver.
-- **pinecone**: Vector database service.
-- **numpy**: Numerical computations.
-
-
-- Pitch
-    
-    BMX (BookMark eXtractor) synthesizes complex, multi-disciplinary information into actionable, personalized advice. It will index data from a variety of articles, research papers, books, Audio Transcripts, and scraped web pages. By leveraging a user-created graph database sending targeted clusters of academic literature to an LLM, BMX goes past aggregation and synthesis to UNDERSTAND user data. It bridges the gap between vast knowledge repositories, pragmatic personal advice, and bespoke professional opinion. The central, key use case is the generation of nuanced, detailed, research-backed advice. A secondary use case is interdisciplinary academic research synthesis, though one can see how this serves the central use case. If a killer app gets made, there are few human industries BMX WON’T disrupt.
-    
-- Key Use Case
-    
-    An example use case: “Draw on all literature in the database pertaining to relationships, love, psychology, neurodivergence, and parenting. Advise a young, successful couple whose sex life has died because they are struggling to effectively communicate with their autistic child and keep up with their busy careers. “These situations will be diverse, nuanced and impossible to predict; thus answers MUST be generated according to the priorities below. This should flawlessly work for ANY kind of therapist/life coach drawing on ANY kind of literature.
-    
-- Output Priorities
-    1. **Factual:** Utterly factually accurate to the source documents
-    2. **Verifiable:** Fully cited
-    3. **Holistic:** maximally nuanced & multifaceted analysis
-    4. **Concise**: effectively summarized
-- Stack
-    -BMX will implement a hybrid database approach using both Neomodel (Object Graph Mapper) and direct Neo4j queries. This strategy leverages Django-like structured data management for document metadata while maintaining Neo4j's powerful graph capabilities for semantic relationships. The hybrid approach allows for rapid initial development using familiar ORM patterns while preserving the ability to perform complex graph operations for cross-document analysis. This dual-interface strategy provides maximum flexibility: structured operations can use Neomodel's ORM-like syntax, while complex semantic queries can utilize Neo4j's native graph capabilities.
-    - Neo4j: Graph database for complex relationship modeling
-        - Neo4j Rust Driver: Official Neo4j driver for Rust applications
-    - Pinecone: Vector database for efficient similarity search
-    - FastAPI: High-performance Python web framework
-    - LLaMA: Open-source language model for natural language processing
-    - Docker: Containerization for consistent development and deployment
-    - Poetry: Dependency management for Python
-    - Pytest: Testing framework for robust code quality
-    - Frontend: Next.js for server-side rendering and SEO benefits
-    - Deployment: Vercel for frontend, DigitalOcean App Platform for backend
-    - LLM Integration: Hugging Face's transformers library for flexible model choices
-    - Rust: High-performance, safe systems programming language for the core API backend
-    - Actix Web: Rust web framework for building efficient, scalable HTTP services
-    - Python: For specialized NLP and ML tasks, integrated as microservices
-    - Security & Dependency Management:
-        - Poetry for deterministic builds
-        - Regular security audits via Dependabot
-        - Version pinning strategy: Security patches > Minor updates > Major versions
-- PRD & Implementation Agenda:
-    - **Phase 1**: Core Infrastructure Setup (Weeks 1-4)
-        - Set up Rust development environment
-        - Design and implement basic API structure using Actix Web
-        - Integrate Neo4j Rust driver for database operations, design schema
-        - Integrate Pinecone for vector storage
-        - Refactor existing FastAPI structure for new databases
-        - Add environment variables to connect Neo4j and Pinecone
-        - Implement basic ingestion pipeline for literature
-        - Neo4j Setup (When ready in Phase 1):
-            - Create a new instance
-            - Note connection details (URI, username, password)
-            - Update configuration to use Neo4j connection details
-        - Pinecone Setup (When ready in Phase 1):
-            - Create a new index
-            - Note API key and environment
-            - Update configuration with Pinecone details
-        - Implement automated dependency security scanning
-        - Establish version management protocols for critical dependencies
-    - **Phase 2**: Knowledge Processing (Weeks 5-8)
-        - Implement core functionalities for text ingestion and processing in Rust
-        - Create Python microservices for specialized NLP tasks
-        - Design and implement inter-service communication (e.g., gRPC or REST)
-        - Implement the service modules (pdf_service, web_service, youtube_service, query_service).
-        - Implement entity extraction and relationship mapping for Neo4j
-        - Create vector embedding generation for Pinecone; Design and implement the reasoning engine
-    - **Phase 3**: LLM Integration and Query System (Weeks 9-12)
-        - Integrate LLaMA model for natural language understanding
-        - Develop query processing/response generation system using graph data and LLM
-        - Create API endpoints for user interactions
-    - **Phase 4**: Systematic testing, optimization, and security audit of all components (Weeks 13-16)
-    - **Phase 5**: Deployment and Scaling (Weeks 17-20)
-        - Set up cloud infrastructure & prepare the Docker configuration for deployment.
-        - Plan the deployment strategy for DigitalOcean or another hosting provider.
-        - Implement production monitoring and logging
-        - Develop documentation and user guides
-        - Beta launch and feedback collection
-        - Look into Google Ad revenue, donation button, etc
-- Coding Form Guidelines:
-    - Provide context for code changes, specifying WHERE TO ADD/MODIFY CODE/FILES/DEPENDENCIES
-    - Prioritize readability, modifiability, clarity, logic, best practices, existing project conventions, in that order.
-    - Include robust try/catch/handle exception cases and log verbose errors wherever possible.
-    - Product should be functional and impressive above all, but also lightweight and low-overhead as a close second priority.
-    - Build robust, flexible, and scalable interfaces with efficient code, minimizing #lines where possible.
-    - Implement comprehensive error handling and logging
-    - Format responses in markdown for clarity
-    - Specify language identifiers in code blocks
-    - When modifying existing files, show only the changes with context
-    - Leverage Rust's ownership system and type safety for robust, efficient code
-    - Use Rust idioms and best practices for performant, maintainable APIs
-    - Implement comprehensive error handling using Rust's Result type
-
-1. **Windows + Git Bash Environment Considerations**
-    - Project initially assumed Unix-like environment, but runs on Windows using Git Bash
-    - Docker commands need to account for Windows path conventions and potential line ending issues
-    - Some Unix-style commands need `winpty` prefix in Git Bash
-2. **Docker Permission Management**
-    - Work computer restrictions require strict containerization
-    - Permission errors for Python packages (e.g., `mdurl`, `typing-extensions`) indicate need for complete Docker isolation
-    - Solution requires proper user permissions and volume mounting strategy rather than system-wide installations
-3. **Poetry Lock File Generation**
-    - Catch-22 situation discovered: Container needs lock file to build, but lock file generation needs container
-    - Current setup doesn't handle missing `poetry.lock` gracefully, causing build failures
-    - Need for a bootstrapping process to generate initial lock file
-
-Rust Study Guide Outline:
-Week 1-2: Fundamentals
-Day 1-2: Rust syntax, variables, and basic types
-Day 3-4: Control flow, functions, and modules
-Day 5-7: Ownership, borrowing, and lifetimes
-Day 8-10: Structs, enums, and pattern matching
-Day 11-14: Error handling, generics, and traits
-Week 3-4: Intermediate Concepts
-Day 15-17: Advanced trait usage and trait objects
-Day 18-20: Closures and iterators
-Day 21-23: Smart pointers and interior mutability
-Day 24-26: Concurrency and parallelism in Rust
-Day 27-28: Unsafe Rust and FFI
-Month 2: Application-Specific Topics
-Week 1: Web frameworks (e.g., Actix, Rocket) and RESTful API design
-Week 2: Database interactions (Neo4j driver for Rust)
-Week 3: Asynchronous programming in Rust
-Week 4: Testing, benchmarking, and optimizing Rust code
-
-Pinecone alternatives:
-a. Milvus: An open-source vector database that supports similarity search and AI-powered analytics.
-b. Qdrant: A vector similarity search engine with extended filtering support.
-c. Weaviate: An open-source vector database that can be used for various AI-powered applications.
+1.  **Windows + Git Bash Environment Considerations**
+    *   Project runs on Windows using Git Bash.
+    *   Docker commands via `docker-compose` should handle path conversions for volumes.
+    *   Manage potential line ending issues (`
+` vs `
+`) using `.gitattributes` or editor settings.
+2.  **Docker Dependency Management (Poetry)**
+    *   Use the `./scripts/dc_poetry` script to run poetry commands inside the `backend` service container (e.g., `./scripts/dc_poetry add requests`). This ensures dependencies match the container environment.
+3.  **Database Passwords/Secrets:**
+    *   Use the `.env` file for storing secrets locally.
+    *   **DO NOT** commit the `.env` file. Use `.env.example` as a template.
+    *   For production, use proper secrets management (Docker secrets, environment variables injected by the platform, etc.).
 
 ## Docker Development Setup
 
 ### Prerequisites
-- Docker and Docker Compose installed
-- Git (for version control)
+*   Docker and Docker Compose installed
+*   Git (for version control)
 
 ### Development Workflow
-1. Start the development environment:
-   ```bash
-   docker-compose up frontend --build
-   ```
+1.  Ensure `poetry.lock` is consistent with `pyproject.toml` (run `./scripts/dc_poetry lock --no-update` or `./scripts/dc_poetry install` if needed).
+2.  Start the development environment:
+    ```bash
+    docker-compose up backend neo4j --build # Add postgres if configured
+    ```
 
-2. Access the application:
-   - Frontend: http://localhost:3000
+3.  Access the services:
+    *   Backend API: `http://localhost:8000`
+    *   API Docs: `http://localhost:8000/docs` or `/redoc`
+    *   Neo4j Browser: `http://localhost:7474` (Connect with `bolt://localhost:7687`, user `neo4j`, password from your `.env` or `docker-compose.yml`)
+
+4.  Run commands (like tests or dependency installs) inside the container:
+    ```bash
+    # Example: Run pytest
+    docker-compose exec backend poetry run pytest
+
+    # Example: Add a dependency
+    ./scripts/dc_poetry add httpx 
+    ```
 
 ### Production Deployment
-For production deployment:
-1. Build using production target:
-   ```bash
-   docker-compose -f docker-compose.prod.yml build
-   ```
-
-2. Deploy using your preferred platform (Vercel recommended for frontend)
+For production deployment (e.g., DigitalOcean Docker Droplet):
+1.  Ensure a production-ready `docker-compose.prod.yml` or equivalent deployment script exists (e.g., using multi-stage builds, non-root users, specific versions).
+2.  Build production images.
+3.  Deploy using your chosen platform's tools, ensuring secure secret management.
 
 ### Security Considerations
-- Regular security audits using:
-  ```bash
-  npm audit
-  docker scan frontend
-  ```
-- Keep base images updated
-- Monitor dependencies for vulnerabilities
-
-### Performance Optimization
-- Frontend build optimization:
-  ```bash
-  docker-compose exec frontend npm run build
-  ```
-- Monitor bundle size:
-  ```bash
-  docker-compose exec frontend npm run analyze
-  ```
+*   Regularly audit dependencies:
+    ```bash
+    # Run inside the container or using the script
+    ./scripts/dc_poetry run safety check # Requires 'safety' package
+    docker scan bmx-bookmark-extractor_backend # Use actual image name
+    ```
+*   Keep base Docker images (`python`, `neo4j`) updated.
+*   Use environment variables or secrets for sensitive data; don't commit `.env`.
+*   Implement rate limiting, authentication/authorization on API endpoints as needed.
 
 ### Troubleshooting
-If you encounter permission issues:
-1. Check volume permissions
-2. Ensure Docker daemon is running
-3. Review logs:
-   ```bash
-   docker-compose logs frontend
-   ```
+If you encounter issues:
+1.  Check volume permissions and paths in `docker-compose.yml`.
+2.  Ensure Docker daemon is running.
+3.  Review logs:
+    ```bash
+    docker-compose logs backend
+    docker-compose logs neo4j
+    ```
+4.  Ensure `.env` file exists and has the correct variables/passwords matching `docker-compose.yml`.
