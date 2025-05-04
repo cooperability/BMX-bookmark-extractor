@@ -1,6 +1,22 @@
 #!/bin/sh
+# Runs linters and formatters inside the backend container using docker compose exec
 set -e
 
+# Navigate to the project root directory (where docker-compose.yml is)
 cd "$(dirname "$0")"/..
 
-docker compose exec -T web bash scripts/run_lint
+SERVICE_NAME="backend"
+TARGET_DIR="/app/src"
+
+echo "Executing linters inside ${SERVICE_NAME} container on ${TARGET_DIR}..."
+
+echo "\n--- Running black formatter --- "
+docker compose exec --user appuser "${SERVICE_NAME}" poetry run black "//${TARGET_DIR}"
+
+echo "\n--- Running ruff checks --- "
+docker compose exec --user appuser "${SERVICE_NAME}" poetry run ruff check "//${TARGET_DIR}"
+
+echo "\n--- Running isort import sorter --- "
+docker compose exec --user appuser "${SERVICE_NAME}" poetry run isort --profile black "//${TARGET_DIR}"
+
+echo "\nContainerized linting complete." 

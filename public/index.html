@@ -24,8 +24,6 @@
                 const statusDiv = document.getElementById('health-status');
                 statusDiv.innerHTML = `
                     <p>Status: <span class="${data.status === 'healthy' ? 'status-ok' : 'status-error'}">${data.status}</span></p>
-                    <p>Neo4j: ${data.neo4j}</p>
-                    <p>Pinecone: ${data.pinecone}</p>
                     <p>Version: ${data.version}</p>
                 `;
             } catch (error) {
