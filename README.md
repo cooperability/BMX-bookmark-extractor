@@ -16,21 +16,43 @@ Based on a review, the project scope has been significantly refined to focus on 
 
 This refocus allows for a clearer path towards building the core value proposition: structuring diverse data sources into robust, queryable knowledge bases.
 
-## Troubleshooting & Lessons Learned (MVP Setup)
+## Containerized Development Workflow & Troubleshooting Notes
 
-*   **`docker compose exec` Interaction:**
-    *   The target service (`backend` in this case) must be *running* before `exec` can attach to it. Use `docker compose up -d <service>` first if needed.
-    *   `exec` might run as `root` by default. If your application runs as a different user (`appuser`), use `docker compose exec --user appuser ...` to ensure commands run with the correct environment (especially `PATH`).
-    *   Commands with paths or complex arguments passed to `exec` (especially from scripts or shells like Git Bash) might require wrapping with `sh -c "$*"` inside the container for reliable parsing.
-*   **Poetry & Docker:**
-    *   If using helper scripts (`dc_poetry`, `dc_exec`) to run `poetry` *inside* the final container, the `poetry` installation itself needs to be copied from the builder stage (e.g., from `/opt/poetry`) to the final stage.
-    *   Ensure the `POETRY_HOME` env var and `${POETRY_HOME}/bin` are added to the `PATH` env var in the *final* stage of the Dockerfile.
-    *   The user running `poetry` (`appuser`) needs ownership (`chown`) of the copied Poetry directory (`/opt/poetry`) and the application directory (`/app`).
-    *   `pyproject.toml` (and `poetry.lock`) must be copied to the final stage's working directory (`/app`) for `poetry` commands run via `exec` to find the project.
-    *   `[Errno 2] No such file or directory: '/app/README.md'` warnings during `poetry install` inside the container mean a file referenced in `pyproject.toml` (like `readme = "README.md"`) wasn't copied to the final image. Removing the reference or copying the file resolves this.
-    *   `chown -R` on directories with many small files (like `.venv` or the copied `/opt/poetry`) can significantly increase build times.
-*   **FastAPI Static Files:**
-    *   Mount `StaticFiles` (e.g., `app.mount("/", StaticFiles(...))`) *after* defining specific API routes (`@app.get(...)`, etc.). Mounting static files first can cause them to intercept requests intended for your API endpoints if the paths overlap (e.g., requesting `/health` when `/` is mounted).
+This project relies heavily on a containerized workflow using Docker and Poetry to ensure consistency and avoid local toolchain conflicts. Here are key aspects and troubleshooting insights gathered during setup:
+
+**1. Core Philosophy:**
+
+*   **No Local Installation Required (Beyond Docker):** All Python dependencies (including dev tools like `black`, `ruff`, `isort`, `pytest`) are managed and run *inside* the `backend` Docker container.
+*   **Poetry for Dependency Management:** `pyproject.toml` and `poetry.lock` define dependencies.
+*   **Helper Scripts:** Scripts in `./scripts/` (`dc_poetry`, `dc_lint`, `dc_exec`, `dc_up`) simplify interacting with tools inside the container.
+
+**2. Helper Scripts:**
+
+*   `./scripts/dc_poetry`: Executes `poetry` commands within the running `backend` container (e.g., `./scripts/dc_poetry add <package>`, `./scripts/dc_poetry install`, `./scripts/dc_poetry lock --no-update`). Ensures dependencies are managed in the container's context.
+*   `./scripts/dc_lint`: Runs formatters (`black`, `isort`) and linters (`ruff`) against the `/app/src` directory inside the `backend` container.
+*   `./scripts/dc_exec`: Executes arbitrary commands inside the `backend` container as the `appuser`.
+*   `./scripts/dc_up`: Helper to build and start services with common options like `--remove-orphans`.
+
+**3. Dockerfile & Build Process (`backend/Dockerfile`):**
+
+*   **Single-Stage Build:** The final Dockerfile uses a single stage for simplicity in this setup.
+*   **Poetry Installation:** Poetry itself is installed using the official `install.python-poetry.org` script.
+*   **Dependency Installation:**
+    *   `pyproject.toml` and `poetry.lock` are copied into the `/app` directory.
+    *   Crucially, `RUN poetry lock --no-update --no-interaction` is run *during the build* immediately after copying the files. This ensures the lock file is perfectly synchronized with `pyproject.toml` within the build context, preventing "changed significantly" errors during the subsequent install step.
+    *   `RUN poetry install --no-root` installs *all* dependencies (including `dev` group) into `/app/.venv`. The `--no-root` flag is used because the application source (`./src`) is copied later.
+*   **User & Permissions:**
+    *   An `appuser` is created and used to run the application (improves security).
+    *   `chown` is used to grant `appuser` ownership of `/app` (including `.venv`) and `/opt/poetry`. *Note: This `chown` step can be slow on Docker Desktop (Windows/macOS) due to file system sharing overhead.*
+
+**4. Troubleshooting & Key Learnings:**
+
+*   **`pyproject.toml` / `poetry.lock` Mismatches:** If `poetry install` fails during build complaining the lock file is outdated despite running `dc_poetry lock` beforehand, it likely means the build context didn't get the updated lock file correctly. Running `poetry lock --no-update` *inside* the `Dockerfile` (as implemented now) is the most reliable solution. Explicitly copying the lock file out (`docker compose cp`) after locking and before building can also work but is less robust.
+*   **Missing Dev Dependencies (`black`, `ruff` not found):** This occurred when dev dependencies were not correctly listed under `[tool.poetry.group.dev.dependencies]` in `pyproject.toml`. Ensure they are added there using `dc_poetry add <package> --group dev` (or manual edit) and then run `dc_poetry lock --no-update` followed by a rebuild.
+*   **`docker compose exec` Path Issues (Git Bash/MINGW):** When passing paths (like `/app/src`) to `docker compose exec` from Git Bash/MINGW, the shell might try to translate them into Windows paths (e.g., `C:/Program Files/Git/app/src`), causing errors inside the container. Prefixing the path argument with `//` (e.g., `//${TARGET_DIR}`) in the `exec` command prevents this translation (as done in `scripts/dc_lint`).
+*   **`docker compose exec` User Context:** Commands run via `exec` might default to `root`. Use `docker compose exec --user appuser ...` if the command needs to run as the application user (e.g., to use the correct `PATH` for `poetry run`). Helper scripts like `dc_lint` and `dc_exec` already incorporate this.
+*   **FastAPI Static Files Routing:** Ensure `app.mount("/", StaticFiles(...))` is called *after* defining specific API routes (`@app.get(...)`) in `main.py` to prevent the static files mount from intercepting API calls.
+*   **Slow `chown` during Build:** This is often unavoidable with Docker Desktop's volume mounting on non-Linux systems when dealing with many small files (like in `.venv`). It primarily impacts build time, not runtime.
 
 ## Setup
 
@@ -173,10 +195,13 @@ BMX (BookMark eXtractor) aims to synthesize complex, multi-disciplinary informat
 *   Git (for version control)
 
 ### Development Workflow
-1.  Ensure `poetry.lock` is consistent with `pyproject.toml` (run `./scripts/dc_poetry lock --no-update` or `./scripts/dc_poetry install` if needed).
+1.  Ensure `poetry.lock` is consistent with `pyproject.toml` (run `./scripts/dc_poetry lock --no-update` or `./scripts/dc_poetry install` if needed after changing `pyproject.toml`).
 2.  Start the development environment:
     ```bash
-    docker-compose up backend neo4j --build # Add postgres if configured
+    # Use the helper script which includes build and removal of orphans
+    ./scripts/dc_up --build 
+    # Or manually:
+    # docker-compose up -d backend neo4j --build --remove-orphans # Add postgres if configured
     ```
 
 3.  Access the services:
@@ -184,12 +209,16 @@ BMX (BookMark eXtractor) aims to synthesize complex, multi-disciplinary informat
     *   API Docs: `http://localhost:8000/docs` or `/redoc`
     *   Neo4j Browser: `http://localhost:7474` (Connect with `bolt://localhost:7687`, user `neo4j`, password from your `.env` or `docker-compose.yml`)
 
-4.  Run commands (like tests or dependency installs) inside the container:
+4.  Run commands (like tests, linters, or dependency installs) inside the container using helper scripts or `docker compose exec`:
     ```bash
-    # Example: Run pytest
-    docker-compose exec backend poetry run pytest
+    # Run linters/formatters
+    ./scripts/dc_lint
 
-    # Example: Add a dependency
+    # Run pytest
+    ./scripts/dc_exec poetry run pytest
+    # Or manually: docker-compose exec --user appuser backend poetry run pytest
+
+    # Add a dependency
     ./scripts/dc_poetry add httpx 
     ```
 
