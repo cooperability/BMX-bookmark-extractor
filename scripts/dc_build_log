@@ -1,0 +1,13 @@
+#!/bin/sh
+# Performs a clean build of the backend service and saves the log
+set -e
+
+cd "$(dirname "$0")"/..
+
+LOG_FILE="build.log"
+
+echo "Performing clean build of backend service... Log will be saved to ${LOG_FILE}"
+
+docker compose build --no-cache backend > "${LOG_FILE}" 2>&1
+
+echo "Build complete. Log saved to ${LOG_FILE}" 

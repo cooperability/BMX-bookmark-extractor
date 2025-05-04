@@ -3,6 +3,8 @@ set -e
 
 cd "$(dirname "$0")"/..
 
+echo "Building services..."
 docker compose build
 
-docker compose up --build -d
+echo "Starting services (and removing orphans)..."
+docker compose up -d --remove-orphans
