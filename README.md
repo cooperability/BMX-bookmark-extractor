@@ -16,6 +16,22 @@ Based on a review, the project scope has been significantly refined to focus on 
 
 This refocus allows for a clearer path towards building the core value proposition: structuring diverse data sources into robust, queryable knowledge bases.
 
+## Troubleshooting & Lessons Learned (MVP Setup)
+
+*   **`docker compose exec` Interaction:**
+    *   The target service (`backend` in this case) must be *running* before `exec` can attach to it. Use `docker compose up -d <service>` first if needed.
+    *   `exec` might run as `root` by default. If your application runs as a different user (`appuser`), use `docker compose exec --user appuser ...` to ensure commands run with the correct environment (especially `PATH`).
+    *   Commands with paths or complex arguments passed to `exec` (especially from scripts or shells like Git Bash) might require wrapping with `sh -c "$*"` inside the container for reliable parsing.
+*   **Poetry & Docker:**
+    *   If using helper scripts (`dc_poetry`, `dc_exec`) to run `poetry` *inside* the final container, the `poetry` installation itself needs to be copied from the builder stage (e.g., from `/opt/poetry`) to the final stage.
+    *   Ensure the `POETRY_HOME` env var and `${POETRY_HOME}/bin` are added to the `PATH` env var in the *final* stage of the Dockerfile.
+    *   The user running `poetry` (`appuser`) needs ownership (`chown`) of the copied Poetry directory (`/opt/poetry`) and the application directory (`/app`).
+    *   `pyproject.toml` (and `poetry.lock`) must be copied to the final stage's working directory (`/app`) for `poetry` commands run via `exec` to find the project.
+    *   `[Errno 2] No such file or directory: '/app/README.md'` warnings during `poetry install` inside the container mean a file referenced in `pyproject.toml` (like `readme = "README.md"`) wasn't copied to the final image. Removing the reference or copying the file resolves this.
+    *   `chown -R` on directories with many small files (like `.venv` or the copied `/opt/poetry`) can significantly increase build times.
+*   **FastAPI Static Files:**
+    *   Mount `StaticFiles` (e.g., `app.mount("/", StaticFiles(...))`) *after* defining specific API routes (`@app.get(...)`, etc.). Mounting static files first can cause them to intercept requests intended for your API endpoints if the paths overlap (e.g., requesting `/health` when `/` is mounted).
+
 ## Setup
 
 ### Prerequisites

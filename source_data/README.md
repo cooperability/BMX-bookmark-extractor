@@ -1,21 +1,20 @@
-# knowledge-inputs
+# source_data
 Anki/Other Data for Training Small Language Model
 
 ## Topics:
 *Anthropology*
 -Human Bio // Psychology // Longevity
 -Sociology // Economics // Politics //
+-Career // Microfinance
 *Computer Sci*
--AI/ML // 
--Security // Blockchain // Quantum Computing // Human Augmentation
-*Earth Sci* // Conservation // Land Histories
-Potentially a smaller Chinese variant
+-AI/ML // Fringe Tech
+-Cybersecurity // Blockchain // Quantum Computing // Human Augmentation
+-Exponential Tech Acceleration // Futurology
 
 ##Web scrape data types:
 *Primary:
 Unbiased News Articles
 Peer-Reviewed Papers & Studies
-
 
 *Secondary:
 Op-Eds
