@@ -6,6 +6,7 @@ services:
     ports:
       - "8000:8000"
     volumes:
+      - .:/project
       - ./backend/src:/app/src
       - ./public:/app/public
       - ./scripts:/app/scripts

@@ -11,13 +11,17 @@ ENV POETRY_VIRTUALENVS_IN_PROJECT=true
 ENV PATH="$POETRY_HOME/bin:$PATH"
 ENV APP_HOME=/app
 
-# Install system dependencies (curl needed for poetry install)
-RUN apt-get update && apt-get install --no-install-recommends -y curl \
-    && apt-get clean \
-    && rm -rf /var/lib/apt/lists/*
+# Install system dependencies (curl, git) in a single layer
+RUN apt-get update && \
+    apt-get install --no-install-recommends -y curl git && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
 
 # Install Poetry itself
 RUN curl -sSL https://install.python-poetry.org | python3 -
+
+# Install pre-commit globally using pip
+RUN pip install --no-cache-dir pre-commit==4.2.0
 
 WORKDIR ${APP_HOME}
 
@@ -48,5 +52,8 @@ USER appuser
 # Set cache dir *after* chown and USER switch
 ENV POETRY_CACHE_DIR=${APP_HOME}/.cache
 
+# Set up healthcheck
+HEALTHCHECK CMD curl --fail http://localhost:8000/health || exit 1
+
 # Command to run the application using Uvicorn from the venv
-CMD ["/app/.venv/bin/uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8000"] 
+CMD ["/app/.venv/bin/uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8000"]
