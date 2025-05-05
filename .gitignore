@@ -1,4 +1,3 @@
-
 .DS_Store
 1.Python Basics/.ipynb_checkpoints/4. Big_O_Time_Complexity-checkpoint.ipynb
 1.Python Basics/.ipynb_checkpoints/2. Control_Flows_&_Functions-checkpoint.ipynb
@@ -29,8 +28,9 @@ Network Trash Folder
 Temporary Items
 .apdisk
 
+# Node
+node_modules/
 
-/node_modules
 yarn.lock
 next-env.d.ts
 .vercel

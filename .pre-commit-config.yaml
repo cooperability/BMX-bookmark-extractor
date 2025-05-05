@@ -1,0 +1,39 @@
+# See https://pre-commit.com for more information
+# See https://pre-commit.com/hooks.html for more hooks
+repos:
+-   repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.6.0
+    hooks:
+    -   id: trailing-whitespace
+        # Refined exclude pattern
+        exclude: '(^|.*/)node_modules/|(^|.*/)source_data/'
+    -   id: end-of-file-fixer
+        exclude: '(^|.*/)node_modules/|(^|.*/)source_data/'
+    -   id: check-yaml
+    -   id: check-toml
+    -   id: check-added-large-files
+-   repo: https://github.com/psf/black
+    rev: 24.4.2 # Match the version in pyproject.toml
+    hooks:
+    -   id: black
+        # Ensure this ONLY targets backend/src python files
+        files: ^backend/src/.*\\.py$
+-   repo: https://github.com/pycqa/isort
+    rev: 5.13.2 # Match the version in pyproject.toml
+    hooks:
+    -   id: isort
+        name: isort (python)
+        # Ensure this ONLY targets backend/src python files
+        files: ^backend/src/.*\\.py$
+-   repo: https://github.com/astral-sh/ruff-pre-commit
+    # Ruff version matches the one in pyproject.toml
+    rev: v0.5.5
+    hooks:
+    -   id: ruff
+        # Ensure this ONLY targets backend/src python files
+        files: ^backend/src/.*\\.py$
+        args: [--fix, --exit-non-zero-on-fix] # Apply fixes automatically
+    -   id: ruff-format
+        # Ensure this ONLY targets backend/src python files
+        files: ^backend/src/.*\\.py$
+        args: [--fix, --exit-non-zero-on-fix] # Apply fixes automatically

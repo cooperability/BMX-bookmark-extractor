@@ -8,4 +8,4 @@ cd "$(dirname "$0")"/..
 # Execute the command passed as arguments inside the backend service using sh -c
 # $* treats all arguments as a single string for sh -c
 echo "Executing inside backend container as appuser (via sh -c): $*"
-docker compose exec --user appuser backend sh -c "$*" 
+docker compose exec --user appuser backend sh -c "$*"

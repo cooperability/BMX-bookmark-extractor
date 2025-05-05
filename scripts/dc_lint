@@ -19,4 +19,4 @@ docker compose exec --user appuser "${SERVICE_NAME}" poetry run ruff check "//${
 echo "\n--- Running isort import sorter --- "
 docker compose exec --user appuser "${SERVICE_NAME}" poetry run isort --profile black "//${TARGET_DIR}"
 
-echo "\nContainerized linting complete." 
+echo "\nContainerized linting complete."

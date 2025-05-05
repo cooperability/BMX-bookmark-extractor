@@ -22,8 +22,8 @@ This project relies heavily on a containerized workflow using Docker and Poetry 
 
 **1. Core Philosophy:**
 
-*   **No Local Installation Required (Beyond Docker):** All Python dependencies (including dev tools like `black`, `ruff`, `isort`, `pytest`) are managed and run *inside* the `backend` Docker container.
-*   **Poetry for Dependency Management:** `pyproject.toml` and `poetry.lock` define dependencies.
+*   **No Local Installation Required (Beyond Docker):** All Python dependencies (including dev tools like `black`, `ruff`, `isort`, `pytest`, `pre-commit`) are managed and run *inside* the `backend` Docker container.
+*   **Poetry for Dependency Management:** `backend/pyproject.toml` and `backend/poetry.lock` define dependencies.
 *   **Helper Scripts:** Scripts in `./scripts/` (`dc_poetry`, `dc_lint`, `dc_exec`, `dc_up`) simplify interacting with tools inside the container.
 
 **2. Helper Scripts:**
@@ -35,24 +35,45 @@ This project relies heavily on a containerized workflow using Docker and Poetry 
 
 **3. Dockerfile & Build Process (`backend/Dockerfile`):**
 
-*   **Single-Stage Build:** The final Dockerfile uses a single stage for simplicity in this setup.
-*   **Poetry Installation:** Poetry itself is installed using the official `install.python-poetry.org` script.
+*   **Single Source of Truth:** The `backend/Dockerfile` is the definitive file for building the backend service image. The `docker-compose.yml` file correctly points to this. Any root-level `Dockerfile` is unused for this service and should be removed.
+*   **Single-Stage Build:** The current Dockerfile uses a single stage for simplicity in development.
+*   **Tool Installation:** Installs `git` (needed by pre-commit) via `apt-get`. Installs `pre-commit` via `pip` (see Troubleshooting Note below).
+*   **Poetry Installation:** Poetry itself is installed using the official script.
 *   **Dependency Installation:**
     *   `pyproject.toml` and `poetry.lock` are copied into the `/app` directory.
-    *   Crucially, `RUN poetry lock --no-update --no-interaction` is run *during the build* immediately after copying the files. This ensures the lock file is perfectly synchronized with `pyproject.toml` within the build context, preventing "changed significantly" errors during the subsequent install step.
-    *   `RUN poetry install --no-root` installs *all* dependencies (including `dev` group) into `/app/.venv`. The `--no-root` flag is used because the application source (`./src`) is copied later.
+    *   `RUN poetry lock --no-update --no-interaction` ensures lock file synchronization during build.
+    *   `RUN poetry install --no-root` installs dependencies into `/app/.venv`.
 *   **User & Permissions:**
-    *   An `appuser` is created and used to run the application (improves security).
-    *   `chown` is used to grant `appuser` ownership of `/app` (including `.venv`) and `/opt/poetry`. *Note: This `chown` step can be slow on Docker Desktop (Windows/macOS) due to file system sharing overhead.*
+    *   An `appuser` is created and used to run the application.
+    *   `chown` grants `appuser` ownership of `/app` and `/opt/poetry`.
 
-**4. Troubleshooting & Key Learnings:**
+**4. Volume Mounts & Paths:**
 
-*   **`pyproject.toml` / `poetry.lock` Mismatches:** If `poetry install` fails during build complaining the lock file is outdated despite running `dc_poetry lock` beforehand, it likely means the build context didn't get the updated lock file correctly. Running `poetry lock --no-update` *inside* the `Dockerfile` (as implemented now) is the most reliable solution. Explicitly copying the lock file out (`docker compose cp`) after locking and before building can also work but is less robust.
-*   **Missing Dev Dependencies (`black`, `ruff` not found):** This occurred when dev dependencies were not correctly listed under `[tool.poetry.group.dev.dependencies]` in `pyproject.toml`. Ensure they are added there using `dc_poetry add <package> --group dev` (or manual edit) and then run `dc_poetry lock --no-update` followed by a rebuild.
-*   **`docker compose exec` Path Issues (Git Bash/MINGW):** When passing paths (like `/app/src`) to `docker compose exec` from Git Bash/MINGW, the shell might try to translate them into Windows paths (e.g., `C:/Program Files/Git/app/src`), causing errors inside the container. Prefixing the path argument with `//` (e.g., `//${TARGET_DIR}`) in the `exec` command prevents this translation (as done in `scripts/dc_lint`).
-*   **`docker compose exec` User Context:** Commands run via `exec` might default to `root`. Use `docker compose exec --user appuser ...` if the command needs to run as the application user (e.g., to use the correct `PATH` for `poetry run`). Helper scripts like `dc_lint` and `dc_exec` already incorporate this.
-*   **FastAPI Static Files Routing:** Ensure `app.mount("/", StaticFiles(...))` is called *after* defining specific API routes (`@app.get(...)`) in `main.py` to prevent the static files mount from intercepting API calls.
-*   **Slow `chown` during Build:** This is often unavoidable with Docker Desktop's volume mounting on non-Linux systems when dealing with many small files (like in `.venv`). It primarily impacts build time, not runtime.
+*   `docker-compose.yml` mounts the host project root (`.`) to `/project` inside the container. This allows tools running inside the container to access the `.git` directory and configuration files like `.pre-commit-config.yaml` at runtime.
+*   Source code (`backend/src`) is mounted to `/app/src`.
+*   The default `WORKDIR` inside the container is `/app`.
+*   The Poetry virtual environment is located at `/app/.venv`.
+
+**5. Pre-commit Hook (`.git/hooks/pre-commit`):**
+
+*   **Purpose:** Automatically runs linters/formatters (`black`, `isort`, `ruff`) on staged Python files in `backend/src` before each commit.
+*   **Execution:** The hook script on the host uses `docker compose exec` to run commands inside the `backend` container.
+*   **Workflow:**
+    1.  Sets the Git `safe.directory` configuration for `/project` *locally* within the container to resolve the "dubious ownership" error caused by UID mismatches between host and container.
+    2.  Executes `pre-commit run` inside the container.
+    3.  Sets `PRE_COMMIT_HOME` to `/tmp/pre-commit-cache` to ensure `pre-commit` has a writable cache directory within the container.
+    4.  Runs the checks defined in `.pre-commit-config.yaml`.
+    5.  If checks fail or modify files, the commit is aborted.
+
+**6. Troubleshooting & Key Learnings:**
+
+*   **`pyproject.toml` / `poetry.lock` Mismatches:** Solved by running `poetry lock --no-update` during the Docker build (`backend/Dockerfile`).
+*   **Missing Dev Dependencies:** Ensure tools are listed under `[tool.poetry.group.dev.dependencies]` in `backend/pyproject.toml`.
+*   **`docker compose exec` Path Issues (Git Bash/MINGW):** Resolved by prefixing container paths with `//` when passed as direct arguments (though not needed in the final hook script which uses `sh -c`).
+*   **Git "Dubious Ownership" Error:** Caused by the container user (`appuser`) running `git` commands (via `pre-commit`) on the host-mounted `/project` directory. Solved by running `git config -f /project/.git/config --add safe.directory .` inside the container *before* `pre-commit run` executes (handled by the hook script).
+*   **`pre-commit` Execution Context Failures:** Initial attempts to run `pre-commit` via `poetry run` or by its absolute path within the virtual env (`/app/.venv/bin/pre-commit`) failed consistently when invoked via the Git hook and `docker compose exec`. The reliable workaround was to install `pre-commit` globally in the container via `pip install` in the `backend/Dockerfile` and call it directly in the hook script. While mixing `pip` and `poetry` isn't ideal, it was necessary for this specific hook integration.
+*   **FastAPI Static Files Routing:** Ensure `app.mount(...)` is called *after* defining specific API routes in `main.py`.
+*   **Slow `chown` during Build:** Often unavoidable on Docker Desktop (Windows/macOS) due to filesystem sharing overhead.
 
 ## Setup
 
@@ -89,7 +110,7 @@ This project relies heavily on a containerized workflow using Docker and Poetry 
         NEO4J_PASSWORD=please_change_password # Match the password in docker-compose.yml
 
         # PostgreSQL Connection (Example DSN)
-        POSTGRES_DSN=postgresql+psycopg2://user:password@postgres:5432/mydatabase 
+        POSTGRES_DSN=postgresql+psycopg2://user:password@postgres:5432/mydatabase
         # ^^^ Adjust user, password, host (service name), and db name as needed
         # Add a postgres service to docker-compose.yml if using
         ```
@@ -199,7 +220,7 @@ BMX (BookMark eXtractor) aims to synthesize complex, multi-disciplinary informat
 2.  Start the development environment:
     ```bash
     # Use the helper script which includes build and removal of orphans
-    ./scripts/dc_up --build 
+    ./scripts/dc_up --build
     # Or manually:
     # docker-compose up -d backend neo4j --build --remove-orphans # Add postgres if configured
     ```
@@ -219,7 +240,11 @@ BMX (BookMark eXtractor) aims to synthesize complex, multi-disciplinary informat
     # Or manually: docker-compose exec --user appuser backend poetry run pytest
 
     # Add a dependency
-    ./scripts/dc_poetry add httpx 
+    ./scripts/dc_poetry add httpx
+
+    # Update backend dependencies
+    cd backend
+    docker compose exec backend poetry update
     ```
 
 ### Production Deployment

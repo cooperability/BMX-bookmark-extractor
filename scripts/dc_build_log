@@ -10,4 +10,4 @@ echo "Performing clean build of backend service... Log will be saved to ${LOG_FI
 
 docker compose build --no-cache backend > "${LOG_FILE}" 2>&1
 
-echo "Build complete. Log saved to ${LOG_FILE}" 
+echo "Build complete. Log saved to ${LOG_FILE}"
