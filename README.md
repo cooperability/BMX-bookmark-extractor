@@ -80,7 +80,7 @@ This project relies heavily on a containerized workflow using Docker and Poetry 
 ### Prerequisites
 *   Docker and Docker Compose installed on your system
 *   Git (optional, for cloning the repository)
-*   Poetry installed locally (though commands are typically run via Docker script)
+*   Poetry installed locally (though commands are typically run via Docker script as outlined in "Containerized Development Workflow")
 
 ### Steps
 
@@ -102,41 +102,53 @@ This project relies heavily on a containerized workflow using Docker and Poetry 
 
 3.  **Configure Environment Variables:**
     *   Create a `.env` file in the project root directory by copying `.env.example` (you'll need to create `.env.example` first if it doesn't exist).
-    *   Add connection details for Neo4j and PostgreSQL to your `.env` file. Example content for `.env.example`:
+    *   Add connection details for Neo4j (and PostgreSQL when integrated) to your `.env` file. Example content for `.env.example`:
         ```dotenv
-        # Neo4j Connection
+        # Neo4j Connection (adjust if using AuraDB or other managed service)
         NEO4J_URI=bolt://neo4j:7687
         NEO4J_USER=neo4j
         NEO4J_PASSWORD=please_change_password # Match the password in docker-compose.yml
 
-        # PostgreSQL Connection (Example DSN)
+        # PostgreSQL Connection (Example DSN - to be configured in later phase)
         POSTGRES_DSN=postgresql+psycopg2://user:password@postgres:5432/mydatabase
         # ^^^ Adjust user, password, host (service name), and db name as needed
-        # Add a postgres service to docker-compose.yml if using
+
+        # Gemini API Key (to be configured in later phase)
+        GEMINI_API_KEY=YOUR_GEMINI_API_KEY
         ```
     *   **Important:** Add `.env` to your `.gitignore` file to avoid committing secrets.
 
 4.  **Build and Run Docker Containers:**
-    ```bash
-    docker-compose up --build backend neo4j # Add postgres if you add the service
-    ```
+    *   For initial development focusing on Neo4j:
+        ```bash
+        docker-compose up --build backend neo4j
+        ```
+    *   Once PostgreSQL is added to `docker-compose.yml` and configured:
+        ```bash
+        docker-compose up --build backend neo4j postgres
+        ```
 
 5.  **Access the Application:**
     *   The backend API will be available (e.g., `http://localhost:8000`).
     *   Check the FastAPI documentation endpoint (e.g., `http://localhost:8000/docs` or `/redoc`) for available routes.
-    *   Neo4j Browser: `http://localhost:7474`
+    *   Neo4j Browser: `http://localhost:7474` (or your Neo4j Aura instance).
 
-## Core Concept
+## Core Concept (Updated May 2025)
 
-BMX (BookMark eXtractor) aims to synthesize complex, multi-disciplinary information from various sources (articles, Anki exports, web scrapes, etc.) into structured knowledge bases. It leverages both graph (Neo4j) and relational (PostgreSQL) databases to provide flexible data modeling and querying capabilities. The ultimate goal is to enable users to query this structured knowledge using advanced AI models.
+BMX (BookMark eXtractor) aims to be a "secondary brain," synthesizing complex, multi-disciplinary information from diverse sources into structured, interconnected knowledge bases. It focuses on:
+1.  **Ingesting Diverse Data:** Handling structured inputs like Anki exports (`source_data/`) and processing extensive lists of web links provided by users.
+2.  **Intelligent Condensation:** Employing a multi-stage pipeline (web scraping, traditional NLP with tools like SpaCy/NLTK, and selective LLM review/enhancement with Gemini) to VASTLY condense information from web sources into "ultra-distilled documents" while retaining core insights and citing sources.
+3.  **Knowledge Structuring:** Leveraging Neo4j (potentially a cloud instance like AuraDB for accessibility) to model the intricate relationships within the ingested and condensed knowledge, creating a rich knowledge graph.
+4.  **Metadata & Management:** Utilizing PostgreSQL for storing source metadata, citations, processing logs, and potentially user management information, ensuring robust data governance.
+5.  **Advanced Retrieval:** Enabling users to query this combined knowledge base using natural language (via LLM integration) and structured queries, providing nuanced, verifiable, and holistically synthesized insights.
 
-*   **Pitch**: BMX structures diverse information sources into parallel graph and relational databases. By leveraging these structured representations, potentially combined with LLMs like the Gemini API, BMX aims to provide nuanced insights and synthesized knowledge from user-provided data.
-*   **Key Use Case**: Ingesting structured knowledge (like Anki decks) and unstructured data (web scrapes, PDFs), mapping them into Neo4j for relationship analysis and PostgreSQL for structured querying/backups. Later phases will involve using an LLM to query this combined knowledge base for complex questions (e.g., "Synthesize information on topic X from sources Y and Z").
+*   **Pitch**: BMX transforms diverse information sources—from curated Anki decks to vast collections of web links—into an interconnected knowledge graph (Neo4j) complemented by a structured relational database (PostgreSQL). By applying a sophisticated condensation pipeline and leveraging LLMs like the Gemini API for advanced querying, BMX aims to function as a powerful "secondary brain," enabling users to extract and synthesize deep insights from their information at scale.
+*   **Key Use Case**: Users upload lists of web links they want to learn from without manual reading. BMX processes these links, condenses their content into "ultra-distilled" summaries, and integrates them into a knowledge graph alongside existing structured data (like Anki cards). Users can then query this unified knowledge base to get synthesized answers, explore connections, and deepen their understanding.
 *   **Output Priorities** (for future LLM querying phase):
-    1.  **Factual:** Accurate to the source documents stored in the databases.
+    1.  **Factual:** Accurate to the source documents.
     2.  **Verifiable:** Traceable back to original sources/nodes/rows.
     3.  **Holistic:** Leverages connections discovered in the graph database.
-    4.  **Concise**: Effectively summarized.
+    4.  **Concise**: Effectively summarized and synthesized.
 
 ## Stack (Simplified & Focused)
 
@@ -153,35 +165,89 @@ BMX (BookMark eXtractor) aims to synthesize complex, multi-disciplinary informat
 *   **(Future) LLM Integration**: Google Gemini API.
 *   **(Optional) Vector Database**: Pinecone or alternatives (Milvus, Qdrant) *if* dense vector similarity search becomes a requirement later.
 
-## Implementation Plan (Revised ~12 Weeks Focus)
+## Implementation Plan (Revised May 2025 - Focus on Knowledge Pipeline)
 
-*   **Phase 1**: Core Infrastructure & Data Modeling (Weeks 1-2)
-    *   Set up Python FastAPI project structure within `backend/`.
-    *   Configure Docker Compose for FastAPI (`backend`), Neo4j, and optionally PostgreSQL services.
-    *   Define initial database schemas/models using Pydantic/SQLAlchemy and map out Neo4j node/relationship labels.
-    *   Implement connection logic for Neo4j (and Postgres if added).
-    *   Establish basic API endpoints (`/`, `/health`) and initial tests.
-    *   Create `.env.example` and ensure `.gitignore` is correct.
-*   **Phase 2**: Data Ingestion Pipeline (Weeks 3-6)
-    *   Develop parsers for initial data sources (e.g., Anki `.txt` exports from `source_data/`).
-    *   Implement logic to populate *both* Neo4j and PostgreSQL with parsed data, ensuring consistency.
-    *   Add basic API endpoints for triggering ingestion and performing simple queries (e.g., get card by ID, get nodes by label).
-    *   Implement web scraping (`BeautifulSoup`, `httpx`) and PDF text extraction (`PyPDF2`) services within the `backend/` structure.
-    *   Develop basic data validation for ingested content.
-*   **Phase 3**: API Expansion & Basic Querying (Weeks 7-8)
-    *   Develop more sophisticated API endpoints for querying (e.g., find related concepts via Neo4j paths, retrieve structured records with filters from PostgreSQL).
-    *   Implement basic keyword search across stored data.
-    *   Refine error handling, logging, and add more comprehensive tests.
-*   **Phase 4**: LLM Integration (Gemini API) & Advanced Features (Weeks 9-12+)
-    *   Integrate the Google Gemini API client.
-    *   Develop a service that takes a query, retrieves relevant context from Neo4j/PostgreSQL, formats it for Gemini, and processes the response.
-    *   Build API endpoints for this LLM-powered querying.
-    *   Implement testing and basic caching for LLM interactions.
-*   **Phase 5**: Deployment & Refinement (Ongoing)
+This plan prioritizes building the core knowledge ingestion and structuring capabilities, starting with existing Anki data and Neo4j, then expanding to web content and PostgreSQL.
+
+*   **Phase 1: Neo4j Setup & Initial Anki Ingestion (Weeks 1-3)**
+    *   **Focus:** Establish the Neo4j graph database as the primary knowledge store.
+    *   Set up Neo4j (local Docker instance for dev, consider AuraDB for future deployment).
+    *   Define an initial Neo4j data model (nodes like `Card`, `Concept`, `Source`; relationships like `RELATED_TO`, `HAS_SOURCE`, `MENTIONS_CONCEPT`) based on the structure of Anki `.txt` exports in `source_data/`.
+    *   Develop a Python parser within `backend/src/ingestion/` for the Anki `.txt` format.
+    *   Implement initial data ingestion scripts to populate Neo4j from parsed Anki data.
+    *   Set up basic FastAPI (`backend/src/main.py`) with connection logic to Neo4j.
+    *   Create initial API endpoints (e.g., `/cards/{id}`, `/concepts/{name}`) to retrieve data from Neo4j.
+    *   Establish basic testing for parsing and Neo4j interaction.
+    *   Refine `.env.example` for Neo4j and ensure `.gitignore` is correct.
+
+*   **Phase 2: PostgreSQL Integration & Metadata Management (Weeks 4-5)**
+    *   **Focus:** Introduce PostgreSQL for managing metadata, sources, and operational data.
+    *   Add PostgreSQL service to `docker-compose.yml` and configure connection in FastAPI.
+    *   Define PostgreSQL schema using SQLAlchemy (models in `backend/src/models/`) for:
+        *   `Sources` (e.g., Anki file name, URL of scraped page).
+        *   `ProcessedItems` (linking to Neo4j nodes, storing condensed text, processing status, timestamps).
+        *   `Citations` (if applicable).
+    *   Modify Anki ingestion to also populate PostgreSQL with source/metadata.
+    *   Implement logic to ensure basic linkage or referencing between Neo4j nodes and PostgreSQL records (e.g., Neo4j node has a `source_id` property referring to a Postgres record).
+    *   Develop API endpoints for managing/querying source metadata from PostgreSQL.
+
+*   **Phase 3: Web Content Ingestion Pipeline - Foundation (Weeks 6-8)**
+    *   **Focus:** Build the initial stages of the web link processing pipeline.
+    *   Develop a robust web scraping module (e.g., using `httpx` and `BeautifulSoup`) within `backend/src/ingestion/scraping/` to fetch and clean HTML content from URLs.
+    *   Implement PDF text extraction (e.g., `PyPDF2` or `pdfplumber`) if PDF sources are anticipated.
+    *   Design the "ultra-distilled document" schema/structure (e.g., key topics, summary, entities, source URL).
+    *   Implement initial (non-LLM) condensation techniques using SpaCy/NLTK (e.g., summarization, keyword/entity extraction) in `backend/src/ingestion/nlp/`.
+    *   Store raw scraped content and the initially condensed versions in PostgreSQL, linked to their source URL.
+    *   Create API endpoints for users to submit a list of links for processing.
+    *   Consider a basic task queue (e.g., FastAPI's `BackgroundTasks` for simplicity, or explore Celery for more robust needs later) for asynchronous processing of submitted links.
+
+*   **Phase 4: LLM-Enhanced Condensation & Neo4j Integration for Web Content (Weeks 9-12)**
+    *   **Focus:** Integrate LLM for refining condensed web content and populating Neo4j.
+    *   Integrate the Google Gemini API client into `backend/src/services/llm_service.py`.
+    *   Develop logic to take the initially condensed text (from Phase 3) and further refine/structure it using Gemini API (e.g., generate a more nuanced summary, identify key arguments, extract structured data for Neo4j).
+    *   Implement logic to map the LLM-refined "ultra-distilled documents" into the Neo4j graph model (creating/connecting `Concept`, `Source`, and potentially new `WebArticle` nodes).
+    *   Ensure processed web content in Neo4j is linked to its corresponding metadata in PostgreSQL.
+    *   Refine API for link submission to include status tracking of the multi-stage processing.
+    *   Implement more comprehensive testing, error handling, and logging for the entire pipeline.
+
+*   **Phase 5: Advanced Querying, API Expansion & LLM Interaction (Weeks 13-16+)**
+    *   **Focus:** Enable sophisticated querying of the integrated knowledge base.
+    *   Develop API endpoints for querying Neo4j for complex relationships and paths.
+    *   Implement services that:
+        1.  Take a user query (natural language).
+        2.  Retrieve relevant context from Neo4j (graph patterns) and PostgreSQL (metadata, distilled text).
+        3.  Format this context effectively for the Gemini API.
+        4.  Process the Gemini API's response to provide a synthesized answer, citing sources.
+    *   Build API endpoints for this LLM-powered querying functionality.
+    *   Investigate and implement caching strategies for LLM interactions and common queries.
+
+*   **Phase 6: Deployment, Scalability & Refinement (Ongoing)**
+    *   **Focus:** Production readiness and continuous improvement.
     *   Prepare Docker configuration for production (e.g., multi-stage builds, security hardening).
-    *   Deploy to a target platform (e.g., DigitalOcean Docker Droplet).
-    *   Implement production monitoring, logging, and backups.
-    *   Develop user documentation if applicable.
+    *   Explore scaling the ingestion pipeline (e.g., using a more robust task queue like Celery with multiple workers).
+    *   Deploy to a target platform (e.g., DigitalOcean Docker Droplet, or a Kubernetes-based platform if scale demands).
+    *   Implement production-grade monitoring, logging, and backup strategies for both databases.
+    *   Develop user documentation and refine API based on feedback.
+
+## Database Setup Priority Recommendation
+
+For the BMX project, given your immediate next step of taking Neo4j courses and the nature of your existing `source_data` (structured Anki cards ideal for graph representation), the recommended database setup priority is:
+
+1.  **Neo4j First:**
+    *   **Reasoning:**
+        *   Aligns with your current learning path and intention to set it up soon.
+        *   The Anki card data in `source_data/` is rich with potential connections (topics, tags, inter-card references if any) that are best modeled and explored using a graph database like Neo4j.
+        *   Establishing the core knowledge graph with this existing, relatively clean data will allow for early demonstration of BMX's "knowledge connection" capabilities.
+        *   It provides a tangible dataset to work with as you learn Neo4j and OGM principles.
+    *   **Immediate Actions:** Focus on Phase 1 of the Implementation Plan – setting up Neo4j, defining the initial graph model for Anki cards, and building the ingestion pipeline for this data.
+
+2.  **PostgreSQL Second:**
+    *   **Reasoning:**
+        *   Once the Neo4j knowledge graph foundation is in place with Anki data, PostgreSQL can be integrated (as in Phase 2) to handle essential metadata, source tracking, citation management, and operational data (like processing logs for the upcoming web ingestion pipeline).
+        *   While Django is an option for interacting with PostgreSQL, FastAPI can also work effectively with SQLAlchemy for ORM capabilities, which is already listed in the stack. The choice can be made based on the desired level of admin interface and specific backend management features needed.
+    *   **Actions:** After initial Neo4j setup and Anki ingestion, proceed to integrate PostgreSQL to store metadata related to the Anki files and the nodes created in Neo4j. This will set the stage for handling more complex source tracking when web scraping is introduced.
+
+This phased approach allows for iterative development, focusing on leveraging the unique strengths of each database system in alignment with the project's evolving data needs and your learning objectives.
 
 ## Coding Form Guidelines
 
