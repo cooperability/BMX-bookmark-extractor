@@ -1,4 +1,11 @@
-* text=auto
+# Normalize all text files to LF line endings in the repository and working directory.
+# This helps prevent mixed line endings.
+* text=auto eol=lf
 
+# Explicitly ensure shell scripts have LF, though the above should cover them.
 *.sh text eol=lf
 *.bash text eol=lf
+
+# Add other file types that MUST have specific line endings if necessary below.
+# For example, Windows batch files might need CRLF:
+# *.bat text eol=crlf
