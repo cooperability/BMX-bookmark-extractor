@@ -1,26 +1,37 @@
 services:
   backend:
     build:
-      context: ./backend
-      dockerfile: Dockerfile
+      context: ./backend # Specifies the build context path for the backend service
+      dockerfile: Dockerfile # Specifies the Dockerfile within that context
     ports:
-      - "8000:8000"
+      - "8000:8000" # Maps port 8000 of the host to port 8000 of the container
     volumes:
+      # Mounts the entire project root to /project in the container.
+      # This is primarily used by pre-commit running inside the container to access the .git directory.
       - .:/project
+      # Mounts the backend source code for live reloading during development.
       - ./backend/src:/app/src
+      # Mounts helper scripts into the backend container for easy execution.
       - ./scripts:/app/scripts
     environment:
       APP_VERSION: 0.1.0
+      # NEO4J_URI, NEO4J_USER, NEO4J_PASSWORD, etc., should be loaded from .env file automatically by Docker Compose
+      # Alternatively, define them here or use `env_file: .env`
 
   frontend:
     build:
-      context: ./frontend
-      dockerfile: Dockerfile
+      context: ./frontend # Specifies the build context path for the frontend service
+      dockerfile: Dockerfile # Specifies the Dockerfile within that context
     ports:
-      - "3000:3000"
+      - "3000:3000" # Maps port 3000 of the host to port 3000 of the container
     volumes:
+      # Mounts the frontend source code for live reloading during development.
       - ./frontend:/app
+      # Anonymous volume to persist node_modules installed in the container.
+      # Prevents the host's node_modules (if any) from overwriting the container's version,
+      # and avoids issues if host OS is different from container OS (e.g. Windows host, Linux container).
       - /app/node_modules
-    # Optional: Depends on backend starting first, though not strictly required for dev
+    # Optional: If frontend makes build-time or critical startup calls to backend.
+    # For typical dev where frontend calls API at runtime, not strictly needed.
     # depends_on:
     #   - backend
