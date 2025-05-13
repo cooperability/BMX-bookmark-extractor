@@ -1,10 +1,25 @@
 import os
 
 from fastapi import FastAPI
-from fastapi.staticfiles import StaticFiles
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
 app = FastAPI(title="BMX Backend", version="0.1.0")
+
+# CORS Configuration
+origins = [
+    "http://localhost:3000",  # Allow Next.js frontend
+    "http://localhost",  # Often useful for development
+    # Add any other origins you might need for development/production
+]
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,
+    allow_credentials=True,
+    allow_methods=["*"],  # Allows all methods
+    allow_headers=["*"],  # Allows all headers
+)
 
 
 # Basic response model for health check (Simplified)
@@ -32,9 +47,3 @@ async def startup_event():
 @app.on_event("shutdown")
 async def shutdown_event():
     print("BMX Backend shutting down...")
-
-
-# Mount static files LAST to handle requests that didn't match an API route
-# Serve files from the '/app/public' directory inside the container
-# at the root URL path '/'.
-app.mount("/", StaticFiles(directory="/app/public", html=True), name="public")
