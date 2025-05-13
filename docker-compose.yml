@@ -8,7 +8,19 @@ services:
     volumes:
       - .:/project
       - ./backend/src:/app/src
-      - ./public:/app/public
       - ./scripts:/app/scripts
     environment:
       APP_VERSION: 0.1.0
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    # Optional: Depends on backend starting first, though not strictly required for dev
+    # depends_on:
+    #   - backend

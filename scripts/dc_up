@@ -7,4 +7,4 @@ echo "Building services..."
 docker compose build
 
 echo "Starting services (and removing orphans)..."
-docker compose up -d backend
+docker compose up -d

@@ -20,3 +20,14 @@ echo "\n--- Running isort import sorter --- "
 docker compose exec --user appuser "${SERVICE_NAME}" poetry run isort --profile black "//${TARGET_DIR}"
 
 echo "\nContainerized linting complete."
+
+# --- Frontend Linting ---
+FRONTEND_SERVICE_NAME="frontend"
+echo "\n--- Executing linters inside ${FRONTEND_SERVICE_NAME} container --- "
+
+# Use npm run lint, which executes ESLint configured by Next.js
+docker compose exec "${FRONTEND_SERVICE_NAME}" npm run lint
+
+echo "\nFrontend containerized linting complete."
+
+echo "\nAll linting complete."

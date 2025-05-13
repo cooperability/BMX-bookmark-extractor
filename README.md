@@ -3,6 +3,10 @@
 ![](https://github.com/cooperability/BMX-bookmark-extractor/blob/main/Screen%20Recording%202023-09-18%20at%201.07.22%20PM.gif)
 Infrastructure snippets building toward a comprehensive scraping-NLP pipeline for web links, focusing on knowledge structuring and retrieval using Python, Neo4j, and PostgreSQL.
 
+## TODO:
+-Frontend linters & auto lint
+-
+
 ## Project Update & Refocus (May 2025)
 
 Based on a review, the project scope has been significantly refined to focus on achievable goals within a reasonable timeframe. Key decisions include:
@@ -340,3 +344,87 @@ If you encounter issues:
     docker-compose logs neo4j
     ```
 4.  Ensure `.env` file exists and has the correct variables/passwords matching `docker-compose.yml`.
+
+## Key CLI Commands
+
+All commands should be run from the project root directory.
+
+*   **Start Services (Backend & Frontend):**
+    ```bash
+    ./scripts/dc_up --build # Use --build on first run or after Dockerfile changes
+    # or just:
+    ./scripts/dc_up
+    ```
+*   **Stop Services:**
+    ```bash
+    docker compose down
+    ```
+*   **Run Linters (Backend & Frontend):**
+    ```bash
+    ./scripts/dc_lint
+    ```
+*   **Manage Backend Python Dependencies (using Poetry):**
+    ```bash
+    # Add a package
+    ./scripts/dc_poetry add <package_name>
+
+    # Install dependencies from lock file
+    ./scripts/dc_poetry install
+
+    # Update dependencies
+    ./scripts/dc_poetry update
+
+    # Update the lock file without upgrading dependencies
+    ./scripts/dc_poetry lock --no-update
+    ```
+*   **Run Backend Tests (Pytest):**
+    ```bash
+    ./scripts/dc_exec poetry run pytest
+    # Or manually:
+    # docker compose exec --user appuser backend poetry run pytest
+    ```
+*   **Execute Arbitrary Command in Backend Container:**
+    ```bash
+    ./scripts/dc_exec <your_command_here>
+    # Example:
+    # ./scripts/dc_exec ls -l /app
+    ```
+*   **Execute Arbitrary Command in Frontend Container:**
+    ```bash
+    docker compose exec frontend <your_command_here>
+    # Example:
+    # docker compose exec frontend ls -l /app
+    ```
+*   **View Service Logs:**
+    ```bash
+    # View logs for all services
+    docker compose logs
+
+    # Follow logs for all services
+    docker compose logs -f
+
+    # View logs for a specific service
+    docker compose logs backend
+    docker compose logs frontend
+    ```
+
+## Frontend Integration & Troubleshooting Summary (From Chat Session)
+
+This section summarizes key decisions and troubleshooting steps taken during the integration of a Next.js frontend:
+
+*   **Frontend Choice & Setup:** Replaced the initial static `public/index.html` with a minimal Next.js (TypeScript, App Router) application located in the `frontend/` directory. Initialization used `npx create-next-app@latest . --ts --eslint --use-npm --no-tailwind --src-dir --app --import-alias \"@/*\"`.
+*   **Containerization:**
+    *   A dedicated `frontend/Dockerfile` was created using `node:20-slim`.
+    *   A `frontend` service was added to `docker-compose.yml`, exposing port 3000 and mounting `./frontend:/app`. Crucially, an anonymous volume (`/app/node_modules`) was added to prevent the host mount from overwriting container-installed dependencies.
+*   **Backend Static File Removal:** The FastAPI backend no longer serves static files. The `public/` directory and the `app.mount(\"/\", StaticFiles(...))` call in `backend/src/main.py` were removed. The backend (`http://localhost:8000`) root path now correctly returns "Not Found", while API routes like `/health` and `/docs` remain functional.
+*   **Docker Compose Orchestration:**
+    *   **Problem:** Initial attempts to run `./scripts/dc_up` only started the `backend` service.
+    *   **Root Cause:** The `scripts/dc_up` script explicitly specified `docker compose up -d backend`, limiting its scope.
+    *   **Solution:** Modified `scripts/dc_up` to simply run `docker compose up -d`, allowing it to start *all* services defined in `docker-compose.yml`.
+*   **Cross-Origin Resource Sharing (CORS):**
+    *   **Problem:** The frontend (`http://localhost:3000`) received a `TypeError: Failed to fetch` when trying to access the backend API (`http://localhost:8000/health`).
+    *   **Root Cause:** Browser security policies preventing cross-origin requests.
+    *   **Solution:** Implemented CORS in the FastAPI backend (`backend/src/main.py`) using `fastapi.middleware.cors.CORSMiddleware`, specifically allowing requests from the frontend's origin (`http://localhost:3000`).
+*   **Unified Linting:**
+    *   The `scripts/dc_lint` script was updated to execute linters for *both* the backend (Python: Black, Ruff, isort) and the frontend (TypeScript/JS: ESLint via `npm run lint`) within their respective Docker containers.
+    *   The `.pre-commit-config.yaml` file was updated to include a `local` hook. This hook executes `docker compose exec frontend npm run lint` when frontend file types (`.js`, `.jsx`, `.ts`, `.tsx`) are staged, integrating frontend linting into the existing pre-commit workflow alongside backend checks.
