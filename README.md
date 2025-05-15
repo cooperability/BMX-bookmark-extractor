@@ -90,6 +90,43 @@ This project uses a containerized workflow. All development tools and dependenci
 *   **Phase 6: Deployment, Scalability & Refinement (Ongoing)**
     *   Focus: Production readiness, scaling, monitoring.
 
+## Long-Term Hosting & Infrastructure Strategy (Condensed)
+
+This section complements the phased implementation plan by outlining the recommended cloud infrastructure for long-term sustainability, scalability, and maintainability by a solo developer.
+
+*   **Core Principle:** Prioritize managed services to reduce operational overhead.
+*   **Neo4j Graph Database:**
+    *   **Service:** Neo4j AuraDB (specifically AuraDB Free tier for initial development).
+    *   **Rationale:** Fully managed, handles backups, scaling, HA. No-cost entry.
+    *   **Dependencies:** Account with Neo4j Aura.
+    *   **Expected Time-to-Complete (Initial Setup):** 1-2 hours (account creation, database provisioning, connection string acquisition).
+*   **PostgreSQL Relational Database & Backend Hosting:**
+    *   **Primary Recommendation:** Google Cloud Platform (GCP).
+        *   **Services:**
+            *   PostgreSQL: Google Cloud SQL for PostgreSQL (managed service, has free tier options).
+            *   Backend (FastAPI): Google Cloud Run or App Engine (serverless/managed compute).
+        *   **Rationale:** Strong AI/ML ecosystem (synergy with Gemini API), robust managed services.
+        *   **Dependencies:** GCP account.
+        *   **Expected Time-to-Complete (Initial Setup):** 2-4 hours (account setup, enabling APIs, provisioning Cloud SQL, initial app deployment to Cloud Run/App Engine).
+    *   **Strong Alternative:** Amazon Web Services (AWS).
+        *   **Services:**
+            *   PostgreSQL: Amazon RDS for PostgreSQL (managed service, often generous free tier).
+            *   Backend (FastAPI): AWS App Runner, Elastic Beanstalk, or Lambda+API Gateway.
+        *   **Rationale:** Mature, broad ecosystem, excellent managed services, potentially more generous SQL free tier.
+        *   **Dependencies:** AWS account.
+        *   **Expected Time-to-Complete (Initial Setup):** 2-4 hours (similar to GCP).
+*   **General Dependencies (already covered but reinforced):**
+    *   Docker & Docker Compose: For local development and containerization consistency.
+    *   Git: For version control.
+    *   Poetry/npm: For application dependency management.
+*   **Transition Strategy:**
+    *   Initially, continue using Docker Compose for local development as outlined.
+    *   When ready to deploy "Phase 1" or "Phase 2" components to the cloud:
+        1.  Set up AuraDB and migrate/point existing Neo4j data/logic.
+        2.  Set up managed PostgreSQL (Cloud SQL or RDS) and migrate/point existing PostgreSQL data/logic.
+        3.  Containerize the FastAPI backend (if not already fully optimized for cloud deployment) and deploy to Cloud Run/App Engine (GCP) or App Runner/Elastic Beanstalk (AWS).
+        4.  Update application configurations (e.g., `.env` files or secrets management) to use cloud service connection strings and API keys.
+
 ## (Future) LLM Integration Principles
 
 *   **LLM Choice**: Google Gemini API.
