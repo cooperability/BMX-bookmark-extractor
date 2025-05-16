@@ -1,0 +1,22 @@
+# Example .envrc for direnv.
+# Copy this file to .envrc in your project root and then run `direnv allow`.
+# This helps automate your shell environment when you cd into the project directory.
+
+# Load environment variables from .env file if it exists.
+# Useful for loading secrets or other configurations that shouldn't be in version control.
+dotenv_if_exists
+
+# Add the local ./scripts directory to your PATH when in this project.
+# This allows you to run scripts from that directory without typing ./scripts/script_name.
+PATH_add scripts
+
+# Example: Set a default log level for Rust applications if you were using Rust.
+# You can customize or remove this if not relevant.
+export RUST_LOG=info
+
+# If you are using Poetry and want direnv to automatically activate the virtual environment,
+# you might also add a line like this (though `poetry shell` or IDE integration often handles this):
+# layout poetry
+
+# Add any other common, non-secret environment variables or setup commands beneficial
+# for developing this project below.
