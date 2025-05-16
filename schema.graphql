@@ -1,0 +1,152 @@
+# GraphQL Schema for BMX-bookmark-extractor
+
+# --- Anki-related Types ---
+
+# Defines a single Anki Card
+type AnkiCard {
+  id: ID!                     # Unique identifier for the card (from CSV card_id, likely front content)
+  front: String!              # Front content of the card
+  back: String!               # Back content of the card
+  deck: AnkiDeck!             # The deck this card belongs to
+  tags: [AnkiTag!]!           # Tags associated with this card
+
+  # Relationships derived from Cypher script
+  sharesDeckWith: [AnkiCard!] # Other cards in the same deck
+  sharesTagWith(tag: String): [AnkiCard!] # Other cards sharing a specific tag (or all shared tags if 'tag' arg is omitted)
+
+  # Potential future extensions if Anki cards are processed by LLM
+  processedSummary: ProcessedSummary
+  extractedEntities: [Entity!]
+}
+
+# Defines an Anki Tag
+type AnkiTag {
+  id: ID!                     # Typically the tag name itself
+  name: String!               # The name of the tag (e.g., "Psychology", "AI")
+  cards: [AnkiCard!]!         # Cards that have this tag
+}
+
+# Defines an Anki Deck
+type AnkiDeck {
+  id: ID!                     # Typically the deck name itself
+  name: String!               # The name of the deck (e.g., "Anthro (Psych_Soc_Econ_Health)")
+  cards: [AnkiCard!]!         # Cards belonging to this deck
+}
+
+# --- Web/PDF Document & General Knowledge Types ---
+
+type WebDocument {
+  id: ID!
+  sourcePath: String!         # URL for web, file path for PDF
+  title: String               # Extracted or LLM-generated
+  rawTextContent: String      # From PostgreSQL (full extracted text)
+  summary: ProcessedSummary   # From PostgreSQL (LLM-generated summary)
+  entities: [Entity!]         # Linked entities in Neo4j
+  # ... other metadata like author, publication_date, document_type ("pdf", "web_article")
+  documentType: String
+}
+
+type ProcessedSummary {
+  id: ID!
+  text: String!
+  llmModelUsed: String
+  generatedAt: String # Timestamp
+  # ... link back to WebDocument or AnkiCard if applicable
+  sourceDocument: KnowledgeItem # Points to the WebDocument or AnkiCard this summarizes
+}
+
+type Entity {
+  id: ID!                     # Could be a namespaced ID, e.g., "concept:AI"
+  name: String!               # The name of the entity (e.g., "Artificial Intelligence")
+  type: String                # e.g., Person, Concept, Technology, Organization, Location
+  description: String         # Optional LLM-generated or curated description
+
+  # Connections
+  # documents: [WebDocument!] # Web documents mentioning this entity (consider renaming to sourceDocuments for clarity)
+  # ankiCards: [AnkiCard!] # Anki cards related to this entity
+  # relatedEntities(relationType: String): [Entity!] # Find entities related by a specific relationship type
+
+  # Simplified way to get all items this entity is mentioned in
+  mentionedIn: [KnowledgeItem!]
+}
+
+# --- Querying & Entry Points ---
+
+# Union type for heterogeneous search results or linking
+union KnowledgeItem = AnkiCard | WebDocument # Potentially add other types like 'Note' later
+
+type Query {
+  # Fetch a single Anki card by its ID
+  ankiCard(id: ID!): AnkiCard
+
+  # Fetch all Anki cards, with optional filtering
+  ankiCards(
+    deckName: String
+    tagName: String
+    limit: Int = 50
+    offset: Int = 0
+  ): [AnkiCard!]
+
+  # Fetch a single Anki tag by its name
+  ankiTag(name: String!): AnkiTag
+
+  # Fetch all Anki tags
+  ankiTags(
+    limit: Int = 50
+    offset: Int = 0
+  ): [AnkiTag!]
+
+  # Fetch a single Anki deck by its name
+  ankiDeck(name: String!): AnkiDeck
+
+  # Fetch all Anki decks
+  ankiDecks(
+    limit: Int = 50
+    offset: Int = 0
+  ): [AnkiDeck!]
+
+  # Fetch a single WebDocument by its source path (URL or file path)
+  document(sourcePath: String!): WebDocument # Renamed from webDocument for generality
+
+  # Fetch multiple documents
+  documents(
+    documentType: String # "pdf", "web_article"
+    searchTerm: String # Search within rawTextContent or summary
+    limit: Int = 10
+    offset: Int = 0
+  ): [WebDocument!]
+
+  # Fetch a single Entity by its name or ID
+  entity(id: ID, name: String): Entity # Allow lookup by name or a unique ID
+
+  # Fetch multiple entities
+  entities(
+    type: String # Filter by entity type
+    searchTerm: String # Search in entity name or description
+    limit: Int = 10
+    offset: Int = 0
+  ): [Entity!]
+
+  # Unified search across Anki and Web documents
+  searchKnowledge(
+    query: String!
+    itemTypes: [String] # e.g., ["AnkiCard", "WebDocument"]
+    limit: Int = 20
+    offset: Int = 0
+  ): [KnowledgeItem!]
+}
+
+# --- Mutations (Examples) ---
+# Mutations would be more relevant once the user-facing application allows direct edits.
+# For the agentic MVP, data is primarily ingested, not mutated via API.
+
+# type Mutation {
+#   # Example: Add a new tag to an existing Anki card
+#   addTagToAnkiCard(cardId: ID!, tagName: String!): AnkiCard
+
+#   # Example: Manually add an entity to a document
+#   linkEntityToDocument(documentId: ID!, entityId: ID!, relationshipDetails: String): WebDocument
+
+#   # Example: Create a new entity manually
+#   createEntity(name: String!, type: String!, description: String): Entity
+# }
