@@ -1,0 +1,8 @@
+#!/bin/sh
+# Convenience script to run docker compose ps
+set -e
+
+# Navigate to the project root directory (where docker-compose.yml is)
+cd "$(dirname "$0")"/..
+
+docker compose ps "$@"
