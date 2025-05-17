@@ -31,6 +31,8 @@ services:
       # Prevents the host's node_modules (if any) from overwriting the container's version,
       # and avoids issues if host OS is different from container OS (e.g. Windows host, Linux container).
       - /app/node_modules
+    environment:
+      DATABASE_URL: "postgresql://placeholderuser:placeholderpass@db-host:5432/placeholderdb"
     # Optional: If frontend makes build-time or critical startup calls to backend.
     # For typical dev where frontend calls API at runtime, not strictly needed.
     # depends_on:

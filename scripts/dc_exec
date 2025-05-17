@@ -1,11 +1,34 @@
 #!/bin/sh
-# Helper script to execute commands inside the running backend service container as appuser
+# Helper script to execute commands inside a specified running service container.
 set -e
 
 # Navigate to the project root directory (where docker-compose.yml is)
 cd "$(dirname "$0")"/..
 
-# Execute the command passed as arguments inside the backend service using sh -c
-# $* treats all arguments as a single string for sh -c
-echo "Executing inside backend container as appuser (via sh -c): $*"
-docker compose exec --user appuser backend sh -c "$*"
+if [ -z "$1" ]; then
+  echo "Usage: $(basename "$0") <service_name> [command_and_args...]"
+  echo "Example: $(basename "$0") backend poetry run pytest"
+  echo "Example: $(basename "$0") frontend npm install lodash"
+  exit 1
+fi
+
+SERVICE_NAME=$1
+shift # Removes the service_name from the argument list, so $* or "$@" now contains the command
+
+USER_ARGS=""
+EXEC_MESSAGE_USER_PART=""
+
+if [ "$SERVICE_NAME" = "backend" ]; then
+  USER_ARGS="--user appuser"
+  EXEC_MESSAGE_USER_PART=" as appuser"
+fi
+
+echo "Executing inside '$SERVICE_NAME' container$EXEC_MESSAGE_USER_PART (via sh -c): $*"
+
+# The USER_ARGS variable will be empty if not the backend, so it won't add an empty --user flag.
+# We need to handle the case where USER_ARGS is empty carefully.
+if [ -n "$USER_ARGS" ]; then
+  docker compose exec $USER_ARGS "$SERVICE_NAME" sh -c "$*"
+else
+  docker compose exec "$SERVICE_NAME" sh -c "$*"
+fi

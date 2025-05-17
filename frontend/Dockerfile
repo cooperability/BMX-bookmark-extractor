@@ -5,13 +5,18 @@ FROM node:20-slim
 WORKDIR /app
 
 # Install dependencies
-# Copy package.json and package-lock.json (if available) first to leverage Docker cache.
+# Enable corepack to manage Yarn versions (Node 20+ includes corepack).
+# and enable corepack to manage Yarn versions.
+RUN corepack enable
+
+# Copy package.json and yarn.lock (if available) first to leverage Docker cache.
 # This step will only re-run if these files change.
-COPY package*.json ./
+COPY package.json yarn.lock* ./
 
 # Install project dependencies. Using npm ci is often preferred in CI/builds for deterministic installs,
 # but npm install is fine for development.
-RUN npm install
+# Using yarn install --frozen-lockfile is similar to npm ci for reproducible builds.
+RUN yarn install --frozen-lockfile
 
 # Copy the rest of the application code from the frontend directory into the container.
 # Ensure a comprehensive .dockerignore file exists in the frontend directory to prevent
@@ -25,4 +30,4 @@ EXPOSE 3000
 ENV NODE_ENV=development
 
 # Run the Next.js development server when the container launches
-CMD ["npm", "run", "dev"]
+CMD ["yarn", "run", "dev"]

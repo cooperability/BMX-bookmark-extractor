@@ -6,16 +6,21 @@ BMX (BookMark eXtractor) aims to be a "secondary brain," synthesizing complex, m
 
 **Key Use Case:** Users provide lists of web links. BMX processes these, condenses their content, and integrates them into a knowledge graph. Users can then query this unified knowledge base for synthesized answers.
 
+-Maybe investigate Grafbase for querying GraphQL via MCP?
+-Set up dev cointainers and containers extension; "reopen in container" in VScode
+-Dev containers resolve import linting and actual autocompletion for modules; plus containerized shell
+
 ## Stack
 
 *   **Backend Framework**: FastAPI (Python) - `backend/src`
+*   **Frontend Framework**: SvelteKit (TypeScript/Svelte) - `frontend/src`
 *   **Graph Database**: Neo4j (Docker)
 *   **Relational Database**: PostgreSQL (Docker, for metadata and processed items)
 *   **Database Clients**: `neo4j` (Python driver), SQLAlchemy
 *   **Data Validation**: Pydantic
 *   **Containerization**: Docker & Docker Compose
-*   **Dependency Management**: Poetry (backend), npm (frontend)
-*   **Testing**: Pytest (backend)
+*   **Dependency Management**: Poetry (backend), Yarn (frontend)
+*   **Testing**: Pytest (backend), Vitest (frontend)
 *   **(Future) LLM Integration**: Google Gemini API
 
 ## Development Environment Setup
@@ -48,8 +53,9 @@ This project uses a containerized workflow. All development tools and dependenci
 **Helper Scripts (`./scripts/` directory):**
 *   `./scripts/dc_up`: Builds (if needed) and starts all services defined in `docker-compose.yml`.
 *   `./scripts/dc_poetry <command>`: Executes Poetry commands within the `backend` container (e.g., `./scripts/dc_poetry add <package>`, `./scripts/dc_poetry install`).
-*   `./scripts/dc_lint`: Runs linters for both backend (Black, Ruff, isort) and frontend (ESLint) inside their respective containers.
-*   `./scripts/dc_exec <command>`: Executes an arbitrary command inside the `backend` container (e.g., for tests: `./scripts/dc_exec poetry run pytest`).
+*   `./scripts/dc_lint`: Runs linters for both backend (Black, Ruff, isort) and frontend (ESLint, Prettier) inside their respective containers.
+*   `./scripts/dc_exec <service_name> <command>`: Executes an arbitrary command inside the specified service container (e.g., for backend tests: `./scripts/dc_exec backend poetry run pytest`; for frontend package install: `./scripts/dc_exec frontend yarn add <package>`).
+*   `./scripts/dcps`: Shortcut to run `docker compose ps` to check the status of running services.
 
 **Pre-commit Hooks:**
 *   Linters and formatters are automatically run on staged files before each commit. Configuration is in `.pre-commit-config.yaml`. The hook script itself is in `.git/hooks/pre-commit`.
@@ -60,9 +66,10 @@ This project uses a containerized workflow. All development tools and dependenci
     *   `Dockerfile`: Defines the backend service image.
         *   Note: `pre-commit` is installed via `pip` as a workaround for reliable git hook execution. The `chown` command at the end can be slow on Docker Desktop (Windows/macOS) due to filesystem issues.
     *   `pyproject.toml`: Backend Python dependencies managed by Poetry.
-*   `frontend/`: Next.js application.
-    *   `Dockerfile`: Defines the frontend service image.
-    *   `.dockerignore`: Crucial for keeping the build context small and build times fast.
+*   `frontend/`: SvelteKit application.
+    *   `Dockerfile`: Defines the frontend service image. Uses Node.js with Corepack to manage Yarn for dependency installation and running the development server.
+    *   `package.json`: Frontend dependencies managed by Yarn.
+    *   `svelte.config.js`, `vite.config.ts`: Configuration for SvelteKit and Vite.
 *   `docker-compose.yml`: Orchestrates all services (backend, frontend, Neo4j, etc.).
     *   Note: The project root (`.`) is mounted to `/project` in the backend container to allow `pre-commit` to access the `.git` directory. The frontend service uses an anonymous volume for `/app/node_modules` to prevent host mount overwriting.
 *   `.env.example`: Template for necessary environment variables (copy to `.env` for local configuration).
@@ -72,7 +79,39 @@ This project uses a containerized workflow. All development tools and dependenci
 
 *   **Git "Dubious Ownership" (Pre-commit/Backend Container):** If `pre-commit` fails due to "dubious ownership" of the `/project` directory inside the backend container, the hook script (`.git/hooks/pre-commit`) attempts to resolve this by adding `/project` to Git's `safe.directory` configuration *within the container*.
 *   **Slow `chown` in Backend Docker Build:** This is a known issue with Docker Desktop on Windows/macOS due to filesystem sharing overhead. For significantly faster builds, consider using WSL2 or a Linux environment for Docker.
-*   **Frontend Build Times:** Ensure `frontend/.dockerignore` is comprehensive. If build times are still slow, check the size of the assets being copied into the image.
+*   **Frontend Build Times:** Ensure `frontend/.dockerignore` is comprehensive. If build times are still slow, check the size of the assets being copied into the image and Docker layer caching.
+
+## Frontend Migration: Next.js to SvelteKit (Key Learnings & Current Status)
+
+This project recently underwent a significant frontend migration from Next.js to SvelteKit. This section captures the current status and key learnings from that process.
+
+**Current Status (as of end of migration):**
+*   The Next.js frontend has been completely removed.
+*   A basic SvelteKit application has been initialized in the `frontend/` directory.
+*   Yarn is now the package manager for the frontend, replacing npm.
+*   The `frontend/Dockerfile` has been updated to use Node.js with Corepack to manage Yarn.
+*   A health check page (`/health`) has been implemented in SvelteKit. This page successfully:
+    *   Fetches data from the FastAPI backend's `/health` endpoint (running in a separate Docker container).
+    *   Displays the status and version received from the backend.
+*   The Vite dev server for SvelteKit is configured to run on port 3000 and is accessible from the host.
+
+**Key Learnings & Debugging Insights from the Migration:**
+*   **Dependency Removal Complexity:** Simply removing a framework package (e.g., `next`) is often insufficient. Integrated libraries and associated tooling (like Paraglide/Inlang for i18n in this case) can leave behind:
+    *   Configuration files (e.g., `project.inlang/`, `messages/`).
+    *   Plugin registrations in bundler configurations (e.g., `paraglideVitePlugin` in `vite.config.ts`).
+    *   Placeholders or import statements in core HTML template files (e.g., `app.html`) or stray script files (e.g., a rogue `hooks.ts`).
+*   **Caching Layers:** Docker (build cache, image layers, volume mounts), Vite (dependency pre-bundling, dev server cache), and SvelteKit (`.svelte-kit` directory) all have caching mechanisms. These can be very aggressive and may require explicit and sometimes repeated clearing when debugging persistent "module not found" errors or unexpected behavior after code changes:
+    *   Commands like `docker builder prune -af`, `docker system prune -af`, and deleting `node_modules` / `.svelte-kit` were essential.
+    *   `docker compose up --build --force-recreate` was frequently used.
+*   **Importance of `svelte-kit sync`:** This command generates type definitions and other necessary files (like `.svelte-kit/tsconfig.json`) that are crucial for TypeScript and the SvelteKit language server to function correctly. Ensuring `tsconfig.json` correctly `extends` the SvelteKit-generated one is vital.
+*   **Tooling for Discovery:** When facing elusive errors, tools like `grep` (or equivalent text search across the entire project directory) are invaluable for locating unexpected references to removed libraries or configurations.
+*   **Iterative Debugging of Dockerized Setups:**
+    *   Temporarily changing the `CMD` in a `Dockerfile` (e.g., to `tail -f /dev/null`) allows `exec`-ing into a running container to manually run installation steps (`yarn install`), inspect the filesystem, and generate necessary files (like `yarn.lock`) that can then be copied back to the host or incorporated into the image build process.
+    *   Careful examination of Docker build logs and runtime container logs is crucial.
+*   **Standardizing Package Managers:** Switching to Yarn involved updating the `frontend/Dockerfile` to use Corepack for Yarn installation and changing all relevant commands in helper scripts and documentation.
+*   **Vite Configuration:** Ensuring `vite.config.ts` was cleaned of old plugins and correctly configured for the SvelteKit dev server (e.g., `host: '0.0.0.0'`, `port: 3000`) was important for Docker accessibility.
+
+The migration, while challenging, has resulted in a clean SvelteKit foundation for future frontend development.
 
 ## Implementation Plan (Revised May 2025 - Focus on Knowledge Pipeline)
 
@@ -173,7 +212,7 @@ This section complements the phased implementation plan by outlining the recomme
 *   **General Dependencies (already covered but reinforced):**
     *   Docker & Docker Compose: For local development and containerization consistency.
     *   Git: For version control.
-    *   Poetry/npm: For application dependency management.
+    *   Poetry/Yarn: For application dependency management.
 *   **Transition Strategy:**
     *   Initially, continue using Docker Compose for local development as outlined.
     *   When ready to deploy "Phase 1" or "Phase 2" components to the cloud:

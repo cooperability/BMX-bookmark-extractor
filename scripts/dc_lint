@@ -23,11 +23,16 @@ echo "\nContainerized linting complete."
 
 # --- Frontend Linting ---
 FRONTEND_SERVICE_NAME="frontend"
-echo "\n--- Executing linters inside ${FRONTEND_SERVICE_NAME} container --- "
+echo "\n--- Executing linters and formatters inside ${FRONTEND_SERVICE_NAME} container --- "
 
-# Use npm run lint, which executes ESLint configured by Next.js
-docker compose exec "${FRONTEND_SERVICE_NAME}" npm run lint
+# Run Prettier to format code first
+echo "\n--- Running Prettier formatter (frontend) --- "
+docker compose exec "${FRONTEND_SERVICE_NAME}" yarn prettier --write .
 
-echo "\nFrontend containerized linting complete."
+# Then run ESLint
+echo "\n--- Running ESLint (frontend) --- "
+docker compose exec "${FRONTEND_SERVICE_NAME}" yarn eslint .
 
-echo "\nAll linting complete."
+echo "\nFrontend containerized linting and formatting complete."
+
+echo "\nAll linting and formatting complete."
