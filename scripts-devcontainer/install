@@ -1,0 +1,15 @@
+#!/bin/bash
+# Install or update Python dependencies using Poetry
+set -e
+
+echo "Installing/updating Python dependencies..."
+
+if [ "$1" = "--update" ]; then
+    echo "🔄 Updating dependencies..."
+    poetry update
+else
+    echo "📦 Installing dependencies..."
+    poetry install
+fi
+
+echo "✅ Dependencies ready!" 

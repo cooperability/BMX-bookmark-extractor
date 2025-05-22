@@ -1,0 +1,6 @@
+#!/bin/bash
+# Run tests using pytest in the dev container environment
+set -e
+
+echo "Running tests with pytest..."
+poetry run pytest "$@" 

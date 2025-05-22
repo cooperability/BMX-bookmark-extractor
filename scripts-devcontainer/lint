@@ -1,0 +1,16 @@
+#!/bin/bash
+# Run linting tools in the dev container environment
+set -e
+
+echo "Running Python linting tools..."
+
+echo "🔍 Running Black (formatter)..."
+poetry run black src/
+
+echo "🔍 Running isort (import sorting)..."
+poetry run isort src/
+
+echo "🔍 Running Ruff (linter)..."
+poetry run ruff check src/
+
+echo "✅ Linting complete!" 

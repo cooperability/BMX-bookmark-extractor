@@ -23,7 +23,11 @@ This directory contains helper scripts for development **within** the dev contai
 
 ## Available Scripts
 
-*Coming soon - scripts will be added as needed for dev container workflow*
+*   **`test`**: Run pytest with any additional arguments (`./scripts-devcontainer/test`, `./scripts-devcontainer/test -k specific_test`)
+*   **`lint`**: Run all Python linting tools (Black, isort, Ruff) on the `src/` directory
+*   **`dev`**: Start the FastAPI development server with auto-reload on port 8000
+*   **`install`**: Install dependencies with Poetry (`./scripts-devcontainer/install` or `./scripts-devcontainer/install --update`)
+*   **`shell`**: Activate the Poetry virtual environment shell
 
 ## Examples
 
