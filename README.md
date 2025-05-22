@@ -34,7 +34,12 @@ BMX (BookMark eXtractor) aims to be a "secondary brain," synthesizing complex, m
 2.  Create `.env` from `.env.example`: Copy `.env.example` (from the project root) to `.env` (in the project root) and fill in your Neo4j, PostgreSQL (when added), and Gemini API key details.
     *   **Important:** Add `.env` to your `.gitignore` file.
 3.  (Optional) For `direnv` users: Copy `.envrc.example` to `.envrc` and run `direnv allow` to automate your shell environment when navigating into the project directory. This can, for example, automatically add `./scripts` to your `PATH` and load variables from `.env`.
-4.  Build and start services:
+4.  **(Optional) Dev Container Setup**: If using VS Code, you can open the project in a dev container for a fully configured development environment:
+    *   Install the "Dev Containers" extension in VS Code
+    *   Open the project folder in VS Code
+    *   When prompted (or via Command Palette: "Dev Containers: Reopen in Container"), choose to reopen in container
+    *   The dev container will build automatically and provide a pre-configured Python environment with all extensions and tools
+5.  Build and start services:
     ```bash
     ./scripts/dc_up --build
     ```
@@ -45,6 +50,24 @@ BMX (BookMark eXtractor) aims to be a "secondary brain," synthesizing complex, m
 *   API Docs: `http://localhost:8000/docs` or `/redoc`
 *   Neo4j Browser: `http://localhost:7474` (connect to `bolt://localhost:7687`)
 *   Frontend: `http://localhost:3000`
+
+## Dev Container Support
+
+This project includes VS Code Dev Container support for a consistent, fully-configured development environment.
+
+**What you get:**
+*   Pre-configured Python environment with Poetry and all extensions
+*   Automatic port forwarding and direnv setup
+*   No need to install Python, Poetry, or dependencies on your host machine
+
+**Script Organization:**
+*   **`./scripts/`**: Run from your **host machine** to manage Docker Compose services (start/stop containers, build images)
+*   **`./scripts-devcontainer/`**: Run from **inside the dev container** for development tasks (tests, linting, etc.)
+
+**Workflow:**
+1.  Use `./scripts/dc_up` from your host to start other services (Neo4j, etc.)
+2.  Open project in VS Code - dev container starts automatically
+3.  All development work happens inside the container with full tooling support
 
 ## Key Development Workflow & Commands
 

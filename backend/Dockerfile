@@ -2,8 +2,8 @@
 FROM python:3.11-slim
 
 # Set environment variables
-ENV PYTHONDONTWRITEBYTECODE 1
-ENV PYTHONUNBUFFERED 1
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
 ENV POETRY_VERSION=1.8.2
 ENV POETRY_HOME="/opt/poetry"
 # Ensure .venv is created in /app/.venv
@@ -15,8 +15,9 @@ ENV APP_HOME=/app
 # Install system dependencies
 # - curl: for poetry installation script
 # - git: required by pre-commit for certain hooks and by poetry for git dependencies
+# - direnv: for automatic environment loading
 RUN apt-get update && \
-    apt-get install --no-install-recommends -y curl git && \
+    apt-get install --no-install-recommends -y curl git direnv && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
@@ -47,7 +48,11 @@ RUN poetry install --no-interaction --no-ansi --no-root
 COPY src ${APP_HOME}/src
 
 # Create a non-root user and group for security best practices
-RUN addgroup --system appgroup && adduser --system --ingroup appgroup appuser
+# Create home directory manually since system users don't auto-create it
+RUN addgroup --system appgroup && \
+    adduser --system --ingroup appgroup --home /home/appuser appuser && \
+    mkdir -p /home/appuser && \
+    chown appuser:appgroup /home/appuser
 
 # Change ownership of the application and poetry directories
 # This ensures the appuser can manage dependencies and run the application.
@@ -61,6 +66,9 @@ USER appuser
 # Set poetry cache dir for the appuser, inside the app home directory.
 # This should be done *after* chown and USER switch to ensure correct permissions.
 ENV POETRY_CACHE_DIR=${APP_HOME}/.cache
+
+# Set up direnv hook for the user
+RUN echo 'eval "$(direnv hook bash)"' >> ~/.bashrc
 
 # Set up healthcheck
 # TODO: Adjust the healthcheck endpoint if /health is not available or needs auth

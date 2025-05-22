@@ -1,0 +1,49 @@
+{
+    "name": "BMX Bookmark Extractor",
+    "dockerComposeFile": "../docker-compose.yml",
+    "service": "backend",
+    "workspaceFolder": "/project",
+    "shutdownAction": "stopCompose",
+    
+    // Features to install in the container
+    "features": {},
+    
+    // Configure tool-specific properties
+    "customizations": {
+        "vscode": {
+            "extensions": [
+                "ms-python.python",
+                "ms-python.flake8",
+                "ms-python.black-formatter",
+                "bradlc.vscode-tailwindcss",
+                "ms-vscode.vscode-typescript-next",
+                "esbenp.prettier-vscode",
+                "ms-vscode.docker",
+                "GitHub.copilot"
+            ],
+            "settings": {
+                "python.defaultInterpreterPath": "/app/.venv/bin/python",
+                "python.terminal.activateEnvironment": false,
+                "terminal.integrated.defaultProfile.linux": "bash"
+            }
+        }
+    },
+    
+    // Use the backend service as the main dev environment
+    "overrideCommand": false,
+    
+    // Mount the entire project to /project and scripts to /app/scripts
+    "mounts": [
+        "source=${localWorkspaceFolder},target=/project,type=bind",
+        "source=${localWorkspaceFolder}/scripts,target=/app/scripts,type=bind"
+    ],
+    
+    // Post-create commands to set up the environment
+    "postCreateCommand": "cd /project && direnv allow",
+    
+    // Forward ports
+    "forwardPorts": [8000, 3000],
+    
+    // Set the user in the container
+    "remoteUser": "appuser"
+} 
