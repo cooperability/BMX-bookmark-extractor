@@ -13,4 +13,4 @@ poetry run isort src/
 echo "🔍 Running Ruff (linter)..."
 poetry run ruff check src/
 
-echo "✅ Linting complete!" 
+echo "✅ Linting complete!"

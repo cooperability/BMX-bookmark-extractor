@@ -3,4 +3,4 @@
 set -e
 
 echo "Running tests with pytest..."
-poetry run pytest "$@" 
+poetry run pytest "$@"
