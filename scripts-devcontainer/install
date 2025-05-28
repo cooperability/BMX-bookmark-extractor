@@ -12,4 +12,4 @@ else
     poetry install
 fi
 
-echo "✅ Dependencies ready!" 
+echo "✅ Dependencies ready!"

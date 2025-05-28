@@ -3,4 +3,4 @@
 set -e
 
 echo "Activating Poetry virtual environment..."
-poetry shell 
+poetry shell

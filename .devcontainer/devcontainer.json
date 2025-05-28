@@ -4,10 +4,10 @@
     "service": "backend",
     "workspaceFolder": "/project",
     "shutdownAction": "stopCompose",
-    
+
     // Features to install in the container
     "features": {},
-    
+
     // Configure tool-specific properties
     "customizations": {
         "vscode": {
@@ -28,22 +28,22 @@
             }
         }
     },
-    
+
     // Use the backend service as the main dev environment
     "overrideCommand": false,
-    
+
     // Mount the entire project to /project and scripts to /app/scripts
     "mounts": [
         "source=${localWorkspaceFolder},target=/project,type=bind",
         "source=${localWorkspaceFolder}/scripts,target=/app/scripts,type=bind"
     ],
-    
+
     // Post-create commands to set up the environment
     "postCreateCommand": "cd /project && direnv allow",
-    
+
     // Forward ports
     "forwardPorts": [8000, 3000],
-    
+
     // Set the user in the container
     "remoteUser": "appuser"
-} 
+}
