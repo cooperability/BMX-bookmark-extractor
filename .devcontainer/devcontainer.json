@@ -13,13 +13,10 @@
         "vscode": {
             "extensions": [
                 "ms-python.python",
-                "ms-python.flake8",
                 "ms-python.black-formatter",
                 "bradlc.vscode-tailwindcss",
-                "ms-vscode.vscode-typescript-next",
                 "esbenp.prettier-vscode",
-                "ms-vscode.docker",
-                "GitHub.copilot"
+                "ms-vscode.docker"
             ],
             "settings": {
                 "python.defaultInterpreterPath": "/app/.venv/bin/python",
@@ -32,6 +29,13 @@
     // Use the backend service as the main dev environment
     "overrideCommand": false,
 
+    // Container runtime arguments to prevent OOM during VS Code Server installation
+    "runArgs": [
+        "--memory=6g",
+        "--memory-swap=8g",
+        "--shm-size=1g"
+    ],
+
     // Mount the entire project to /project and scripts to /app/scripts
     "mounts": [
         "source=${localWorkspaceFolder},target=/project,type=bind",
@@ -39,7 +43,15 @@
     ],
 
     // Post-create commands to set up the environment
-    "postCreateCommand": "cd /project && direnv allow",
+    "postCreateCommand": "git config --global --add safe.directory /project && mkdir -p ~/.local/share/direnv && cd /project && direnv allow",
+
+    // Additional initialization options
+    "initializeCommand": "echo 'Preparing devcontainer...'",
+
+    // Increase timeout for extension installation
+    "containerEnv": {
+        "VSCODE_EXTENSIONS_INSTALL_TIMEOUT": "300000"
+    },
 
     // Forward ports
     "forwardPorts": [8000, 3000],

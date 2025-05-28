@@ -26,8 +26,9 @@ COPY . .
 # Make port 3000 available to the world outside this container
 EXPOSE 3000
 
-# Define environment variable for Next.js development mode
+# Define environment variable for SvelteKit development mode
 ENV NODE_ENV=development
 
-# Run the Next.js development server when the container launches
-CMD ["yarn", "run", "dev"]
+# Run the SvelteKit development server when the container launches
+# Use --host 0.0.0.0 to bind to all interfaces so Docker can access it
+CMD ["yarn", "run", "dev", "--host", "0.0.0.0", "--port", "3000"]
