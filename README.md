@@ -98,6 +98,30 @@ This project uses a containerized workflow. All development tools and dependenci
 *   `.env.example`: Template for necessary environment variables (copy to `.env` for local configuration).
 *   `.pre-commit-config.yaml`: Defines pre-commit checks for code quality.
 
+## Educational Content & Knowledge Base Structure
+
+BMX includes a structured educational knowledge base in the `docs/` directory, designed for both human learning and LLM knowledge graph integration.
+
+**Directory Structure:**
+```
+docs/
+├── python-fundamentals/     # Basic Python concepts
+├── python-intermediate/     # OOP, decorators, generators
+├── python-advanced/         # Metaclasses, async, optimization
+└── nlp-course/             # NLP fundamentals and techniques
+```
+
+**Key Features:**
+*   **Jupyter Notebooks**: Preserved interactive format with executable code examples
+*   **Structured Metadata**: YAML frontmatter with topics, prerequisites, learning objectives
+*   **Knowledge Graph Integration**: Notebooks processed through BMX pipeline to extract:
+    *   Programming concepts and relationships
+    *   Code-to-concept mappings
+    *   Progressive learning paths
+*   **Cross-Domain Connections**: Links educational content with other knowledge domains in the graph
+
+**LLM Integration**: Educational content becomes queryable knowledge, enabling the system to recommend learning paths, explain concepts with executable examples, and connect theoretical knowledge with practical implementation.
+
 ## Troubleshooting & Key Learnings
 
 *   **Git "Dubious Ownership" (Pre-commit/Backend Container):** If `pre-commit` fails due to "dubious ownership" of the `/project` directory inside the backend container, the hook script (`.git/hooks/pre-commit`) attempts to resolve this by adding `/project` to Git's `safe.directory` configuration *within the container*.
