@@ -60,6 +60,11 @@ This project includes VS Code Dev Container support for a consistent, fully-conf
 *   Automatic port forwarding and direnv setup
 *   No need to install Python, Poetry, or dependencies on your host machine
 
+**Critical Configuration Notes:**
+*   **Memory Requirements**: DevContainer requires significant memory allocation (6GB RAM + 8GB swap) due to VS Code Server installation being extremely memory-intensive. Exit code 137 during startup indicates insufficient memory allocation.
+*   **Permission Structure**: The `backend/Dockerfile` creates specific directory permissions for `appuser` (`.local/share/direnv`, `nltk_data`) and uses `/bin/bash` shell - changing these can cause cryptic permission errors.
+*   **Dependency Compatibility**: SpaCy/NumPy require specific version pinning (`numpy = "^1.24.4"`, `spacy = "^3.7.5"`) to avoid binary incompatibility issues that manifest as import errors.
+
 **Script Organization:**
 *   **`./scripts/`**: Run from your **host machine** to manage Docker Compose services (start/stop containers, build images)
 *   **`./scripts-devcontainer/`**: Run from **inside the dev container** for development tasks (tests, linting, etc.)
@@ -125,6 +130,9 @@ docs/
 ## Troubleshooting & Key Learnings
 
 *   **Git "Dubious Ownership" (Pre-commit/Backend Container):** If `pre-commit` fails due to "dubious ownership" of the `/project` directory inside the backend container, the hook script (`.git/hooks/pre-commit`) attempts to resolve this by adding `/project` to Git's `safe.directory` configuration *within the container*.
+*   **Docker Service Communication**: Frontend container must use service names (e.g., `http://backend:8000`) rather than `localhost` for backend communication. Vite dev server requires `host: '0.0.0.0'` binding in `vite.config.ts` for Docker accessibility.
+*   **SvelteKit Adapter Issues**: Use `@sveltejs/adapter-vercel` instead of `@sveltejs/adapter-auto` to avoid module resolution problems during builds. Auto-adapter can cause cryptic "module not found" errors.
+*   **Linting Strategy**: `dc_lint` provides adequate development-time linting, while pre-commit hooks ensure comprehensive commit-time validation. Both are needed for complete code quality coverage.
 *   **Slow `chown` in Backend Docker Build:** This is a known issue with Docker Desktop on Windows/macOS due to filesystem sharing overhead. For significantly faster builds, consider using WSL2 or a Linux environment for Docker.
 *   **Frontend Build Times:** Ensure `frontend/.dockerignore` is comprehensive. If build times are still slow, check the size of the assets being copied into the image and Docker layer caching.
 
