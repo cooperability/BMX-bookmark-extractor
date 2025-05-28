@@ -44,21 +44,27 @@ RUN poetry lock --no-update --no-interaction
 # --no-root is used because the main package (src) hasn't been copied yet and isn't installable at this stage.
 RUN poetry install --no-interaction --no-ansi --no-root
 
+# Create startup script that downloads models on first run
+COPY startup.sh /app/startup.sh
+RUN chmod +x /app/startup.sh
+
 # Copy application code (relative to context ./backend)
 COPY src ${APP_HOME}/src
 
 # Create a non-root user and group for security best practices
 # Create home directory manually since system users don't auto-create it
 RUN addgroup --system appgroup && \
-    adduser --system --ingroup appgroup --home /home/appuser appuser && \
-    mkdir -p /home/appuser && \
-    chown appuser:appgroup /home/appuser
+    adduser --system --ingroup appgroup --home /home/appuser --shell /bin/bash appuser && \
+    mkdir -p /home/appuser/.local/share && \
+    mkdir -p /home/appuser/nltk_data && \
+    chown -R appuser:appgroup /home/appuser
 
 # Change ownership of the application and poetry directories
 # This ensures the appuser can manage dependencies and run the application.
 # NOTE: This `chown` command can be slow on Docker Desktop (Windows/macOS)
 # due to filesystem sharing overhead. For faster builds, consider Linux/WSL2.
-RUN chown -R appuser:appgroup ${APP_HOME} ${POETRY_HOME}
+RUN chown -R appuser:appgroup ${APP_HOME} && \
+    chown -R appuser:appgroup ${POETRY_HOME}
 
 # Switch to the non-root user
 USER appuser
@@ -74,5 +80,5 @@ RUN echo 'eval "$(direnv hook bash)"' >> ~/.bashrc
 # TODO: Adjust the healthcheck endpoint if /health is not available or needs auth
 HEALTHCHECK CMD curl --fail http://localhost:8000/health || exit 1
 
-# Command to run the application using Uvicorn from the venv
-CMD ["/app/.venv/bin/uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8000"]
+# Use startup script that handles model downloading
+CMD ["/app/startup.sh"]

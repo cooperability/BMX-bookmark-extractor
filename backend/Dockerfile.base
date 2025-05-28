@@ -1,0 +1,30 @@
+# Base image with NLP models pre-installed
+FROM python:3.11-slim as nlp-base
+
+ENV POETRY_VERSION=1.8.2
+ENV POETRY_HOME="/opt/poetry"
+ENV POETRY_VIRTUALENVS_IN_PROJECT=true
+ENV PATH="$POETRY_HOME/bin:$PATH"
+
+# Install system dependencies
+RUN apt-get update && \
+    apt-get install --no-install-recommends -y curl git && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
+
+# Install Poetry
+RUN curl -sSL https://install.python-poetry.org | python3 -
+
+WORKDIR /app
+
+# Copy only dependencies first for better caching
+COPY pyproject.toml poetry.lock* ./
+
+# Install dependencies
+RUN poetry install --only=main --no-interaction --no-ansi --no-root
+
+# Download NLP models ONCE in this base image
+RUN poetry run python -m spacy download en_core_web_sm
+RUN poetry run python -c "import nltk; nltk.download('punkt'); nltk.download('stopwords'); nltk.download('wordnet'); nltk.download('averaged_perceptron_tagger')"
+
+# This base image can be pushed to a registry and reused

@@ -20,3 +20,14 @@ export RUST_LOG=info
 
 # Add any other common, non-secret environment variables or setup commands beneficial
 # for developing this project below.
+
+# Domain Configuration
+export DOMAIN_NAME=remediate.app
+export API_URL=https://api.remediate.app
+export FRONTEND_URL=https://remediate.app
+
+# Environment (dev/staging/production)
+export ENVIRONMENT=development
+
+# CORS origins for production
+export CORS_ORIGINS="https://remediate.app,https://www.remediate.app,http://localhost:3000"
