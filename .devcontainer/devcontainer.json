@@ -51,7 +51,8 @@
 
     // Increase timeout for extension installation
     "containerEnv": {
-        "VSCODE_EXTENSIONS_INSTALL_TIMEOUT": "300000"
+        "VSCODE_EXTENSIONS_INSTALL_TIMEOUT": "300000",
+        "PATH": "/project/scripts-devcontainer:${PATH}"
     },
 
     // Forward ports
