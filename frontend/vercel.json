@@ -1,9 +1,4 @@
 {
-	"functions": {
-		"frontend/build/index.js": {
-			"runtime": "vercel/node"
-		}
-	},
 	"rewrites": [
 		{
 			"source": "/api/(.*)",
