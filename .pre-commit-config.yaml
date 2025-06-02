@@ -38,13 +38,24 @@ repos:
         files: ^backend/src/.*\\.py$
         args: [--fix, --exit-non-zero-on-fix] # Apply fixes automatically
 
-# Hook for Frontend Linting (runs inside Docker)
--   repo: local
+# Frontend hooks using Node.js environment
+-   repo: https://github.com/pre-commit/mirrors-eslint
+    rev: v9.18.0
     hooks:
-    -   id: frontend-lint
-        name: frontend-lint (eslint & prettier)
-        entry: docker compose exec frontend yarn lint
-        language: system
-        types: [javascript, jsx, ts, tsx] # Only run on relevant file types
-        files: ^frontend/src/.*
-        pass_filenames: false # We don't need to pass filenames, lint runs on the whole dir
+    -   id: eslint
+        files: ^frontend/src/.*\.(js|jsx|ts|tsx|svelte)$
+        additional_dependencies:
+        - eslint@^9.18.0
+        - typescript-eslint@^8.20.0
+        - eslint-plugin-svelte@^3.0.0
+        - eslint-config-prettier@^10.0.1
+        args: [--fix]
+-   repo: https://github.com/pre-commit/mirrors-prettier
+    rev: v3.4.2
+    hooks:
+    -   id: prettier
+        files: ^frontend/src/.*\.(js|jsx|ts|tsx|svelte|json|css|md)$
+        additional_dependencies:
+        - prettier@^3.4.2
+        - prettier-plugin-svelte@^3.3.3
+        - prettier-plugin-tailwindcss@^0.6.11

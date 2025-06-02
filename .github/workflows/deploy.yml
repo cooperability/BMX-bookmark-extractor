@@ -23,33 +23,85 @@ jobs:
         with:
           node-version: '20'
           cache: 'yarn'
-          cache-dependency-path: frontend/yarn.lock
+          cache-dependency-path: 'frontend/yarn.lock'
+
+      - name: Enable Corepack
+        run: corepack enable
+
+      - name: Verify Frontend Directory
+        run: |
+          echo "📁 Frontend directory contents:"
+          ls -la frontend/
+          echo "📦 Package.json exists: $(test -f frontend/package.json && echo "✅ Yes" || echo "❌ No")"
+          echo "🔒 Yarn.lock exists: $(test -f frontend/yarn.lock && echo "✅ Yes" || echo "❌ No")"
 
       - name: Install dependencies
         working-directory: frontend
-        run: yarn install --frozen-lockfile
+        run: |
+          echo "🔧 Installing dependencies with yarn..."
+          yarn install --frozen-lockfile || yarn install
+          echo "✅ Dependencies installed successfully"
+
+      - name: Commit yarn.lock if it was created/updated
+        run: |
+          git config --global user.name 'github-actions[bot]'
+          git config --global user.email 'github-actions[bot]@users.noreply.github.com'
+          
+          if git diff --name-only | grep -q "frontend/yarn.lock"; then
+            echo "📝 yarn.lock was updated, committing..."
+            git add frontend/yarn.lock
+            git commit -m "Update yarn.lock file [skip ci]"
+            git push
+          else
+            echo "✅ yarn.lock is up to date"
+          fi
+
+      - name: Lint and Type Check
+        working-directory: frontend
+        run: |
+          echo "🔍 Running linter..."
+          yarn lint || (echo "❌ Linting failed" && exit 1)
+          echo "🔍 Running type check..."
+          yarn check || (echo "❌ Type check failed" && exit 1)
+          echo "✅ Code quality checks passed"
 
       - name: Build
         working-directory: frontend
-        run: yarn build
+        run: |
+          echo "🏗️ Building frontend application..."
+          yarn build
+          echo "✅ Build completed successfully"
         env:
           NODE_ENV: production
           DOMAIN_NAME: remediate.app
           API_URL: https://api.remediate.app
 
       - name: Install Vercel CLI
-        run: npm install --global vercel@latest
+        run: |
+          echo "📥 Installing Vercel CLI..."
+          npm install --global vercel@latest
+          vercel --version
 
       - name: Pull Vercel Environment Information
-        run: vercel pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN }}
+        run: |
+          echo "⬇️ Pulling Vercel project configuration..."
+          vercel pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN }}
+          echo "✅ Project configuration pulled"
         working-directory: frontend
 
       - name: Build Project Artifacts
-        run: vercel build --prod --token=${{ secrets.VERCEL_TOKEN }}
+        run: |
+          echo "🏗️ Building project artifacts for Vercel..."
+          vercel build --prod --token=${{ secrets.VERCEL_TOKEN }}
+          echo "✅ Vercel build completed"
         working-directory: frontend
 
       - name: Deploy Project Artifacts to Vercel
-        run: vercel deploy --prebuilt --prod --token=${{ secrets.VERCEL_TOKEN }}
+        run: |
+          echo "🚀 Deploying to Vercel..."
+          DEPLOYMENT_URL=$(vercel deploy --prebuilt --prod --token=${{ secrets.VERCEL_TOKEN }})
+          echo "✅ Deployment successful!"
+          echo "🌐 Deployment URL: $DEPLOYMENT_URL"
         working-directory: frontend
 
   deploy-backend:

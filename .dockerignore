@@ -1,13 +1,24 @@
-.git
+# Version Control
+.git/
 .gitignore
+
+# Documentation
+documentation/
+
+# Dependencies
+node_modules/
+__pycache__/
+
+# IDE / Editor files
+.vscode/
+*.swp
+*.swo
+
 .env
 *.pyc
 *.pyo
 *.pyd
-__pycache__
 .pytest_cache
 .mypy_cache
-.vscode
 *.md
 tests/
-docs/

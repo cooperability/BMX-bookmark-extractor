@@ -4,6 +4,8 @@ set -e
 
 echo "Running Python linting tools..."
 
+cd /project/backend
+
 echo "🔍 Running Black (formatter)..."
 poetry run black src/
 
