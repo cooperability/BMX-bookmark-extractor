@@ -16,7 +16,8 @@
                 "ms-python.black-formatter",
                 "bradlc.vscode-tailwindcss",
                 "esbenp.prettier-vscode",
-                "ms-vscode.docker"
+                "ms-vscode.docker",
+                "bierner.markdown-mermaid"
             ],
             "settings": {
                 "python.defaultInterpreterPath": "/app/.venv/bin/python",

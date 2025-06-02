@@ -1,3 +1,10 @@
+# BMX (BookMark eXtractor) Development Environment
+# For detailed setup and configuration info, see:
+# - README.md (quick setup guide)
+# - backend/README.md (FastAPI development)
+# - frontend/README.md (SvelteKit development)
+# - .devcontainer/README.md (dev container setup)
+
 services:
   backend:
     build:
