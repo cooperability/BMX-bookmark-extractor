@@ -108,6 +108,43 @@ When ready to deploy Phase 1 or Phase 2 components:
 - Configure auto-scaling based on usage patterns
 - Implement security best practices (VPC, firewalls, access controls)
 
+## CI/CD and Development Tools
+
+### GitHub Actions Workflow
+**Enhanced deployment pipeline** with robust error handling and comprehensive logging:
+
+- **Yarn Package Management**: Consistent yarn usage across all environments with automatic `yarn.lock` generation
+- **Code Quality Gates**: Automated linting and type checking before deployment
+- **Vercel CLI Integration**: Official CLI-based deployment for better reliability
+- **Detailed Logging**: Step-by-step progress tracking with clear success/failure indicators
+
+**Key Features:**
+- Automatic dependency caching for faster builds
+- Graceful handling of missing lock files
+- Auto-commit of updated dependencies
+- Production environment configuration
+
+### Pre-commit Hooks
+**Modernized code quality enforcement** using Node.js-based tools:
+
+- **ESLint Integration**: Frontend JavaScript/TypeScript/Svelte linting with auto-fix
+- **Prettier Formatting**: Consistent code formatting across all frontend files
+- **Plugin Support**: SvelteKit-specific linting rules and Tailwind CSS formatting
+- **Fast Execution**: Direct Node.js execution instead of Docker containers
+
+**Benefits:**
+- Works consistently in both local development and CI environments
+- Faster execution times compared to Docker-based hooks
+- Automatic code formatting and issue resolution
+
+### Package Management
+**Yarn enforcement** across all development environments:
+
+- Docker containers configured with yarn via corepack
+- GitHub Actions uses yarn for consistency
+- Automatic `yarn.lock` generation and maintenance
+- Version pinning via `packageManager` field in `package.json`
+
 ## Cost Optimization
 
 **Development Phase:**

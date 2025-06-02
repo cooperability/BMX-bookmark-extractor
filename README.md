@@ -1,62 +1,68 @@
-# BMX-bookmark-extractor
+# BMX (BookMark eXtractor)
 
-## Core Mission
+A sophisticated knowledge management system designed to transform bookmark collections into actionable knowledge through AI-powered analysis and graph-based exploration.
 
-BMX (BookMark eXtractor) aims to be a "secondary brain," synthesizing complex, multi-disciplinary information from diverse sources (Anki exports, web links) into structured, interconnected knowledge bases (Neo4j and PostgreSQL). It employs a multi-stage pipeline (scraping, NLP, LLM) to condense information into "ultra-distilled documents," enabling advanced querying and insight generation.
+## Quick Start (Local Development)
 
-**Key Use Case:** Users provide lists of web links. BMX processes these, condenses their content, and integrates them into a knowledge graph. Users can then query this unified knowledge base for synthesized answers.
+### Prerequisites
+- **Docker & Docker Compose** - For containerized development environment
+- **Git** - Version control
+- **VS Code** (recommended) - With Dev Containers extension for seamless development
 
-## Stack
+### One-Command Setup
+```bash
+git clone <repository-url>
+cd BMX-bookmark-extractor
+# Open in VS Code and reopen in Dev Container when prompted
+# Or manually: code . && "Dev Containers: Reopen in Container"
+```
 
-*   **Backend Framework**: FastAPI (Python) - `backend/src`
-*   **Frontend Framework**: SvelteKit (TypeScript/Svelte) - `frontend/src`
-*   **Graph Database**: Neo4j (Docker)
-*   **Relational Database**: PostgreSQL (Docker, for metadata and processed items)
-*   **Database Clients**: `neo4j` (Python driver), SQLAlchemy
-*   **Data Validation**: Pydantic
-*   **Containerization**: Docker & Docker Compose
-*   **Dependency Management**: Poetry (backend), Yarn (frontend)
-*   **Testing**: Pytest (backend), Vitest (frontend)
-*   **(Future) LLM Integration**: Google Gemini API
+The dev container will automatically:
+- Set up Python environment with Poetry
+- Configure SvelteKit frontend with all dependencies
+- Initialize Neo4j and PostgreSQL services
+- Install development tools and extensions
 
-## Quick Setup
+### Development Commands
+```bash
+# Backend (FastAPI) - from dev container terminal
+poetry run uvicorn src.main:app --host 0.0.0.0 --port 8000 --reload
 
-**Prerequisites:** Docker and Docker Compose
+# Frontend (SvelteKit) - from host or container
+cd frontend && npm run dev
+```
 
-1.  **Clone**: `git clone https://github.com/cooperability/BMX-bookmark-extractor.git && cd BMX-bookmark-extractor`
-2.  **Environment**: Copy `.env.example` to `.env` and configure your Neo4j, PostgreSQL, and Gemini API details
-3.  **Start**: `./scripts/dc_up --build` (subsequent starts: `./scripts/dc_up`)
+## System Architecture
 
-**Service URLs:**
-*   Backend API: `http://localhost:8000` (docs: `/docs`)
-*   Frontend: `http://localhost:3000`
-*   Neo4j Browser: `http://localhost:7474`
+BMX uses a **hybrid database architecture** combining:
+- **PostgreSQL** for efficient full-text content storage and complex queries
+- **Neo4j** for relationship mapping and graph-based knowledge exploration
+- **FastAPI** backend for robust API and data processing
+- **SvelteKit** frontend for modern, responsive user interface
 
-## Development Workflow
+### Key Features
 
-**Helper Scripts (`./scripts/` directory - run from host):**
-*   `./scripts/dc_up`: Start all services
-*   `./scripts/dc_poetry <command>`: Execute Poetry commands in backend container
-*   `./scripts/dc_lint`: Run linters for both backend and frontend
-*   `./scripts/dc_exec <service> <command>`: Execute arbitrary commands in containers
+*   **Multi-Source Ingestion**: Process bookmarks from browser exports, Anki flashcards, and direct web scraping
+*   **AI-Powered Analysis**: Use Google Gemini API for intelligent content summarization and entity extraction
+*   **Graph-Based Knowledge Discovery**: Visualize and explore relationships between concepts, documents, and ideas
+*   **Hybrid Storage Strategy**: Optimize for both performance and cost with intelligent data distribution
+*   **Real-Time Processing**: Stream-based ingestion and processing for immediate insights
 
-**Dev Container Support:**
-*   Open project in VS Code with "Dev Containers" extension
-*   Automatic environment setup with all tools configured
-*   Use `./scripts-devcontainer/` scripts inside the container
+## Documentation
 
-## Additional Documentation
+*   **System Architecture**: [documentation/system-architecture-flow.md](documentation/system-architecture-flow.md) - Complete system diagrams and data flow visualization
+*   **Database Design**: [Hybrid Database Architecture](documentation/hybrid-database-architecture.md) - Detailed PostgreSQL + Neo4j implementation strategy
+*   **AI Integration**: [LLM Integration Guide](documentation/llm-integration.md) - Google Gemini API setup and usage patterns
+*   **Development**: [Implementation Plan](documentation/implementation-plan.md) - Phased development roadmap and current status
+*   **Planning**: [documentation/](documentation/) - Implementation plans, MVP specs, and design documents
 
-*   **System Architecture**: [docs/system-architecture-flow.md](docs/system-architecture-flow.md) - Complete system diagrams and data flow visualization
-*   **Frontend**: [frontend/README.md](frontend/README.md) - SvelteKit setup and migration notes
-*   **Backend**: [backend/README.md](backend/README.md) - FastAPI structure and development
-*   **Dev Containers**: [.devcontainer/README.md](.devcontainer/README.md) - Container configuration and troubleshooting
-*   **Planning**: [docs/](docs/) - Implementation plans, MVP specs, and design documents
-*   **Scripts**: [scripts-devcontainer/README.md](scripts-devcontainer/README.md) - Container development workflow
+## Project Status
 
-## Current Status
+**Current Phase**: Early development with foundational architecture established
+**Next Milestone**: Neo4j integration and hybrid storage implementation
+**Target**: Production-ready MVP with Anki data ingestion and basic graph visualization
 
-BMX is in active development with a working SvelteKit frontend, FastAPI backend foundation, and containerized development environment. The knowledge processing pipeline and graph integration are in development.
+BMX represents a comprehensive approach to knowledge management, transforming scattered bookmarks and information into a cohesive, explorable knowledge graph that helps users discover connections and insights they never knew existed.
 
 ## License
 

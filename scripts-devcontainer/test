@@ -3,4 +3,6 @@
 set -e
 
 echo "Running tests with pytest..."
+
+cd /project/backend
 poetry run pytest "$@"
