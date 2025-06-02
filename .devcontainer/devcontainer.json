@@ -16,7 +16,8 @@
                 "ms-python.black-formatter",
                 "bradlc.vscode-tailwindcss",
                 "esbenp.prettier-vscode",
-                "ms-vscode.docker"
+                "ms-vscode.docker",
+                "bierner.markdown-mermaid"
             ],
             "settings": {
                 "python.defaultInterpreterPath": "/app/.venv/bin/python",
@@ -50,7 +51,8 @@
 
     // Increase timeout for extension installation
     "containerEnv": {
-        "VSCODE_EXTENSIONS_INSTALL_TIMEOUT": "300000"
+        "VSCODE_EXTENSIONS_INSTALL_TIMEOUT": "300000",
+        "PATH": "/project/scripts-devcontainer:${PATH}"
     },
 
     // Forward ports
