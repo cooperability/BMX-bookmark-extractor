@@ -5,31 +5,73 @@ A sophisticated knowledge management system designed to transform bookmark colle
 ## Quick Start (Local Development)
 
 ### Prerequisites
-- **Docker & Docker Compose** - For containerized development environment
+- **Docker Desktop** - Must be running before starting development
 - **Git** - Version control
 - **VS Code** (recommended) - With Dev Containers extension for seamless development
+- **WSL2** (Windows only) - For optimal Docker performance
 
-### One-Command Setup
+### Setup Methods
+
+#### Method 1: DevContainer (Recommended for VS Code Users)
 ```bash
 git clone <repository-url>
 cd BMX-bookmark-extractor
-# Open in VS Code and reopen in Dev Container when prompted
-# Or manually: code . && "Dev Containers: Reopen in Container"
+
+# Ensure Docker Desktop is running first!
+docker ps  # Should not return ENOENT error
+
+# Open in VS Code
+code .
+
+# Reopen in container when prompted
+# Or manually: F1 → "Dev Containers: Reopen in Container"
 ```
 
 The dev container will automatically:
 - Set up Python environment with Poetry
 - Configure SvelteKit frontend with all dependencies
-- Initialize Neo4j and PostgreSQL services
+- Initialize Neo4j database
 - Install development tools and extensions
 
-### Development Commands
+**From integrated terminal (inside container):**
 ```bash
-# Backend (FastAPI) - from dev container terminal
+# Backend (FastAPI)
 poetry run uvicorn src.main:app --host 0.0.0.0 --port 8000 --reload
+# Or: ./scripts-devcontainer/dev
 
-# Frontend (SvelteKit) - from host or container
-cd frontend && npm run dev
+# Frontend (SvelteKit)
+cd /project/frontend && yarn dev
+```
+
+#### Method 2: Docker Compose (Works with Any Editor)
+```bash
+git clone <repository-url>
+cd BMX-bookmark-extractor
+
+# Start all services
+./scripts/dc_up
+
+# Backend (separate terminal)
+./scripts/dc_exec backend poetry run uvicorn src.main:app --host 0.0.0.0 --port 8000 --reload
+
+# Frontend (separate terminal)
+./scripts/dc_exec frontend yarn dev
+```
+
+### Troubleshooting
+**"Docker is not running" error?** See [TROUBLESHOOTING.md](TROUBLESHOOTING.md) for complete solutions.
+
+**Quick fixes:**
+```bash
+# 1. Start Docker Desktop (Windows/macOS)
+# 2. Verify Docker is running
+docker ps
+
+# 3. Clean WSL2 cache (Windows, if corrupted)
+rm -rf ~/.vscode-server ~/.cursor-server
+
+# 4. Clear Docker cache
+docker system prune -af
 ```
 
 ## System Architecture
