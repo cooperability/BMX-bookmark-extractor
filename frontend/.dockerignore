@@ -1,35 +1,53 @@
-# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
-
-# dependencies
-node_modules
+# Dependencies
+node_modules/
 .pnp
 .pnp.js
 
-# testing
-coverage
+# SvelteKit Build Artifacts
+.svelte-kit/
+build/
+dist/
 
-# next.js
-.next/
+# Testing
+coverage/
+.vitest/
+test-results/
+playwright-report/
+playwright/.cache/
+
+# Production
 out/
 
-# production
-build
+# Environment Variables
+.env
+.env.local
+.env*.local
 
-# misc
-.DS_Store
-*.pem
-
-# debug
+# Logs
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
+*.log
 
-# local env files
-.env*.local
+# OS
+.DS_Store
+Thumbs.db
 
-# vercel
-.vercel
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
 
-# turbo
-.turbo
+# Deployment
+.vercel/
+.netlify/
+
+# Storybook
+storybook-static/
+
+# Misc
+*.pem
+.cache/

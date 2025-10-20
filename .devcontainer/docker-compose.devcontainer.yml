@@ -1,0 +1,21 @@
+version: '3.8'
+
+services:
+  backend:
+    # Override backend service for DevContainer use
+    command: sleep infinity
+    volumes:
+      # Mount entire project as workspace
+      - ..:/project:cached
+      # Preserve installed packages
+      - vscode-extensions:/root/.vscode-server/extensions
+      - vscode-extensions-insiders:/root/.vscode-server-insiders/extensions
+    environment:
+      # Development-specific environment
+      PYTHONUNBUFFERED: 1
+      PYTHONDONTWRITEBYTECODE: 1
+
+volumes:
+  vscode-extensions:
+  vscode-extensions-insiders:
+
