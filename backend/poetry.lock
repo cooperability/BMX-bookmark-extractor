@@ -343,11 +343,11 @@ description = "Cross-platform colored terminal text."
 optional = false
 python-versions = "!=3.0.*,!=3.1.*,!=3.2.*,!=3.3.*,!=3.4.*,!=3.5.*,!=3.6.*,>=2.7"
 groups = ["main", "dev"]
-markers = "platform_system == \"Windows\" or sys_platform == \"win32\""
 files = [
     {file = "colorama-0.4.6-py2.py3-none-any.whl", hash = "sha256:4f1d9991f5acc0ca119f9d443620b77f9d6b33703e51011c16baf57afb285fc6"},
     {file = "colorama-0.4.6.tar.gz", hash = "sha256:08695f5cb7ed6e0531a20572697297273c47b8cae5a63ffc6d6ed5c201be6e44"},
 ]
+markers = {main = "sys_platform == \"win32\" or platform_system == \"Windows\"", dev = "platform_system == \"Windows\" or sys_platform == \"win32\""}
 
 [[package]]
 name = "confection"
@@ -3001,23 +3001,26 @@ files = [
 
 [[package]]
 name = "yake"
-version = "0.4.8"
+version = "0.6.0"
 description = "Keyword extraction Python package"
 optional = false
-python-versions = "*"
+python-versions = ">=3.10"
 groups = ["main"]
 files = [
-    {file = "yake-0.4.8-py2.py3-none-any.whl", hash = "sha256:d46793266826468b4aecb668c51e677b7bc304f1bd3a15e100e324852ec5a0c3"},
-    {file = "yake-0.4.8.tar.gz", hash = "sha256:859f379ac49ca204a0bc1527217f937321e87b68287f81db9700fc1039fd529a"},
+    {file = "yake-0.6.0-py3-none-any.whl", hash = "sha256:05679d6330feb009043f327e7427bfc6c9e2fc1295c2302714426d29ecd329ef"},
+    {file = "yake-0.6.0.tar.gz", hash = "sha256:3585f86a112f77aa2276d6585465e173a2c4a79d2889c8eee2bdc181c1aa27f8"},
 ]
 
 [package.dependencies]
 click = ">=6.0"
 jellyfish = "*"
 networkx = "*"
-numpy = "*"
+numpy = ">=1.23.5"
 segtok = "*"
 tabulate = "*"
+
+[package.extras]
+dev = ["flake8", "pytest", "pytest-runner"]
 
 [[package]]
 name = "zipp"
