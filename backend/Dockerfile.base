@@ -1,5 +1,5 @@
 # Base image with NLP models pre-installed
-FROM python:3.11-slim as nlp-base
+FROM python:3.14-slim as nlp-base
 
 ENV POETRY_VERSION=1.8.2
 ENV POETRY_HOME="/opt/poetry"
