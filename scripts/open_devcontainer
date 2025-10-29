@@ -1,0 +1,112 @@
+#!/bin/bash
+# Interactive script to open BMX project in Cursor DevContainer
+set -e
+
+# Navigate to project root
+cd "$(dirname "$0")"/..
+
+echo "════════════════════════════════════════════════════════════"
+echo "  🚀 BMX DevContainer Setup"
+echo "════════════════════════════════════════════════════════════"
+echo ""
+
+# Check if Docker is running
+echo "Step 1/4: Checking Docker..."
+if ! docker ps > /dev/null 2>&1; then
+    echo "❌ Error: Docker is not running!"
+    echo "   Please start Docker Desktop and try again."
+    exit 1
+fi
+echo "✅ Docker is running"
+echo ""
+
+# Get absolute path
+PROJECT_PATH="$(pwd)"
+echo "📁 Project path: $PROJECT_PATH"
+echo ""
+
+# Verify devcontainer exists
+if [ ! -f ".devcontainer/devcontainer.json" ]; then
+    echo "❌ Error: No .devcontainer/devcontainer.json found!"
+    echo "   This project may not be configured for devcontainers."
+    exit 1
+fi
+
+# Open Cursor/Code
+echo "Step 2/4: Opening project in editor..."
+if command -v cursor > /dev/null 2>&1; then
+    echo "📂 Launching Cursor with explicit path..."
+    cursor "$PROJECT_PATH"
+    EDITOR="Cursor"
+elif command -v code > /dev/null 2>&1; then
+    echo "📂 Launching VS Code with explicit path..."
+    code "$PROJECT_PATH"
+    EDITOR="VS Code"
+else
+    echo "❌ Neither 'cursor' nor 'code' command found!"
+    echo ""
+    echo "Please manually:"
+    echo "1. Open Cursor or VS Code"
+    echo "2. File → Open Folder → $PROJECT_PATH"
+    exit 1
+fi
+
+echo "✅ $EDITOR should be opening..."
+echo ""
+
+# Wait for user to confirm editor is open
+echo "════════════════════════════════════════════════════════════"
+echo "Step 3/4: Reopen in Container"
+echo "════════════════════════════════════════════════════════════"
+echo ""
+echo "Once $EDITOR is open, follow these steps:"
+echo ""
+echo "  1️⃣  Press F1 (or Ctrl+Shift+P)"
+echo "  2️⃣  Type: Reopen in Container"
+echo "  3️⃣  Press Enter"
+echo ""
+read -p "Press ENTER when you've completed the above steps..."
+echo ""
+
+# Explain what happens next
+echo "════════════════════════════════════════════════════════════"
+echo "Step 4/4: Building Container"
+echo "════════════════════════════════════════════════════════════"
+echo ""
+echo "⏳ The container is now building. This takes 5-10 minutes"
+echo "   the first time (subsequent starts are instant)."
+echo ""
+echo "You'll see progress in $EDITOR showing:"
+echo "  • Building images"
+echo "  • Installing Python dependencies (Poetry)"
+echo "  • Installing Node dependencies (Yarn)"
+echo "  • Configuring extensions"
+echo ""
+read -p "Press ENTER to see the next steps for after the build..."
+echo ""
+
+# Show post-build commands
+echo "════════════════════════════════════════════════════════════"
+echo "✨ Once the Container is Built"
+echo "════════════════════════════════════════════════════════════"
+echo ""
+echo "You'll be inside the container! Run these commands:"
+echo ""
+echo "  📦 Backend (FastAPI):"
+echo "     poetry run uvicorn src.main:app --host 0.0.0.0 --port 8000 --reload"
+echo ""
+echo "  🎨 Frontend (SvelteKit) - in a new terminal:"
+echo "     cd /project/frontend && yarn dev"
+echo ""
+echo "  🧪 Run tests:"
+echo "     ./scripts-devcontainer/test"
+echo ""
+echo "  🔍 Access services:"
+echo "     Backend API:  http://localhost:8000/docs"
+echo "     Frontend:     http://localhost:3000"
+echo "     Neo4j:        http://localhost:7474 (neo4j/bmxpassword)"
+echo ""
+echo "════════════════════════════════════════════════════════════"
+echo "🎉 Setup complete! Happy coding!"
+echo "════════════════════════════════════════════════════════════"
+
