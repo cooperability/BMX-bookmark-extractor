@@ -41,7 +41,7 @@
 		"@tailwindcss/vite": "^4.0.0",
 		"@testing-library/jest-dom": "^6.6.3",
 		"@testing-library/svelte": "^5.2.4",
-		"@types/node": "^24",
+		"@types/node": "^25",
 		"@vitest/browser": "4.0.15",
 		"@vitest/coverage-v8": "4.0.15",
 		"drizzle-kit": "^0.30.2",
