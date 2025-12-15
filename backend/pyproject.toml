@@ -23,7 +23,7 @@ textstat = ">=0.7.3"
 yake = ">=0.4.8"
 websockets = ">=12.0"
 pandas = ">=2.1.4"
-numpy = "^1.24.4"
+numpy = "^2.3.5"
 psutil = ">=5.9.0"
 
 [tool.poetry.group.dev.dependencies]
