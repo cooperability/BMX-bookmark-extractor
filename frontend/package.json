@@ -22,7 +22,7 @@
 		"build-storybook": "storybook build"
 	},
 	"devDependencies": {
-		"@chromatic-com/storybook": "^3",
+		"@chromatic-com/storybook": "^5",
 		"@eslint/compat": "^2.0.0",
 		"@eslint/js": "^10.0.1",
 		"@playwright/test": "^1.49.1",
