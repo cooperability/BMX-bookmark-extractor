@@ -31,7 +31,7 @@ pytest = "^8.2.0"
 httpx = "^0.27.0" # For async testing client
 black = "^26.1.0"
 ruff = "^0.15.2"
-isort = "^8.0.0"
+isort = "^8.0.1"
 python-multipart = "^0.0.22" # Needed for StaticFiles/Form data
 [build-system]
 requires = ["poetry-core"]
