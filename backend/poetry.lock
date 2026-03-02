@@ -2494,14 +2494,14 @@ widechars = ["wcwidth"]
 
 [[package]]
 name = "textstat"
-version = "0.7.12"
+version = "0.7.13"
 description = "Calculate statistical features from text"
 optional = false
 python-versions = ">=3.6"
 groups = ["main"]
 files = [
-    {file = "textstat-0.7.12-py3-none-any.whl", hash = "sha256:a86bcc7f8ac9ad40ff5e8d38579fa3cc66165ea166f925b7823b7a71c1b27016"},
-    {file = "textstat-0.7.12.tar.gz", hash = "sha256:b257a1e837dc7e999f5854c5704d5293f3de540bc02a9014cb4bf767456fc522"},
+    {file = "textstat-0.7.13-py3-none-any.whl", hash = "sha256:04b1ec995d1e8b2e628759497e6b23204a9ec91dcd652447d8cbba9478f25471"},
+    {file = "textstat-0.7.13.tar.gz", hash = "sha256:a88d1da76287cd27ca4ce7bcba1ebaf2890544a5f0bb6a5758fa84cef3bceccb"},
 ]
 
 [package.dependencies]
