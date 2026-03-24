@@ -3066,26 +3066,28 @@ files = [
 
 [[package]]
 name = "yake"
-version = "0.6.0"
+version = "0.7.3"
 description = "Keyword extraction Python package"
 optional = false
 python-versions = ">=3.10"
 groups = ["main"]
 files = [
-    {file = "yake-0.6.0-py3-none-any.whl", hash = "sha256:05679d6330feb009043f327e7427bfc6c9e2fc1295c2302714426d29ecd329ef"},
-    {file = "yake-0.6.0.tar.gz", hash = "sha256:3585f86a112f77aa2276d6585465e173a2c4a79d2889c8eee2bdc181c1aa27f8"},
+    {file = "yake-0.7.3-py3-none-any.whl", hash = "sha256:38f7f135ff8ed4bcdc05e16b533a9dc93299f1e694b0c308c3c086bab316c5fe"},
+    {file = "yake-0.7.3.tar.gz", hash = "sha256:8778fb2832e58d26d838d6d7ac967b4947521f1fe8cdf23dd872636161fc53ed"},
 ]
 
 [package.dependencies]
 click = ">=6.0"
 jellyfish = "*"
 networkx = "*"
-numpy = ">=1.23.5"
+numpy = ">=1.24.0"
 segtok = "*"
 tabulate = "*"
 
 [package.extras]
-dev = ["flake8", "pytest", "pytest-runner"]
+benchmark = ["matplotlib (>=3.5.0)", "memory-profiler (>=0.60.0)", "pytest-benchmark (>=4.0.0)"]
+dev = ["black (>=22.0.0)", "flake8 (>=6.0.0)", "pylint (>=3.3.0)", "pytest (>=7.0.0)", "pytest-cov (>=4.0.0)", "ruff (>=0.1.0)"]
+lemmatization = ["nltk (>=3.8.0)", "spacy (>=3.8.0)"]
 
 [metadata]
 lock-version = "2.1"
