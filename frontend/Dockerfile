@@ -1,5 +1,5 @@
 # Use an official Node.js runtime
-FROM node:25-slim
+FROM node:26-slim
 
 # Set working directory in the container
 WORKDIR /app
