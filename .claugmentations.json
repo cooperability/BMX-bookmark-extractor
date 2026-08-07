@@ -1,0 +1,26 @@
+{
+  "package": "claugmentations",
+  "version": "0.1.0",
+  "ref": null,
+  "syncedAt": "2026-08-07T21:07:35.785Z",
+  "files": {
+    ".claude/skills/compose-pr-description/SKILL.md": "977d552b1ed82a4d",
+    ".claude/skills/integration-hunting/SKILL.md": "1cd0abfd87c0cc4c",
+    ".claude/skills/pr-reviewing/SKILL.md": "c81ec7a86b027aa5",
+    ".claude/skills/rebase-squash-before-merge/SKILL.md": "15f233cdf781f85f",
+    ".claude/skills/sanitize-pr-for-merge/SKILL.md": "20b96e9c05524611",
+    ".claude/skills/security-testing/SKILL.md": "078d6dda4087e526",
+    ".claude/skills/triage-dependabot/SKILL.md": "e2ba803942e64ae1",
+    ".claude/skills/update-branch-from-base/SKILL.md": "db884492c7fc12bc",
+    ".claude/skills/worktree-feature-pr/SKILL.md": "a96edc7b62d66fe7",
+    ".cursor/skills/compose-pr-description/SKILL.md": "977d552b1ed82a4d",
+    ".cursor/skills/integration-hunting/SKILL.md": "71129999b11a5e68",
+    ".cursor/skills/pr-reviewing/SKILL.md": "a0d4796e56cccbeb",
+    ".cursor/skills/rebase-squash-before-merge/SKILL.md": "91d2fd044a47fbe4",
+    ".cursor/skills/sanitize-pr-for-merge/SKILL.md": "6882c8aa7bd5c7a4",
+    ".cursor/skills/security-testing/SKILL.md": "9ea7079fb51c0f23",
+    ".cursor/skills/triage-dependabot/SKILL.md": "9a3aae9e4ca6bed0",
+    ".cursor/skills/update-branch-from-base/SKILL.md": "db884492c7fc12bc",
+    ".cursor/skills/worktree-feature-pr/SKILL.md": "a96edc7b62d66fe7"
+  }
+}
