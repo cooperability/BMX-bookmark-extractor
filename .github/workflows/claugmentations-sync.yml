@@ -1,0 +1,128 @@
+# Keeps a consuming repo's shared skills in step with claugmentations.
+#
+# Copy to .github/workflows/claugmentations-sync.yml in the consuming repo, and
+# add a CLAUGMENTATIONS_TOKEN secret. SECURITY.md in the claugmentations repo
+# has the exact PAT scopes and why each one is minimal — read it before creating
+# the token.
+#
+# Two jobs:
+#   check — on every PR, fails if a synced file was edited in place
+#   sync  — weekly, opens a draft PR when upstream has moved
+#
+# The package is checked out with actions/checkout rather than fetched by npx.
+# npm resolves `github:` shorthands over SSH first, which no https credential
+# rewrite can fix, and injecting a token into the global git config would leave
+# it readable by every later step. checkout takes a token input directly, keeps
+# it to that one step, and is first-party.
+name: claugmentations
+
+on:
+  pull_request:
+  schedule:
+    - cron: "0 9 * * 1" # Mondays, 09:00 UTC
+  workflow_dispatch:
+
+env:
+  PKG_PATH: .claugmentations-src
+
+jobs:
+  check:
+    # Secrets are not exposed to fork PRs, by design. Skip rather than fail with
+    # an empty credential — and never reach for pull_request_target, which runs
+    # untrusted code with secrets available.
+    if: >-
+      github.event_name == 'pull_request' &&
+      github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check out claugmentations
+        uses: actions/checkout@v4
+        with:
+          repository: cooperability/claugmentations
+          token: ${{ secrets.CLAUGMENTATIONS_TOKEN }}
+          path: ${{ env.PKG_PATH }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Fail if a synced skill was edited in place
+        run: node "$PKG_PATH/bin/claugmentations.mjs" check
+
+  sync:
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check out claugmentations
+        uses: actions/checkout@v4
+        with:
+          repository: cooperability/claugmentations
+          token: ${{ secrets.CLAUGMENTATIONS_TOKEN }}
+          path: ${{ env.PKG_PATH }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      # Deliberately NOT --force: a bot must never overwrite a local edit. If a
+      # synced file was changed in place, sync exits non-zero and this job fails
+      # loudly, which is the signal a human needs to see.
+      - name: Sync shared skills
+        run: node "$PKG_PATH/bin/claugmentations.mjs" sync
+
+      - name: Open a draft PR if anything changed
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          BRANCH: chore/claugmentations-sync
+          BASE: ${{ github.event.repository.default_branch }}
+        run: |
+          set -euo pipefail
+
+          # The package checkout must never be committed into this repo.
+          rm -rf "$PKG_PATH"
+
+          # --porcelain, not `git diff --quiet`: a new skill upstream arrives as
+          # untracked files, which git diff does not report. Checking only the
+          # diff would silently skip exactly the update this workflow exists for.
+          if [ -z "$(git status --porcelain)" ]; then
+            echo "Already up to date with claugmentations."
+            exit 0
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          git checkout -B "$BRANCH"
+          git add -A
+          git commit -m "chore(ai): sync shared skills from claugmentations"
+
+          # Bare --force is correct here and only here: this branch is owned by
+          # this workflow, is recreated from the default branch every run, and
+          # holds no human work to clobber.
+          git push --force origin "$BRANCH"
+
+          if [ "$(gh pr list --head "$BRANCH" --state open --json number --jq 'length')" = "0" ]; then
+            gh pr create --draft \
+              --base "$BASE" \
+              --head "$BRANCH" \
+              --title "chore(ai): sync shared skills from claugmentations" \
+              --body "$(cat <<'BODY'
+          Automated sync from [claugmentations](https://github.com/cooperability/claugmentations).
+
+          Shared skills upstream have changed. This PR brings `.claude/`, `.cursor/`, and
+          `.claugmentations.json` back in step; nothing outside the manifest is touched.
+
+          Review the skill diffs as you would any change — upstream edits can alter how
+          agents behave in this repo. Opened as a draft: mark it ready when you have looked.
+          BODY
+          )"
+          else
+            echo "Existing sync PR updated."
+          fi

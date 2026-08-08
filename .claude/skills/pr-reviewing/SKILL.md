@@ -3,8 +3,10 @@ name: pr-reviewing
 description: >-
   Review pull requests and local diffs for deterministic code smells (type-system
   escapes, unexplained suppressions, swallowed errors) plus security, DevEx,
-  footguns, and antipatterns. Use when the user asks to review a PR, review
-  changes, code review, or clean up unsafe casts and review quality issues.
+  footguns, and antipatterns; optionally run a verified review loop that scores
+  the PR against a rubric and iterates until it passes. Use when the user asks to
+  review a PR, review changes, code review, clean up unsafe casts, or wants a
+  deep/verified review with quality scoring.
 ---
 
 # PR Reviewing
@@ -80,7 +82,27 @@ Match feedback to the project’s existing patterns—do not impose a foreign st
 
 Per finding: severity, `file:line`, what’s wrong, concrete fix. No filler praise. No repeating the PR description.
 
+## 5. Deep mode
+
+An escalation, not the default. Use it when the user asks for a deep, verified, or graded review, or when the change is high-risk: migrations, auth, money, data deletion, anything hard to reverse.
+
+Deep mode is this skill's review passes driven by [verified-change-loop](../verified-change-loop/SKILL.md), which owns the hard gates, the rubric, and the stopping rules. Do not restate the rubric here — one definition, so two agents cannot disagree about what passing means.
+
+The division:
+
+| This skill supplies | The loop supplies |
+|---|---|
+| What to look for — sections 2 and 3 | When to dispatch, and to whom |
+| How to phrase a finding | The gates that block before any score counts |
+| The output format in section 4 | The rubric, the 90 threshold, and when to stop |
+
+Two rules belong here, because they are about reviewing rather than orchestration:
+
+- **Validate every finding before it is acted on.** It needs a `file:line`, a concrete failure scenario, and confirmation that it still applies to current code. Discard the rest: acting on a hallucinated finding produces a change nobody wanted and a diff nobody can explain — worse than missing a real issue.
+- **A reviewer that returns nothing has not proven the code is clean.** Empty findings on a non-trivial diff mean the brief was too broad or the pass was shallow. Narrow the scope and re-dispatch once before believing it.
+
 ## Claude Code notes
 
 - Use `gh` and the local diff; when GitHub MCP is available, use it for PR metadata and review comments.
 - Post review comments to GitHub only if the user asks.
+- Deep mode uses the Task tool for the reviewer and evaluator passes. Dispatch them as separate agents so neither inherits the other's context — that isolation is what the mode is buying.
