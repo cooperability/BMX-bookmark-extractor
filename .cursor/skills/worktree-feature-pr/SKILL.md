@@ -65,7 +65,7 @@ cd "$WT"
 
 ```bash
 git push -u origin HEAD
-gh pr create --title "<title>" --body "$(cat <<'EOF'
+gh pr create --draft --title "<title>" --body "$(cat <<'EOF'
 ## Summary
 - <1-3 bullets>
 
@@ -76,7 +76,9 @@ EOF
 )"
 ```
 
-Return the PR URL.
+`--draft` is the default for agent-opened PRs: the work is ready to be *looked at*, not to land. Marking it ready (`gh pr ready`) and merging are the human's calls — see [git-hygiene](../git-hygiene/SKILL.md). Open a non-draft PR only when the user asks for one.
+
+Return the PR URL, and say what needs a human eye: judgment calls made, anything unverified.
 
 ## 5. Cleanup after the PR merges
 

@@ -9,7 +9,7 @@ description: >-
 
 # Update Branch From Base
 
-Refresh a feature branch onto the latest base **without** squashing. For rebase + squash, use `rebase-squash-before-merge` instead.
+Refresh a feature branch onto the latest base **without** squashing. For rebase + squash plus the merge-readiness gates, use [premerge-cleanup](../premerge-cleanup/SKILL.md) instead.
 
 ## 1. Identify branch & base
 

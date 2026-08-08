@@ -81,7 +81,7 @@ EOF
 
 ## 6. Clean up merged Dependabot branches
 
-Run after a merge, or standalone when the user asks to tidy up branches.
+Run after a merge, or standalone when the user asks to tidy up branches. For cleanup beyond Dependabot's own branches — or to stop merged branches accumulating in the first place — see [git-hygiene](../git-hygiene/SKILL.md).
 
 Two rules govern this whole section:
 
