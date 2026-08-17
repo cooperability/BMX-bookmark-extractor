@@ -1,8 +1,8 @@
 {
   "package": "claugmentations",
-  "version": "0.2.0",
-  "ref": "c09fead",
-  "syncedAt": "2026-08-08T00:19:02.660Z",
+  "version": "0.3.0",
+  "ref": "5e84ee1",
+  "syncedAt": "2026-08-17T09:37:39.444Z",
   "files": {
     ".claude/skills/compose-pr-description/SKILL.md": "977d552b1ed82a4d",
     ".claude/skills/extract-chat-insights/SKILL.md": "d73f12ed8ebd7a37",
@@ -17,6 +17,8 @@
     ".claude/skills/update-branch-from-base/SKILL.md": "19cfdf6006258dd1",
     ".claude/skills/verified-change-loop/SKILL.md": "c2ed4f93c09bcbd9",
     ".claude/skills/worktree-feature-pr/SKILL.md": "bee52468089789a4",
+    ".claude/statusline/README.md": "b081e4679028e3b9",
+    ".claude/statusline/statusline.mjs": "adf2b9c02d1aa2fd",
     ".cursor/skills/compose-pr-description/SKILL.md": "977d552b1ed82a4d",
     ".cursor/skills/extract-chat-insights/SKILL.md": "d3285b44d576ef97",
     ".cursor/skills/git-hygiene/SKILL.md": "8a626edf35e6b0b6",
