@@ -1,5 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
+import { parseAnkiExport } from './anki-tsv';
 import { sanitizeCardHtml } from './sanitize';
 
 describe('script execution', () => {
@@ -106,17 +107,27 @@ describe('allowlist', () => {
 });
 
 describe('the real corpus', () => {
-	const compsci = readFileSync('source_data/CompSci (AIML_Web3_Math_Logic_Tech).txt', 'utf8');
+	// Sanitize through the real path. The raw export is RFC4180, so an internal quote
+	// is doubled on disk: handing the file to the sanitizer directly presents
+	// `href=""https://…""`, which parses as an empty href and is correctly stripped.
+	// Parsing first is what production does, and it is the only input the sanitizer
+	// ever sees.
+	const raw = readFileSync('source_data/CompSci (AIML_Web3_Math_Logic_Tech).txt', 'utf8');
+	const notes = parseAnkiExport(raw, 'user_alice').notes;
+	const rendered = notes.map((n) => `${n.front}\n${n.back}`).join('\n');
+
+	it('parses the corpus the sanitizer is measured on', () => {
+		expect(notes).toHaveLength(137);
+	});
 
 	it('preserves the Wikipedia links the cards depend on', () => {
 		// Both exports declare #html:true and the cards carry live links.
-		const out = sanitizeCardHtml(compsci);
-		expect(out).toContain('https://en.wikipedia.org/wiki/Cryptography');
-		expect(out).toContain('rel="noopener noreferrer"');
+		expect(rendered).toContain('https://en.wikipedia.org/wiki/Cryptography');
+		expect(rendered).toContain('rel="noopener noreferrer"');
 	});
 
 	it('produces no script or event handlers from the whole file', () => {
-		const out = sanitizeCardHtml(compsci).toLowerCase();
+		const out = rendered.toLowerCase();
 		expect(out).not.toContain('<script');
 		expect(out).not.toContain('javascript:');
 		expect(out).not.toContain('onerror');

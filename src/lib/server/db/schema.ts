@@ -39,7 +39,8 @@ export const session = pgTable('session', {
 export const node = pgTable(
 	'nodes',
 	{
-		// Derived, URL-safe. See ingest/identity.ts.
+		// Derived, URL-safe, and owner-scoped so two tenants importing the same shared
+		// deck do not collide on this global key. See ingest/identity.ts.
 		id: text('id').primaryKey(),
 		userId: text('user_id')
 			.notNull()

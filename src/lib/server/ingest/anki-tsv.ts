@@ -43,8 +43,10 @@ function resolveDelimiter(declared: string | undefined): string {
  * newlines reads 4,629 records where 457 exist, and it does not error. So this
  * runs a real RFC4180 parser, and takes column positions from the `#…column:N`
  * preamble rather than assuming them.
+ *
+ * `userId` is required because node ids are owner-scoped. See identity.ts.
  */
-export function parseAnkiExport(raw: string): ParseResult {
+export function parseAnkiExport(raw: string, userId: string): ParseResult {
 	const warnings: string[] = [];
 	const text = raw.replace(/^\uFEFF/, '');
 	const lines = text.split('\n');
@@ -98,7 +100,7 @@ export function parseAnkiExport(raw: string): ParseResult {
 		if (!front) warnings.push(`Row ${i + 1}: empty front field.`);
 
 		return {
-			id: ankiGuid ? internalId(ankiGuid) : contentId(deck, front, back),
+			id: ankiGuid ? internalId(userId, ankiGuid) : contentId(userId, deck, front, back),
 			ankiGuid,
 			notetype: notetypeCol >= 0 ? row[notetypeCol] || 'Basic' : 'Basic',
 			deck,
