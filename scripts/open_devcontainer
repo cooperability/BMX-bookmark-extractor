@@ -1,12 +1,12 @@
 #!/bin/bash
-# Interactive script to open BMX project in Cursor DevContainer
+# Interactive script to open Remediate project in Cursor DevContainer
 set -e
 
 # Navigate to project root
 cd "$(dirname "$0")"/..
 
 echo "════════════════════════════════════════════════════════════"
-echo "  🚀 BMX DevContainer Setup"
+echo "  Remediate DevContainer Setup"
 echo "════════════════════════════════════════════════════════════"
 echo ""
 

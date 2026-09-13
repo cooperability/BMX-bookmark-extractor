@@ -1,56 +1,46 @@
-.DS_Store
-1.Python Basics/.ipynb_checkpoints/4. Big_O_Time_Complexity-checkpoint.ipynb
-1.Python Basics/.ipynb_checkpoints/2. Control_Flows_&_Functions-checkpoint.ipynb
-1.Python Basics/.ipynb_checkpoints/3. Matplotlib_graphs_plots-checkpoint.ipynb
-.AppleDouble
-.LSOverride
-*.tsbuildinfo
-
-#Jupyter checkpoints
-.ipynb_checkpoints
-
-# Thumbnails
-._*
-
-# Files that might appear in the root of a volume
-.DocumentRevisions-V100
-.fseventsd
-.Spotlight-V100
-.TemporaryItems
-.Trashes
-.VolumeIcon.icns
-.com.apple.timemachine.donotpresent
-
-# Directories potentially created on remote AFP share
-.AppleDB
-.AppleDesktop
-Network Trash Folder
-Temporary Items
-.apdisk
-
 # Node
 node_modules/
+.pnp
+.pnp.js
 
-yarn.lock
-next-env.d.ts
+# SvelteKit / Vite
+/.svelte-kit
+/build
+.output
+vite.config.js.timestamp-*
+vite.config.ts.timestamp-*
+
+# Paraglide (generated)
+src/lib/paraglide
+
+# Deploy targets
 .vercel
+.netlify
+.wrangler
+
+# Env
 .env
-.env*.local
+.env.*
+!.env.example
 .envrc
 
-# production
-/build
+# Test output
+test-results
+coverage/
+playwright-report/
+playwright/.cache/
 
-# misc
-*.pem
-
-# debug
+# Logs
+*.log
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 
 # Build artifacts
-build.log
+*.tsbuildinfo
+storybook-static/
 
-# Python virtual environment
-/.venv/
+# Misc
+*.pem
+.DS_Store
+Thumbs.db

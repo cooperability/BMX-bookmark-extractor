@@ -1,7 +1,0 @@
-#!/bin/sh
-set -e
-
-cd "$(dirname "$0")"/..
-
-# Use 'backend' as the service name and run as 'appuser'
-docker compose exec -T --user appuser backend poetry "$@"

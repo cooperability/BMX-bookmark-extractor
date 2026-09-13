@@ -1,0 +1,11 @@
+---
+description: App is SvelteKit; do not reintroduce Next.js or React
+globs: src/**
+alwaysApply: false
+---
+
+# Frontend stack
+
+The app at the repo root is SvelteKit 2 + Svelte 5. The Next.js migration already landed. Do not add `next`, `react`, or React-ecosystem packages, and do not start a second frontend.
+
+Product work here is Cards, Quest, and BMX triage on the existing scaffold. Stack rationale is in `docs/TDD.md` §2. Dependabot alerts for this manifest are npm at `/`. They are not a reason to restore Next.js.
