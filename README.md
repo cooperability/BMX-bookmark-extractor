@@ -20,7 +20,7 @@ Early. The scaffold and the design docs are real. Most product surfaces are not 
 | Auth (oslo + Argon2id) | Scaffold |
 | Cards, Quest, BMX harvest | Not started |
 
-Read [docs/PRD.md](docs/PRD.md) for what and why, [docs/TDD.md](docs/TDD.md) for how, and [docs/PIPELINE.md](docs/PIPELINE.md) for build order.
+Read [docs/PRD.md](docs/PRD.md) for what and why, [docs/TDD.md](docs/TDD.md) for how, and [docs/PIPELINE.md](docs/PIPELINE.md) for build order. The docs index is [docs/README.md](docs/README.md).
 
 ## Run it locally
 
@@ -49,7 +49,7 @@ Other commands:
 | `yarn test:e2e` | Playwright |
 | `yarn db:push` | Push the Drizzle schema (needs `DATABASE_URL`) |
 
-A devcontainer is available for editor-integrated development. Run `./scripts/open_devcontainer`, or open the folder and choose "Reopen in Container". It is a plain Node container, not a compose stack.
+A devcontainer is available and optional. Run `./scripts/open_devcontainer`, or open the folder and choose "Reopen in Container". It is a plain Node 20 image, not a compose stack. The app does not need it. Host-level Docker/WSL failures are in [TROUBLESHOOTING.md](TROUBLESHOOTING.md).
 
 ## Configuration
 

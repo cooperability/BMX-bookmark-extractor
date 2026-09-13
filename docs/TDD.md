@@ -168,6 +168,7 @@ Frontend is promoted to the repo root. There is no second service to be a peer o
 | Postgres **or** MongoDB? | **Postgres** (Neon) | Three reasons converge: FSRS state is a fixed schema with range queries on `due` (a B-tree's whole purpose); the graph is recursive CTEs; and **pgvector** puts embeddings in the same database as the rows they describe, so "similar cards in this deck, for this user" is one query with one `where` instead of a fan-out plus an app-side join. Drizzle + `postgres` already installed. |
 | FastAPI **or** Express **or** Hono? | **None — SvelteKit `+server.ts` is the API** | See [§3.1](#31-python-the-honest-answer). Adding any of the three buys a second deployable, a second auth boundary, CORS, duplicated types, and a network hop inside your own app. |
 | SvelteKit **or** TypeScript? | **Both — the question is a category error** | SvelteKit is a framework; TypeScript is the language. Svelte 5 runes + `strict` + end-to-end inference from Drizzle schema → API → component props. That inference chain is the thing worth showing off. |
+| Reintroduce Next.js / React? | **No** | The app at the repo root is already SvelteKit 2 + Svelte 5. The Next.js migration is done. Remaining work is Cards, Quest, and BMX triage on that scaffold. Do not restore Next.js to satisfy a Dependabot alert. |
 | Keep Python? | **Yes, narrowly** | One function. `api/extract.py`. See below. |
 
 ### Resulting stack
@@ -1057,7 +1058,9 @@ flowchart LR
     class A1,A2,A3,A4,A5 add
 ```
 
-**Do the deletions in one commit, first.** Not because deleting is fun, but because an LLM asked to "add search" will otherwise read `docs/hybrid-database-architecture.md`, believe it, and faithfully implement a Neo4j integration you don't want. Stale docs are worse than no docs when the reader is a model.
+**Do the deletions in one commit, first.** Not because deleting is fun, but because an LLM asked to "add search" will otherwise read a stale hybrid-database doc, believe it, and faithfully implement a Neo4j integration you don't want. Stale docs are worse than no docs when the reader is a model.
+
+Dependabot alerts on `backend/poetry.lock` (nltk, starlette, python-multipart, and similar) sat on that delete list. Prefer the cut over bumping a FastAPI tree this section already retired. Do not treat those alerts as a frontend or Next.js problem.
 
 `source_data/` earns its keep as the fixture directory. Real data, real edge cases, already on disk — and now the basis of the most important test in the suite.
 
