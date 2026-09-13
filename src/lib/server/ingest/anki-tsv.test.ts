@@ -130,7 +130,9 @@ describe('the preamble drives column mapping', () => {
 	});
 
 	it('uses the #deck fallback when no deck column is declared', () => {
-		const raw = ['#separator:tab', '#deck:Imported', '#guid column:1', 'g1\tfront\tback'].join('\n');
+		const raw = ['#separator:tab', '#deck:Imported', '#guid column:1', 'g1\tfront\tback'].join(
+			'\n'
+		);
 		expect(parseAnkiExport(raw).notes[0].deck).toBe('Imported');
 	});
 });

@@ -1,29 +1,29 @@
 version: 2
 updates:
   # The app (SvelteKit) now lives at the repo root.
-  - package-ecosystem: "npm"
-    directory: "/"
+  - package-ecosystem: 'npm'
+    directory: '/'
     schedule:
-      interval: "weekly"
+      interval: 'weekly'
     open-pull-requests-limit: 10
     groups:
       svelte:
         patterns:
-          - "@sveltejs/*"
-          - "svelte*"
+          - '@sveltejs/*'
+          - 'svelte*'
       testing:
         patterns:
-          - "@playwright/*"
-          - "playwright"
-          - "@vitest/*"
-          - "vitest"
-          - "@testing-library/*"
+          - '@playwright/*'
+          - 'playwright'
+          - '@vitest/*'
+          - 'vitest'
+          - '@testing-library/*'
       eslint:
         patterns:
-          - "eslint*"
-          - "@eslint/*"
+          - 'eslint*'
+          - '@eslint/*'
 
-  - package-ecosystem: "github-actions"
-    directory: "/"
+  - package-ecosystem: 'github-actions'
+    directory: '/'
     schedule:
-      interval: "weekly"
+      interval: 'weekly'

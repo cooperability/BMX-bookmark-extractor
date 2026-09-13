@@ -10,9 +10,6 @@ node_modules/
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
 
-# Paraglide (generated)
-src/lib/paraglide
-
 # Deploy targets
 .vercel
 .netlify
@@ -38,7 +35,6 @@ yarn-error.log*
 
 # Build artifacts
 *.tsbuildinfo
-storybook-static/
 
 # Misc
 *.pem

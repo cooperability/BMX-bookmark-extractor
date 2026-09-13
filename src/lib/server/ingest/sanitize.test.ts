@@ -52,7 +52,28 @@ describe('allowlist', () => {
 			'<span>s</span><sup>1</sup><sub>2</sub><table><tr><th>h</th><td>d</td></tr></table></div>';
 		const out = sanitizeCardHtml(html);
 
-		for (const tag of ['div', 'b', 'i', 'u', 'em', 'strong', 'br', 'p', 'ul', 'ol', 'li', 'code', 'pre', 'span', 'sup', 'sub', 'table', 'tr', 'th', 'td']) {
+		for (const tag of [
+			'div',
+			'b',
+			'i',
+			'u',
+			'em',
+			'strong',
+			'br',
+			'p',
+			'ul',
+			'ol',
+			'li',
+			'code',
+			'pre',
+			'span',
+			'sup',
+			'sub',
+			'table',
+			'tr',
+			'th',
+			'td'
+		]) {
 			expect(out).toContain(`<${tag}`);
 		}
 	});

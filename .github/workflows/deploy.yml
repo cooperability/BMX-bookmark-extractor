@@ -22,7 +22,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v6
         with:
-          node-version: '20'
+          node-version: '22'
           cache: 'yarn'
           cache-dependency-path: 'yarn.lock'
 
@@ -33,13 +33,13 @@ jobs:
         run: yarn install --frozen-lockfile
 
       - name: Lint
-        run: yarn lint
+        run: yarn run lint
 
       - name: Typecheck
-        run: yarn check
+        run: yarn run check
 
       - name: Unit tests
-        run: yarn test:server
+        run: yarn run test:server
 
   deploy:
     name: Deploy to Vercel
@@ -54,7 +54,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v6
         with:
-          node-version: '20'
+          node-version: '22'
           cache: 'yarn'
           cache-dependency-path: 'yarn.lock'
 

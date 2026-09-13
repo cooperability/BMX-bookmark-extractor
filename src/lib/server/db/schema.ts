@@ -21,9 +21,7 @@ export const user = pgTable('user', {
 	id: text('id').primaryKey(),
 	username: text('username').notNull().unique(),
 	passwordHash: text('password_hash').notNull(),
-	createdAt: timestamp('created_at', { withTimezone: true, mode: 'date' })
-		.notNull()
-		.defaultNow()
+	createdAt: timestamp('created_at', { withTimezone: true, mode: 'date' }).notNull().defaultNow()
 });
 
 export const session = pgTable('session', {
@@ -53,15 +51,16 @@ export const node = pgTable(
 		front: text('front').notNull(),
 		back: text('back').notNull().default(''),
 		deck: text('deck').notNull(),
-		tags: text('tags').array().notNull().default(sql`'{}'::text[]`),
+		tags: text('tags')
+			.array()
+			.notNull()
+			.default(sql`'{}'::text[]`),
 		url: text('url'), // docs only
 		extractionTier: text('extraction_tier'), // full | metadata | failed
 		summary: text('summary'), // AI
 		difficulty: smallint('difficulty'), // AI, 1-5
 		embedding: vector('embedding', { dimensions: 1024 }),
-		createdAt: timestamp('created_at', { withTimezone: true, mode: 'date' })
-			.notNull()
-			.defaultNow()
+		createdAt: timestamp('created_at', { withTimezone: true, mode: 'date' }).notNull().defaultNow()
 	},
 	(t) => [
 		// Idempotent re-import: same GUID updates instead of duplicating.
@@ -169,9 +168,7 @@ export const harvest = pgTable(
 		proposal: jsonb('proposal'),
 		nodeId: text('node_id').references(() => node.id),
 		failReason: text('fail_reason'),
-		createdAt: timestamp('created_at', { withTimezone: true, mode: 'date' })
-			.notNull()
-			.defaultNow()
+		createdAt: timestamp('created_at', { withTimezone: true, mode: 'date' }).notNull().defaultNow()
 	},
 	(t) => [uniqueIndex('idx_url').on(t.userId, t.urlNormalized)]
 );
@@ -182,7 +179,10 @@ export const questRun = pgTable('quest_runs', {
 		.notNull()
 		.references(() => user.id),
 	currentNodeId: text('current_node_id').references(() => node.id),
-	visited: text('visited').array().notNull().default(sql`'{}'::text[]`),
+	visited: text('visited')
+		.array()
+		.notNull()
+		.default(sql`'{}'::text[]`),
 	state: jsonb('state')
 });
 
@@ -199,9 +199,7 @@ export const job = pgTable(
 		payload: jsonb('payload'),
 		attempts: integer('attempts').notNull().default(0),
 		claimedAt: timestamp('claimed_at', { withTimezone: true, mode: 'date' }),
-		createdAt: timestamp('created_at', { withTimezone: true, mode: 'date' })
-			.notNull()
-			.defaultNow()
+		createdAt: timestamp('created_at', { withTimezone: true, mode: 'date' }).notNull().defaultNow()
 	},
 	(t) => [index('idx_job_claim').on(t.status, t.kind)]
 );

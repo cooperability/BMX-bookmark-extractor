@@ -100,7 +100,7 @@ export function parseAnkiExport(raw: string): ParseResult {
 		return {
 			id: ankiGuid ? internalId(ankiGuid) : contentId(deck, front, back),
 			ankiGuid,
-			notetype: notetypeCol >= 0 ? (row[notetypeCol] || 'Basic') : 'Basic',
+			notetype: notetypeCol >= 0 ? row[notetypeCol] || 'Basic' : 'Basic',
 			deck,
 			front,
 			back,

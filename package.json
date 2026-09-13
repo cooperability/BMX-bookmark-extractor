@@ -13,7 +13,7 @@
 		"format": "prettier --write .",
 		"lint": "prettier --check . && eslint .",
 		"test:unit": "vitest",
-		"test:server": "vitest --project server --run",
+		"test:server": "vitest --config vitest.server.config.ts --run",
 		"test": "npm run test:unit -- --run && npm run test:e2e",
 		"test:e2e": "playwright test",
 		"db:push": "drizzle-kit push",
@@ -33,7 +33,6 @@
 		"@testing-library/jest-dom": "^6.6.3",
 		"@testing-library/svelte": "^5.2.4",
 		"@types/node": "^25",
-		"@vitest/coverage-v8": "5.0.0",
 		"drizzle-kit": "^0.31.8",
 		"eslint": "^10.0.0",
 		"eslint-config-prettier": "^10.0.1",
@@ -60,5 +59,8 @@
 		"isomorphic-dompurify": "4.2.0",
 		"postgres": "^3.4.5"
 	},
-	"packageManager": "yarn@1.22.22+sha512.a6b2f7906b721bba3d67d4aff083df04dad64c399707841b7acf00f6b133b7ac24255f2652fa22ae3534329dc6180534e98d17432037ff6fd140556e2bb3137e"
+	"packageManager": "yarn@1.22.22+sha512.a6b2f7906b721bba3d67d4aff083df04dad64c399707841b7acf00f6b133b7ac24255f2652fa22ae3534329dc6180534e98d17432037ff6fd140556e2bb3137e",
+	"engines": {
+		"node": ">=22"
+	}
 }
