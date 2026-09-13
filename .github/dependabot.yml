@@ -1,52 +1,29 @@
 version: 2
 updates:
-  # Frontend dependencies (SvelteKit)
-  - package-ecosystem: "npm"
-    directory: "/frontend"
+  # The app (SvelteKit) now lives at the repo root.
+  - package-ecosystem: 'npm'
+    directory: '/'
     schedule:
-      interval: "weekly"
+      interval: 'weekly'
     open-pull-requests-limit: 10
     groups:
       svelte:
         patterns:
-          - "@sveltejs/*"
-          - "svelte*"
-      storybook:
-        patterns:
-          - "@storybook/*"
-          - "storybook"
+          - '@sveltejs/*'
+          - 'svelte*'
       testing:
         patterns:
-          - "@playwright/*"
-          - "playwright"
-          - "@vitest/*"
-          - "vitest"
-          - "@testing-library/*"
+          - '@playwright/*'
+          - 'playwright'
+          - '@vitest/*'
+          - 'vitest'
+          - '@testing-library/*'
       eslint:
         patterns:
-          - "eslint*"
-          - "@eslint/*"
+          - 'eslint*'
+          - '@eslint/*'
 
-  # Backend dependencies (Python/Poetry)
-  - package-ecosystem: "pip"
-    directory: "/backend"
+  - package-ecosystem: 'github-actions'
+    directory: '/'
     schedule:
-      interval: "weekly"
-    open-pull-requests-limit: 10
-
-  # Docker
-  - package-ecosystem: "docker"
-    directory: "/backend"
-    schedule:
-      interval: "weekly"
-
-  - package-ecosystem: "docker"
-    directory: "/frontend"
-    schedule:
-      interval: "weekly"
-
-  # GitHub Actions (if you add any)
-  - package-ecosystem: "github-actions"
-    directory: "/"
-    schedule:
-      interval: "weekly"
+      interval: 'weekly'

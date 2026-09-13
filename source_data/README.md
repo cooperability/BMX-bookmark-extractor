@@ -1,26 +1,14 @@
 # source_data
-Anki/Other Data for Training Small Language Model
 
-## Topics:
-*Anthropology*
--Human Bio // Psychology // Longevity
--Sociology // Economics // Politics //
--Career // Microfinance
-*Computer Sci*
--AI/ML // Fringe Tech
--Cybersecurity // Blockchain // Quantum Computing // Human Augmentation
--Exponential Tech Acceleration // Futurology
+Real Anki exports and bookmark metadata. These files are the test fixtures for the ingest parser. Treat them as read-only.
 
-##Web scrape data types:
-*Primary:
-Unbiased News Articles
-Peer-Reviewed Papers & Studies
+A find-and-replace across the repo will match URLs and identifiers inside `articles.csv` and `ArticleMetadata.db` and corrupt them.
 
-*Secondary:
-Op-Eds
-Social Media Posts
+| File                                      | Role                                                 |
+| ----------------------------------------- | ---------------------------------------------------- |
+| `Anthro (Psych_Soc_Econ_Health).txt`      | Real Anki export. Ground truth: 320 records.         |
+| `CompSci (AIML_Web3_Math_Logic_Tech).txt` | Real Anki export. Ground truth: 137 records.         |
+| `anki_cards.csv`                          | Lossy derivative of Anthro. Not the source of truth. |
+| `articles.csv`                            | Bookmark metadata for 3,861 URLs.                    |
 
-##On-File working database:
-Anki Decks
-PDF and EPUB Library
-Goal is 30M parameters here
+The 30M-parameter local-model goal that used to live here is retired. Frontier APIs do that job.

@@ -3,6 +3,7 @@ name: Deploy to remediate.app
 on:
   push:
     branches: [main]
+  pull_request:
   workflow_dispatch:
 
 env:
@@ -10,8 +11,8 @@ env:
   VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
 
 jobs:
-  deploy-frontend:
-    name: Deploy Frontend
+  verify:
+    name: Lint, typecheck, test
     runs-on: ubuntu-latest
 
     steps:
@@ -21,131 +22,56 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v6
         with:
-          node-version: '20'
+          node-version: '22'
           cache: 'yarn'
-          cache-dependency-path: 'frontend/yarn.lock'
+          cache-dependency-path: 'yarn.lock'
 
       - name: Enable Corepack
         run: corepack enable
 
-      - name: Verify Frontend Directory
-        run: |
-          echo "📁 Frontend directory contents:"
-          ls -la frontend/
-          echo "📦 Package.json exists: $(test -f frontend/package.json && echo "✅ Yes" || echo "❌ No")"
-          echo "🔒 Yarn.lock exists: $(test -f frontend/yarn.lock && echo "✅ Yes" || echo "❌ No")"
-
       - name: Install dependencies
-        working-directory: frontend
-        run: |
-          echo "🔧 Installing dependencies with yarn..."
-          yarn install --frozen-lockfile || yarn install
-          echo "✅ Dependencies installed successfully"
+        run: yarn install --frozen-lockfile
 
-      - name: Commit yarn.lock if it was created/updated
-        run: |
-          git config --global user.name 'github-actions[bot]'
-          git config --global user.email 'github-actions[bot]@users.noreply.github.com'
-          
-          if git diff --name-only | grep -q "frontend/yarn.lock"; then
-            echo "📝 yarn.lock was updated, committing..."
-            git add frontend/yarn.lock
-            git commit -m "Update yarn.lock file [skip ci]"
-            git push
-          else
-            echo "✅ yarn.lock is up to date"
-          fi
+      - name: Lint
+        run: yarn run lint
 
-      - name: Lint and Type Check
-        working-directory: frontend
-        run: |
-          echo "🔍 Running linter..."
-          yarn lint || (echo "❌ Linting failed" && exit 1)
-          echo "🔍 Running type check..."
-          yarn check || (echo "❌ Type check failed" && exit 1)
-          echo "✅ Code quality checks passed"
+      - name: Typecheck
+        run: yarn run check
 
-      - name: Build
-        working-directory: frontend
-        run: |
-          echo "🏗️ Building frontend application..."
-          yarn build
-          echo "✅ Build completed successfully"
-        env:
-          NODE_ENV: production
-          DOMAIN_NAME: remediate.app
-          API_URL: https://api.remediate.app
+      - name: Unit tests
+        run: yarn run test:server
 
-      - name: Install Vercel CLI
-        run: |
-          echo "📥 Installing Vercel CLI..."
-          npm install --global vercel@latest
-          vercel --version
-
-      - name: Pull Vercel Environment Information
-        run: |
-          echo "⬇️ Pulling Vercel project configuration..."
-          vercel pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN }}
-          echo "✅ Project configuration pulled"
-        working-directory: frontend
-
-      - name: Build Project Artifacts
-        run: |
-          echo "🏗️ Building project artifacts for Vercel..."
-          vercel build --prod --token=${{ secrets.VERCEL_TOKEN }}
-          echo "✅ Vercel build completed"
-        working-directory: frontend
-
-      - name: Deploy Project Artifacts to Vercel
-        run: |
-          echo "🚀 Deploying to Vercel..."
-          DEPLOYMENT_URL=$(vercel deploy --prebuilt --prod --token=${{ secrets.VERCEL_TOKEN }})
-          echo "✅ Deployment successful!"
-          echo "🌐 Deployment URL: $DEPLOYMENT_URL"
-        working-directory: frontend
-
-  deploy-backend:
-    name: Deploy Backend (Docker)
+  deploy:
+    name: Deploy to Vercel
     runs-on: ubuntu-latest
+    needs: verify
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
 
     steps:
       - name: Checkout
         uses: actions/checkout@v6
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Login to Container Registry
-        uses: docker/login-action@v3
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
         with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+          node-version: '22'
+          cache: 'yarn'
+          cache-dependency-path: 'yarn.lock'
 
-      - name: Build and push backend image
-        uses: docker/build-push-action@v6
-        with:
-          context: ./backend
-          push: true
-          tags: ghcr.io/${{ github.repository }}/backend:latest
-          platforms: linux/amd64,linux/arm64
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+      - name: Enable Corepack
+        run: corepack enable
 
-      - name: Deploy to production server
-        uses: appleboy/ssh-action@v1.2.5
-        with:
-          host: ${{ secrets.PROD_HOST }}
-          username: ${{ secrets.PROD_USER }}
-          key: ${{ secrets.PROD_SSH_KEY }}
-          script: |
-            # Pull latest images
-            docker pull ghcr.io/${{ github.repository }}/backend:latest
+      - name: Install dependencies
+        run: yarn install --frozen-lockfile
 
-            # Update docker-compose and restart services
-            cd /app/remediate
-            docker-compose pull
-            docker-compose up -d --force-recreate
+      - name: Install Vercel CLI
+        run: npm install --global vercel@latest
 
-            # Clean up old images
-            docker image prune -f
+      - name: Pull Vercel environment information
+        run: vercel pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN }}
+
+      - name: Build project artifacts
+        run: vercel build --prod --token=${{ secrets.VERCEL_TOKEN }}
+
+      - name: Deploy project artifacts
+        run: vercel deploy --prebuilt --prod --token=${{ secrets.VERCEL_TOKEN }}
