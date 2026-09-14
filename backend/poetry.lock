@@ -1145,14 +1145,14 @@ files = [
 
 [[package]]
 name = "neo4j"
-version = "6.0.3"
+version = "6.3.0"
 description = "Neo4j Bolt driver for Python"
 optional = false
 python-versions = ">=3.10"
 groups = ["main"]
 files = [
-    {file = "neo4j-6.0.3-py3-none-any.whl", hash = "sha256:a92023854da96aed4270e0d03d6429cdd7f0d3335eae977370934f4732de5678"},
-    {file = "neo4j-6.0.3.tar.gz", hash = "sha256:7fb79e166e281aafd67d521f6611763ebcdc529f26db506c5605f91ddcd825ea"},
+    {file = "neo4j-6.3.0-py3-none-any.whl", hash = "sha256:d243f9c8adf882ae7205a76eb2419b0a632d5f3c89383d4a0044d737a2223991"},
+    {file = "neo4j-6.3.0.tar.gz", hash = "sha256:d0d3986c37ad174a549a39dfec6d22a00a061ebcb0267f1a5caf856589838e73"},
 ]
 
 [package.dependencies]
@@ -1160,8 +1160,8 @@ pytz = "*"
 
 [package.extras]
 numpy = ["numpy (>=1.21.2,<3.0.0)"]
-pandas = ["numpy (>=1.21.2,<3.0.0)", "pandas (>=1.1.0,<3.0.0)"]
-pyarrow = ["pyarrow (>=6.0.0,<23.0.0)"]
+pandas = ["numpy (>=1.21.2,<3.0.0)", "pandas[timezone] (>=1.1.0,<4.0.0)"]
+pyarrow = ["pyarrow (>=6.0.0,<26.0.0)"]
 
 [[package]]
 name = "networkx"
