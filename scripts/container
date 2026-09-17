@@ -1,0 +1,42 @@
+#!/usr/bin/env bash
+# Run a command (or an interactive shell) in Node 22.
+# Same entry point for a human and an agent. Host Node is not required.
+#
+#   ./scripts/container              # shell
+#   ./scripts/container yarn dev     # http://localhost:3000
+#   ./scripts/container yarn test:server
+set -euo pipefail
+cd "$(dirname "$0")/.."
+
+if ! command -v docker >/dev/null 2>&1; then
+	echo "docker is not on PATH. Install Docker Desktop, or skip the container:" >&2
+	echo "  corepack enable && yarn install --frozen-lockfile && yarn dev" >&2
+	exit 1
+fi
+
+if ! docker info >/dev/null 2>&1; then
+	echo "docker is installed but the engine is down. Start Docker Desktop and retry." >&2
+	echo "A client-only 'docker version' is not enough." >&2
+	exit 1
+fi
+
+IMAGE="${CONTAINER_IMAGE:-node:22-bookworm}"
+if [ $# -eq 0 ]; then
+	set -- bash
+fi
+
+flags=(-i --rm)
+if [ -t 0 ]; then
+	flags+=(-t)
+fi
+
+# Linux node_modules stay in a named volume so a Windows host mount does not
+# mix ELF binaries into the checkout.
+docker run "${flags[@]}" \
+	-v "$PWD":/app \
+	-v remediate-node-modules:/app/node_modules \
+	-w /app \
+	-p 3000:3000 \
+	-e COREPACK_ENABLE_DOWNLOAD_PROMPT=0 \
+	"$IMAGE" \
+	bash -lc 'corepack enable >/dev/null && yarn install --frozen-lockfile && exec "$@"' _ "$@"

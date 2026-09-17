@@ -1,166 +1,144 @@
-# BMX (BookMark eXtractor)
+# Remediate
 
-A sophisticated knowledge management system designed to transform bookmark collections into actionable knowledge through AI-powered analysis and graph-based exploration.
+Remediate turns a personal knowledge corpus into one connected graph and exposes it through surfaces that share a single backend.
 
-## Quick Start (Local Development)
+- **BMX** (BookMark eXtractor) harvests URLs. Paste links, and their content is fetched, extracted, triaged by Claude, and slotted into the graph with a deck and tags. This is the project's original vision and the reason the repo is named what it is.
+- **Cards** is an Anki-compatible spaced-repetition surface fed by your existing decks.
+- **Quest** is an exploratory game played over the same graph, where rooms are concepts and doors are relationships.
 
-### Prerequisites
-- **Docker Desktop** - Must be running before starting development
-- **Git** - Version control
-- **Cursor or VS Code** (recommended) - With Dev Containers extension for seamless development
-- **WSL2** (Windows only) - For optimal Docker performance
+The scheduler's memory model and the game's progression gate are the same column in the same table.
 
-### Setup Methods
+Read [docs/PRD.md](docs/PRD.md) for what and why, [docs/TDD.md](docs/TDD.md) for how, and [docs/PIPELINE.md](docs/PIPELINE.md) for build order.
 
-#### Method 1: DevContainer (Recommended for VS Code/Cursor Users)
+## Systems
+
+Status is a separate channel from kind. Green and a solid border means it exists in the tree today. Amber means a scaffold or schema exists, with no live data and no user flow. Grey, a dashed border, and a `planned` edge label means it is not started.
+
+```mermaid
+flowchart TD
+  classDef built fill:#dff5e1,stroke:#2e7d32,color:#1b3d20
+  classDef partial fill:#fff4d6,stroke:#c98a00,color:#4a3400
+  classDef planned fill:#f2f2f2,stroke:#9e9e9e,color:#3d3d3d,stroke-dasharray:4 3
+
+  owner((Owner)):::built
+  anki[(Anki TSV)]:::built
+  paste(["Paste URLs"]):::planned
+
+  subgraph vercel ["Vercel one project"]
+    ssr[SvelteKit SSR]:::built
+    ingest[Anki ingest]:::partial
+    cards[Cards]:::planned
+    quest[Quest]:::planned
+    bmx[BMX harvest]:::planned
+    cron(["cron tick"]):::planned
+    extract["api extract.py"]:::planned
+  end
+
+  pg[("Neon plus pgvector")]:::partial
+  claude{{"Claude API"}}:::planned
+  web{{"Untrusted URLs"}}:::planned
+
+  owner --> ssr
+  owner --> ingest
+  anki --> ingest
+  owner -.->|planned| paste
+  ssr -.->|planned| cards
+  ssr -.->|planned| quest
+  ingest -.->|planned persist| pg
+  cards -.->|planned| pg
+  quest -.->|planned| pg
+  paste -.->|planned| bmx
+  bmx -.->|planned| cron
+  cron -.->|planned| extract
+  extract -.->|planned| web
+  cron -.->|planned| claude
+  cron -.->|planned| pg
+```
+
+VS Code built-in preview shows the fence as a code block. The Markdown Preview Mermaid Support extension renders it. GitHub renders it natively.
+
+| Status  | Meaning                                                 |
+| ------- | ------------------------------------------------------- |
+| Built   | In the tree and exercised                               |
+| Partial | Scaffold or schema only                                 |
+| Planned | Not started. Drawn so absence is not read as accidental |
+
+What exists today: the SvelteKit app at the repo root, the Anki TSV parser and HTML sanitizer, a Drizzle schema that has not been migrated, and an oslo auth scaffold. Cards, Quest, BMX harvest, `api/extract.py`, cron, and a live Neon database are not built.
+
+### Boundary: browser to Vercel
+
+The user hits one origin. SvelteKit `+server.ts` routes are the API. A second HTTP service would add a second auth boundary and a hop inside our own app. That is why `backend/` is gone.
+
+### Boundary: cron to extract.py
+
+BMX fetches arbitrary user-supplied URLs. That is SSRF by construction. The extractor is a separate runtime with a shared internal token and no database credentials. A compromise there reaches the internet, not Neon. The file is not in the tree yet. The isolation is why the FastAPI service was deleted instead of trimmed.
+
+### Boundary: app to Neon
+
+Every table carries `user_id` on the row so Phase 1 can attach RLS without a join. The schema is code only. No migration has been applied. `DATABASE_URL` is unset.
+
+## Run it locally
+
+Requires Node 22 and Corepack. No Docker, no database, and no API keys are needed to run the app. `isomorphic-dompurify` 4.2.0 refuses to install on Node 20.
+
 ```bash
-git clone <repository-url>
+git clone https://github.com/cooperability/BMX-bookmark-extractor.git
 cd BMX-bookmark-extractor
-
-# Quick launch (opens Cursor/VS Code in devcontainer)
-./scripts/open_devcontainer
-
-# Or manually:
-# 1. Ensure Docker Desktop is running first!
-docker ps  # Should not return ENOENT error
-
-# 2. Open in Cursor/VS Code
-cursor .  # or: code .
-
-# 3. Reopen in container when prompted
-# Or manually: F1 → "Dev Containers: Reopen in Container"
+corepack enable
+yarn install --frozen-lockfile
+yarn dev          # http://localhost:3000
 ```
 
-The dev container will automatically:
-- Set up Python environment with Poetry
-- Configure SvelteKit frontend with all dependencies
-- Initialize Neo4j database
-- Install development tools and extensions
+Same loop inside Node 22, when you want isolation or the host has no Node:
 
-**From integrated terminal (inside container):**
 ```bash
-# Backend (FastAPI)
-poetry run uvicorn src.main:app --host 0.0.0.0 --port 8000 --reload
-# Or: ./scripts-devcontainer/dev
-
-# Frontend (SvelteKit)
-cd /project/frontend && yarn dev
+./scripts/container yarn dev
 ```
 
-#### Method 2: Docker Compose (Works with Any Editor)
-```bash
-git clone <repository-url>
-cd BMX-bookmark-extractor
+`scripts/container` is the one Docker entry point. There is no Dev Container and none is coming back. If `docker info` fails, start Docker Desktop and retry. A client-only `docker version` is not enough.
 
-# Start all services
-./scripts/dc_up
+Keep the clone off OneDrive. A OneDrive-backed checkout makes file watchers and bind mounts unreliable, and an editor pointed at a second clone will report failures the real tree does not have.
 
-# Backend (separate terminal)
-./scripts/dc_exec backend poetry run uvicorn src.main:app --host 0.0.0.0 --port 8000 --reload
+Parser ground truth, Confirmed against `source_data/` by `yarn test:server` on Node 22.23.1, 46 of 46 green.
 
-# Frontend (separate terminal)
-./scripts/dc_exec frontend yarn dev
-```
+| File    | Raw lines | Records | Unique GUIDs | Multiline backs |
+| ------- | --------: | ------: | -----------: | --------------: |
+| Anthro  |      4053 |     320 |          320 |             123 |
+| CompSci |       576 |     137 |          137 |              23 |
+| Total   |      4629 | **457** |      **457** |                 |
 
-### Troubleshooting
+| Command                     | Does                                           |
+| --------------------------- | ---------------------------------------------- |
+| `yarn lint`                 | Prettier check plus ESLint                     |
+| `yarn check`                | `svelte-check` against `tsconfig.json`         |
+| `yarn test:server`          | Parser and sanitizer unit tests, 46 of 46      |
+| `yarn test:e2e`             | Playwright                                     |
+| `yarn test`                 | Both of the above                              |
+| `yarn db:push`              | Push the Drizzle schema (needs `DATABASE_URL`) |
+| `./scripts/container <cmd>` | Same commands in a Node 22 image               |
 
-**Common Issues:**
+## Deploy
 
-| Issue | Solution |
-|-------|----------|
-| **Docker not running** | Start Docker Desktop, wait for green icon. Verify: `docker ps` |
-| **Port conflict (8000/3000)** | `docker compose down` or `netstat -ano \| findstr :8000` to find conflicting process |
-| **WSL2 corruption** | `rm -rf ~/.vscode-server ~/.cursor-server` then restart |
-| **Neo4j auth failed** | Default credentials: `neo4j` / `bmxpassword` |
-| **Build too slow** | Ensure `.dockerignore` exists in `backend/` and `frontend/` |
-| **Can't connect to services** | Check logs: `docker compose logs -f <service>` |
+The Vercel Git integration owns every deploy. It builds production on `main` and a preview on each pull request. There is no second deploy path. GitHub Actions runs lint, typecheck, and `yarn test:server` on Node 22, and deploys nothing.
 
-**Nuclear Option (Fresh Start):**
-```bash
-docker compose down -v && docker system prune -af
-rm -rf ~/.vscode-server ~/.cursor-server
-docker compose up --build
-```
+Root Directory must be `.`. Confirmed 2026-09-16 against project `prj_RnBD1bE2cYV61qnpATWrMV0qUnJI`: Root Directory reads `frontend`, so the build aborts 0.6 seconds after clone with "The specified Root Directory frontend does not exist," before install. Nothing in this repository can fix that. Root Directory is a dashboard setting and `vercel.json` cannot override it.
 
-## System Architecture
+Every other setting is already right: Node.js 22.x, framework preset SvelteKit, `yarn install`, `yarn build`. Changing Root Directory to `.` is the single remaining step.
 
-BMX uses a **hybrid database architecture** combining:
-- **PostgreSQL** for efficient full-text content storage and complex queries
-- **Neo4j** for relationship mapping and graph-based knowledge exploration
-- **FastAPI** backend for robust API and data processing
-- **SvelteKit** frontend for modern, responsive user interface
+## Configuration
 
-### Key Features
+Copy `.env.example` to `.env`. Every variable is optional until its phase lands.
 
-- **Multi-Source Ingestion**: Process bookmarks from browser exports, Anki flashcards, and direct web scraping
-- **AI-Powered Analysis**: Use Google Gemini API for intelligent content summarization and entity extraction
-- **Graph-Based Knowledge Discovery**: Visualize and explore relationships between concepts, documents, and ideas
-- **Hybrid Storage Strategy**: Optimize for both performance and cost with intelligent data distribution
-- **Real-Time Processing**: Stream-based ingestion and processing for immediate insights
-- **Educational Content Integration**: Structured learning materials processed through the knowledge graph for personalized learning paths
+| Variable            | Needed for                                             |
+| ------------------- | ------------------------------------------------------ |
+| `DATABASE_URL`      | Neon Postgres with pgvector. Everything that persists. |
+| `ANTHROPIC_API_KEY` | AI enrichment and BMX triage.                          |
+| `INTERNAL_TOKEN`    | Authenticates the cron worker to `api/extract.py`.     |
 
-## Educational Content Strategy
+## Source data
 
-BMX includes structured educational materials designed for both human learning and LLM knowledge graph integration:
-
-**Features:**
-- **Interactive Format**: Jupyter notebooks with executable code examples
-- **Structured Metadata**: YAML frontmatter with learning objectives and prerequisites
-- **Knowledge Graph Integration**: Content processed through BMX pipeline to extract:
-  - Programming concepts and relationships
-  - Code-to-concept mappings
-  - Progressive learning paths
-- **Cross-Domain Connections**: Links educational content with other knowledge domains
-
-**LLM Integration Goals:**
-Educational content becomes queryable knowledge, enabling the system to:
-- Recommend personalized learning paths
-- Explain concepts with executable examples
-- Connect theoretical knowledge with practical implementation
-- Provide context-aware coding assistance
-
-## Documentation Guide
-
-**Find what you need based on your goal:**
-
-### 🚀 Getting Started
-- **[Quick Start](#quick-start-local-development)** - Setup and run BMX locally
-- **[Troubleshooting Guide](TROUBLESHOOTING.md)** - Solve common setup issues
-- **[Backend README](backend/README.md)** - FastAPI development guide
-- **[Frontend README](frontend/README.md)** - SvelteKit development guide
-
-### 📋 Planning & Development
-- **[Implementation Plan](docs/implementation-plan.md)** - Phased development roadmap (Weeks 1-16+)
-- **[MVP Specification](docs/mvp-plan.md)** - 1-Day MVP for bookmark knowledge graph
-- **[Project Status](#project-status)** - Current phase and next milestones
-
-### 🏗️ Architecture & Design
-- **[System Architecture & Data Flow](docs/system-architecture-flow.md)** - Complete system diagrams with Mermaid visualizations
-- **[Hybrid Database Architecture](docs/hybrid-database-architecture.md)** - PostgreSQL + Neo4j implementation strategy
-- **[Infrastructure Strategy](docs/infrastructure.md)** - Cloud hosting and deployment plans
-
-### 🔌 Integration Guides
-- **[Anki Integration](docs/anki-integration.md)** - Flashcard integration with hybrid architecture
-- **[LLM Integration](docs/llm-integration.md)** - Google Gemini API setup and patterns
-- **[PDF Processing Framework](docs/pdf-processing.md)** - Agentic knowledge ingestion for local PDFs
-
-### 📚 Additional Documentation
-- **[Complete Documentation Index](docs/)** - Full documentation directory with all guides and references
-
-### 🔧 Component Documentation
-- **[Backend](backend/)** - FastAPI application, Poetry dependencies, Docker configuration
-- **[Frontend](frontend/)** - SvelteKit application, npm dependencies, UI components
-- **[DevContainer](.devcontainer/)** - Development environment setup and tools
-- **[Scripts](scripts/)** - Helper scripts for Docker Compose operations
-
-## Project Status
-
-**Current Phase**: Early development with foundational architecture established  
-**Next Milestone**: Neo4j integration and hybrid storage implementation  
-**Target**: Production-ready MVP with Anki data ingestion and basic graph visualization
-
-BMX represents a comprehensive approach to knowledge management, transforming scattered bookmarks and information into a cohesive, explorable knowledge graph that helps users discover connections and insights they never knew existed.
+`source_data/` holds the real Anki exports and bookmark metadata, and doubles as the test fixture directory. Treat it as read-only. A find-and-replace across the repo will match URLs and identifiers inside `articles.csv` and `ArticleMetadata.db` and corrupt them.
 
 ## License
 
-[License details in LICENSE file](LICENSE)
+[LICENSE](LICENSE)

@@ -1,6 +1,0 @@
-#!/bin/bash
-# Activate Poetry virtual environment shell
-set -e
-
-echo "Activating Poetry virtual environment..."
-poetry shell
