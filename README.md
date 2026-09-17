@@ -121,7 +121,9 @@ Parser ground truth, Confirmed against `source_data/` by `yarn test:server` on N
 
 The Vercel Git integration owns every deploy. It builds production on `main` and a preview on each pull request. There is no second deploy path. GitHub Actions runs lint, typecheck, and `yarn test:server` on Node 22, and deploys nothing.
 
-Root Directory must be `.`. Confirmed 2026-09-13: the Git-connected project still reads `frontend`, so builds off this branch fail with "The specified Root Directory frontend does not exist." Set Root Directory to `.` and Node.js to 22 in the Vercel dashboard. That is a human step and it cannot be set from `vercel.json`. Production on `main` will not rebuild until this branch merges, so the last good production deploy stays live in between.
+Root Directory must be `.`. Confirmed 2026-09-16 against project `prj_RnBD1bE2cYV61qnpATWrMV0qUnJI`: Root Directory reads `frontend`, so the build aborts 0.6 seconds after clone with "The specified Root Directory frontend does not exist," before install. Nothing in this repository can fix that. Root Directory is a dashboard setting and `vercel.json` cannot override it.
+
+Every other setting is already right: Node.js 22.x, framework preset SvelteKit, `yarn install`, `yarn build`. Changing Root Directory to `.` is the single remaining step.
 
 ## Configuration
 
