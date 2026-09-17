@@ -1,8 +1,0 @@
-# Example .envrc for direnv.
-# Copy this file to .envrc in your project root and then run `direnv allow`.
-
-# Load environment variables from .env if it exists.
-dotenv_if_exists
-
-# Environment (dev/staging/production)
-export ENVIRONMENT=development

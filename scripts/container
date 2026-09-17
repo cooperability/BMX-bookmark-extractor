@@ -16,7 +16,7 @@ fi
 
 if ! docker info >/dev/null 2>&1; then
 	echo "docker is installed but the engine is down. Start Docker Desktop and retry." >&2
-	echo "A client-only 'docker version' is not enough. See TROUBLESHOOTING.md." >&2
+	echo "A client-only 'docker version' is not enough." >&2
 	exit 1
 fi
 

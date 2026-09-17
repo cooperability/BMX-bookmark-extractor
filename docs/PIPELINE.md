@@ -5,7 +5,7 @@
 
 > **v2 changes:** rename folded into Phase 0 · **Cards (P3) now explicitly precedes Quest (P6)** · BMX harvest is its own phase (P4) · B3 risk gate reframed (density resolved, meaningfulness still open) · Fable brief updated with the parser and GUID traps.
 
-Phase 0 in [PR 282](https://github.com/cooperability/BMX-bookmark-extractor/pull/282) has deleted `backend/`, the Neo4j docs, compose, Storybook, and the Dev Container, and promoted the SvelteKit app to the repo root. GitHub and Vercel project renames are still human steps. ADRs were not written. The 2026-07-19 prototype date below is the original target, not a forecast.
+Phase 0 in [PR 282](https://github.com/cooperability/BMX-bookmark-extractor/pull/282) has deleted `backend/`, the Neo4j docs, compose, Storybook, and the Dev Container, promoted the SvelteKit app to the repo root, and cut the second deploy path so the Vercel Git integration owns deploys alone ([TDD §12.2](./TDD.md#122-delete--keep--add)). GitHub and Vercel project renames are still human steps, and so is setting Vercel's Root Directory to `.`. ADRs were not written. The 2026-07-19 prototype date below is the original target, not a forecast.
 
 This document is the **execution plan**. It separates what a human must do from what an LLM can do, and marks every point where work stops until something unblocks it. Written to be re-read mid-project by a person or a model with no memory of the last session.
 
@@ -191,6 +191,7 @@ That asymmetry is the safety margin in a 4-day build. Cards → ship is always r
 | `frontend/*` → root                                                 | 🤖   | Done. `git mv` preserved history. Vercel Root Directory is still `frontend` until merge.                                                                                                                                                               |
 | README rewrite · ADRs from [TDD §3](./TDD.md#3-the-roads-not-taken) | 🤖   | Acceptance: clone → running in <5 min                                                                                                                                                                                                                  |
 | Vercel: rename project, add `remediate.app`                         | 👤   | Separate from the GitHub rename                                                                                                                                                                                                                        |
+| **Vercel: Root Directory `frontend` → `.`, Node.js → 22**           | 👤   | 🚧 Blocks every build off this branch. Not settable from `vercel.json`. Dashboard only                                                                                                                                                                 |
 
 **Why first:** stale docs actively harm LLM-driven work. The Neo4j write-ups were deleted so an agent cannot implement Cypher from them.
 
@@ -280,7 +281,7 @@ That asymmetry is the safety margin in a 4-day build. Cards → ship is always r
 | CSP nonce; **delete `X-XSS-Protection`** | 🤖   | [TDD §7.2](./TDD.md#72-xss-is-not-theoretical--its-in-the-corpus)                                                           |
 | Rate limits + per-domain politeness      | 🤖   |                                                                                                                             |
 | E2E = the 9 acceptance criteria          | 🤖   | [PRD §12](./PRD.md#12-success-criteria). **Write the 457-record test in Phase 2 and the locked-door test in Phase 3, red.** |
-| CI: typecheck · lint · unit · e2e        | 🤖   | Extend `.github/workflows/deploy.yml`                                                                                       |
+| CI: typecheck · lint · unit · e2e        | 🤖   | Extend `.github/workflows/verify.yml`. It verifies only. Vercel deploys                                                     |
 | Deploy `remediate.app`; verify grade A   | 👤   |                                                                                                                             |
 
 ---

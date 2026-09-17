@@ -95,9 +95,11 @@ Same loop inside Node 22, when you want isolation or the host has no Node:
 ./scripts/container yarn dev
 ```
 
-`scripts/container` is the one Docker entry point. There is no Dev Container. Engine-down failures are in [TROUBLESHOOTING.md](TROUBLESHOOTING.md).
+`scripts/container` is the one Docker entry point. There is no Dev Container and none is coming back. If `docker info` fails, start Docker Desktop and retry. A client-only `docker version` is not enough.
 
-Parser ground truth, Confirmed against `source_data/` by a TypeScript probe (not by the Vitest runner). Vitest 5.0.0 `describe` throws `Cannot read properties of undefined (reading 'config')`. Do not treat `yarn test:server` as green.
+Keep the clone off OneDrive. A OneDrive-backed checkout makes file watchers and bind mounts unreliable, and an editor pointed at a second clone will report failures the real tree does not have.
+
+Parser ground truth, Confirmed against `source_data/` by `yarn test:server` on Node 22.23.1, 46 of 46 green.
 
 | File    | Raw lines | Records | Unique GUIDs | Multiline backs |
 | ------- | --------: | ------: | -----------: | --------------: |
@@ -109,16 +111,17 @@ Parser ground truth, Confirmed against `source_data/` by a TypeScript probe (not
 | --------------------------- | ---------------------------------------------- |
 | `yarn lint`                 | Prettier check plus ESLint                     |
 | `yarn check`                | `svelte-check` against `tsconfig.json`         |
-| `yarn test:server`          | Parser and sanitizer unit tests                |
+| `yarn test:server`          | Parser and sanitizer unit tests, 46 of 46      |
 | `yarn test:e2e`             | Playwright                                     |
+| `yarn test`                 | Both of the above                              |
 | `yarn db:push`              | Push the Drizzle schema (needs `DATABASE_URL`) |
 | `./scripts/container <cmd>` | Same commands in a Node 22 image               |
 
 ## Deploy
 
-Production is `git push` to Vercel. One project. Root Directory must be `.` after this promotion. Confirmed 2026-09-13: the Git-connected project still has Root Directory `frontend`, so preview builds fail with "The specified Root Directory frontend does not exist." Do not change that setting while `main` still lives under `frontend/`. After this branch merges, set Root Directory to `.` and Node.js to 22 before the next production deploy.
+The Vercel Git integration owns every deploy. It builds production on `main` and a preview on each pull request. There is no second deploy path. GitHub Actions runs lint, typecheck, and `yarn test:server` on Node 22, and deploys nothing.
 
-GitHub Actions on this branch runs lint, typecheck, and `yarn test:server` on Node 22. The Actions deploy job still runs only on `main`.
+Root Directory must be `.`. Confirmed 2026-09-13: the Git-connected project still reads `frontend`, so builds off this branch fail with "The specified Root Directory frontend does not exist." Set Root Directory to `.` and Node.js to 22 in the Vercel dashboard. That is a human step and it cannot be set from `vercel.json`. Production on `main` will not rebuild until this branch merges, so the last good production deploy stays live in between.
 
 ## Configuration
 

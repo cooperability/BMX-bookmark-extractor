@@ -298,7 +298,9 @@ Filtered vector search, one round trip. With an external store, tenant and deck 
 
 Production is `git push` to Vercel. A compose file that described that topology was a fiction, and a fiction in the repo is worse than an absence.
 
-Local isolation, when you want it, is `./scripts/container`. Same command for a human and an agent. There is no Dev Container. Host `yarn dev` is enough when Node 22 is already installed.
+Local isolation, when you want it, is `./scripts/container`, which runs one throwaway `node:22-bookworm` container per invocation. Same command for a human and an agent. Host `yarn dev` is enough when Node 22 is already installed.
+
+The Dev Container is deleted and stays deleted. `.devcontainer/`, `scripts-devcontainer/`, `scripts/open_devcontainer`, every `Dockerfile`, and every `.dockerignore` are gone. It bound the editor, the toolchain, and the retired FastAPI and Neo4j services into one object that had to rebuild before anything could run, and it kept a WSL probe alive for an engine the app never needed. Spin a container up by hand when you want one. Do not reintroduce a Dev Container to satisfy a tutorial, an onboarding doc, or a Dependabot alert on a Dockerfile.
 
 ---
 
@@ -1069,6 +1071,7 @@ flowchart LR
         D4["docker-compose.yml (prod)<br/>+ scripts/dc_*"]
         D5["30M-param model goal"]
         D6["X-XSS-Protection header"]
+        D7[".devcontainer/ · scripts-devcontainer/<br/>Dockerfiles · §3.4"]
     end
     subgraph KEEP["✅ Keep & promote"]
         K1["frontend/ → repo root"]
@@ -1091,7 +1094,7 @@ flowchart LR
     classDef del fill:#3d1f1f,stroke:#d94a4a,color:#fae8e8
     classDef keep fill:#1f3d2d,stroke:#4caf7d,color:#e8faf0
     classDef add fill:#1e3a5f,stroke:#4a90d9,color:#e8f1fa
-    class D1,D2,D3,D4,D5,D6 del
+    class D1,D2,D3,D4,D5,D6,D7 del
     class K1,K2,K3,K4,K5,K6,K7,K8 keep
     class A1,A2,A3,A4,A5 add
 ```
@@ -1099,6 +1102,21 @@ flowchart LR
 **Do the deletions in one commit, first.** Not because deleting is fun, but because an LLM asked to "add search" will otherwise read a stale hybrid-database doc, believe it, and faithfully implement a Neo4j integration you don't want. Stale docs are worse than no docs when the reader is a model. Those Neo4j write-ups are gone. Do not restore them.
 
 Storybook was on an earlier keep-list. It was cut: the installed tree mixed Storybook 8 addons with Storybook 10, and there were no product stories after the demo kit was deleted.
+
+A second sweep cut what the first pass left behind. Each of these was measured, not guessed:
+
+| Cut                                             | Why                                                                                                                                                              |
+| ----------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| The Actions `deploy` job                        | The Vercel Git integration already built every push. Two deploy paths, one product                                                                               |
+| `TROUBLESHOOTING.md`                            | Three of its four items said "start Docker Desktop." The OneDrive warning moved to the root README                                                               |
+| `.pre-commit-config.yaml`                       | A Python hook runner in a repo with no Python, pinning `eslint@^9` against a tree on `eslint@^10`                                                                |
+| `.envrc`, `.envrc.example`                      | Exported `RUST_LOG` and `DOMAIN_NAME`. Nothing in the tree reads either. `.env.example` holds the three real ones                                                |
+| `src/lib/index.ts`                              | One scaffold comment. The `$lib` alias resolves without it                                                                                                       |
+| `page.svelte.test.ts`, `vitest-setup-client.ts` | The client project threw `mount(...) is not available on the server`, so `yarn test` was red. No components exist yet. The harness returns in Phase 3 with Cards |
+| `@testing-library/*`, `jsdom`                   | Orphaned by that deletion                                                                                                                                        |
+| `source_data/ArticleMetadata.csv`               | Byte-identical to `articles.csv`. Same SHA256, 1.76 MB carried twice                                                                                             |
+
+`vite.config.ts` no longer declares Vitest projects. `vitest.server.config.ts` is the only test config, and `yarn test` chains it with Playwright.
 
 Dependabot alerts on `backend/poetry.lock` (nltk, starlette, python-multipart, and similar) sat on that delete list. Prefer the cut over bumping a FastAPI tree this section already retired. Do not treat those alerts as a frontend or Next.js problem.
 
