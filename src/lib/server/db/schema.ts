@@ -1,14 +1,19 @@
 import { sql } from 'drizzle-orm';
 import {
+	type AnyPgColumn,
 	bigserial,
+	foreignKey,
 	index,
 	integer,
 	jsonb,
+	pgPolicy,
 	pgTable,
+	primaryKey,
 	real,
 	smallint,
 	text,
 	timestamp,
+	unique,
 	uniqueIndex,
 	vector
 } from 'drizzle-orm/pg-core';
@@ -16,6 +21,19 @@ import {
 // TDD §4. Every table carries user_id on the row, denormalized on purpose: the
 // Phase 1 RLS policies read it locally, and a join to prove tenancy is both
 // slower and a bug waiting to happen.
+
+// TDD §7.6. withTenant sets app.user_id per transaction. FORCE lives in a custom
+// migration because drizzle cannot express it.
+const tenantIsolation = () =>
+	pgPolicy('tenant_isolation', {
+		using: sql`user_id = current_setting('app.user_id', true)`
+	});
+
+// FK checks bypass RLS, so a plain FK to nodes.id would let one tenant attach
+// rows to another's node and probe which ids exist. Keying every node reference
+// on (user_id, id) confines the check to the caller's own nodes.
+const ownNode = (userId: AnyPgColumn, nodeId: AnyPgColumn) =>
+	foreignKey({ columns: [userId, nodeId], foreignColumns: [node.userId, node.id] });
 
 export const user = pgTable('user', {
 	id: text('id').primaryKey(),
@@ -67,7 +85,9 @@ export const node = pgTable(
 		// Idempotent re-import: same GUID updates instead of duplicating.
 		uniqueIndex('idx_guid').on(t.userId, t.ankiGuid),
 		index('idx_node_deck').on(t.userId, t.deck),
-		index('idx_node_embed').using('hnsw', t.embedding.op('vector_cosine_ops'))
+		index('idx_node_embed').using('hnsw', t.embedding.op('vector_cosine_ops')),
+		unique('nodes_user_id_id_unique').on(t.userId, t.id),
+		tenantIsolation()
 	]
 );
 
@@ -78,12 +98,8 @@ export const edge = pgTable(
 		userId: text('user_id')
 			.notNull()
 			.references(() => user.id),
-		srcId: text('src_id')
-			.notNull()
-			.references(() => node.id),
-		dstId: text('dst_id')
-			.notNull()
-			.references(() => node.id),
+		srcId: text('src_id').notNull(),
+		dstId: text('dst_id').notNull(),
 		kind: text('kind').notNull(), // deck | tag | similar_to | prereq_of | cites
 		weight: real('weight').notNull().default(1),
 		provenance: text('provenance').notNull() // import | ai | manual
@@ -91,7 +107,10 @@ export const edge = pgTable(
 	(t) => [
 		// Quest traversal.
 		index('idx_edge_src').on(t.userId, t.srcId, t.kind),
-		uniqueIndex('idx_edge_unique').on(t.userId, t.srcId, t.dstId, t.kind)
+		uniqueIndex('idx_edge_unique').on(t.userId, t.srcId, t.dstId, t.kind),
+		ownNode(t.userId, t.srcId),
+		ownNode(t.userId, t.dstId),
+		tenantIsolation()
 	]
 );
 
@@ -105,9 +124,7 @@ export const edge = pgTable(
 export const reviewState = pgTable(
 	'review_state',
 	{
-		nodeId: text('node_id')
-			.primaryKey()
-			.references(() => node.id),
+		nodeId: text('node_id').notNull(),
 		userId: text('user_id')
 			.notNull()
 			.references(() => user.id),
@@ -123,7 +140,10 @@ export const reviewState = pgTable(
 		// The hot path. Partial, because new cards are not due-queried.
 		index('idx_review_due')
 			.on(t.userId, t.due)
-			.where(sql`state != 0`)
+			.where(sql`state != 0`),
+		primaryKey({ columns: [t.userId, t.nodeId] }),
+		ownNode(t.userId, t.nodeId),
+		tenantIsolation()
 	]
 );
 
@@ -134,9 +154,7 @@ export const reviewLog = pgTable(
 		userId: text('user_id')
 			.notNull()
 			.references(() => user.id),
-		nodeId: text('node_id')
-			.notNull()
-			.references(() => node.id),
+		nodeId: text('node_id').notNull(),
 		rating: smallint('rating').notNull(), // 1..4
 		elapsedDays: integer('elapsed_days').notNull().default(0),
 		reviewedAt: timestamp('reviewed_at', { withTimezone: true, mode: 'date' })
@@ -146,7 +164,11 @@ export const reviewLog = pgTable(
 		// improve adherence?" is answerable with data.
 		surface: text('surface').notNull()
 	},
-	(t) => [index('idx_log_node').on(t.userId, t.nodeId)]
+	(t) => [
+		index('idx_log_node').on(t.userId, t.nodeId),
+		ownNode(t.userId, t.nodeId),
+		tenantIsolation()
+	]
 );
 
 /**
@@ -167,25 +189,33 @@ export const harvest = pgTable(
 		tier: text('tier'), // full | metadata | failed
 		confidence: real('confidence'),
 		proposal: jsonb('proposal'),
-		nodeId: text('node_id').references(() => node.id),
+		nodeId: text('node_id'),
 		failReason: text('fail_reason'),
 		createdAt: timestamp('created_at', { withTimezone: true, mode: 'date' }).notNull().defaultNow()
 	},
-	(t) => [uniqueIndex('idx_url').on(t.userId, t.urlNormalized)]
+	(t) => [
+		uniqueIndex('idx_url').on(t.userId, t.urlNormalized),
+		ownNode(t.userId, t.nodeId),
+		tenantIsolation()
+	]
 );
 
-export const questRun = pgTable('quest_runs', {
-	id: text('id').primaryKey(),
-	userId: text('user_id')
-		.notNull()
-		.references(() => user.id),
-	currentNodeId: text('current_node_id').references(() => node.id),
-	visited: text('visited')
-		.array()
-		.notNull()
-		.default(sql`'{}'::text[]`),
-	state: jsonb('state')
-});
+export const questRun = pgTable(
+	'quest_runs',
+	{
+		id: text('id').primaryKey(),
+		userId: text('user_id')
+			.notNull()
+			.references(() => user.id),
+		currentNodeId: text('current_node_id'),
+		visited: text('visited')
+			.array()
+			.notNull()
+			.default(sql`'{}'::text[]`),
+		state: jsonb('state')
+	},
+	(t) => [ownNode(t.userId, t.currentNodeId), tenantIsolation()]
+);
 
 /** Queue on Postgres. Claimed with FOR UPDATE SKIP LOCKED by the cron worker. */
 export const job = pgTable(
@@ -202,7 +232,7 @@ export const job = pgTable(
 		claimedAt: timestamp('claimed_at', { withTimezone: true, mode: 'date' }),
 		createdAt: timestamp('created_at', { withTimezone: true, mode: 'date' }).notNull().defaultNow()
 	},
-	(t) => [index('idx_job_claim').on(t.status, t.kind)]
+	(t) => [index('idx_job_claim').on(t.status, t.kind), tenantIsolation()]
 );
 
 export type User = typeof user.$inferSelect;

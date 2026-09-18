@@ -1,0 +1,27 @@
+{
+	"version": "7",
+	"dialect": "postgresql",
+	"entries": [
+		{
+			"idx": 0,
+			"version": "7",
+			"when": 1789719820643,
+			"tag": "0000_pgvector",
+			"breakpoints": true
+		},
+		{
+			"idx": 1,
+			"version": "7",
+			"when": 1789719821682,
+			"tag": "0001_init",
+			"breakpoints": true
+		},
+		{
+			"idx": 2,
+			"version": "7",
+			"when": 1789719822723,
+			"tag": "0002_force_rls",
+			"breakpoints": true
+		}
+	]
+}
