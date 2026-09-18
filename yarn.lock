@@ -86,6 +86,16 @@
   resolved "https://registry.yarnpkg.com/@drizzle-team/brocli/-/brocli-0.10.2.tgz#9757c006a43daaa6f45512e6cf5fabed36fb9da7"
   integrity sha512-z33Il7l5dKjUgGULTqBsQBQwckHh5AbIuxhdsIxDDiZAzBOrZO6q9ogcWC65kU382AfynTfgNumVcNIjuIua6w==
 
+"@electric-sql/pglite-pgvector@0.0.9":
+  version "0.0.9"
+  resolved "https://registry.yarnpkg.com/@electric-sql/pglite-pgvector/-/pglite-pgvector-0.0.9.tgz#aa8dbc400517b2c09a58a6b216f0ce413430213b"
+  integrity sha512-ue4iBW651gDQwBwn97Ekv1lYGPvXa1ymHbRbTCSL0Ib286PRDD1VDOwzwEoekZuO/wctMbTzKzlwdgDwYrqZ8A==
+
+"@electric-sql/pglite@0.5.8":
+  version "0.5.8"
+  resolved "https://registry.yarnpkg.com/@electric-sql/pglite/-/pglite-0.5.8.tgz#9b5b4a61a14d6cf96b3b4e2ea7f124f8d6fe68b3"
+  integrity sha512-n9tsbUOhwx2epK1V0ZG9Ar4SHWUju04dhmzZXiSBXwBoleOvIfals33NAaWgagQVAL4Rbvx/Ptsu3P+pA09f6Q==
+
 "@emnapi/core@^1.11.1":
   version "1.11.3"
   resolved "https://registry.yarnpkg.com/@emnapi/core/-/core-1.11.3.tgz#5e95348a42cd1e06f0b9aa380cd74091daa4d520"
