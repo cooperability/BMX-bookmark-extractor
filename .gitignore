@@ -40,3 +40,9 @@ yarn-error.log*
 *.pem
 .DS_Store
 Thumbs.db
+
+# Python (api/extract.py)
+.venv/
+__pycache__/
+.pytest_cache/
+.coverage
