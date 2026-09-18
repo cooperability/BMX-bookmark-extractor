@@ -1,16 +1,13 @@
-import { fileURLToPath } from 'node:url';
 import { PGlite } from '@electric-sql/pglite';
-import { vector } from '@electric-sql/pglite-pgvector';
 import { eq, sql, type SQL } from 'drizzle-orm';
-import { drizzle, type PgliteDatabase } from 'drizzle-orm/pglite';
-import { migrate } from 'drizzle-orm/pglite/migrator';
+import type { PgliteDatabase } from 'drizzle-orm/pglite';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import * as schema from './schema';
 import { withTenant } from './rls';
+import { createTestDb } from './test-db';
 
 const A = 'tenant-a';
 const B = 'tenant-b';
-const migrationsFolder = fileURLToPath(new URL('../../../../drizzle', import.meta.url));
 
 // One insert per tenant table. A owns nodes a1 and a2, so every other row hangs
 // off those.
@@ -51,28 +48,7 @@ async function tenantRows(userId: string | null, table: string) {
 }
 
 beforeAll(async () => {
-	client = new PGlite({ extensions: { vector } });
-	// Superusers and BYPASSRLS roles skip every policy, and a table owner can turn
-	// FORCE off. So `owner` applies the migrations and the suite runs as `app`, a
-	// plain role holding DML grants only. pgvector is untrusted in stock Postgres,
-	// so the superuser installs it and 0000's IF NOT EXISTS passes, standing in
-	// for Neon's extension-capable owner role.
-	await client.exec(`
-		CREATE EXTENSION vector;
-		CREATE ROLE owner NOSUPERUSER NOBYPASSRLS;
-		CREATE ROLE app NOSUPERUSER NOBYPASSRLS;
-		GRANT CREATE ON DATABASE postgres TO owner;
-		GRANT CREATE ON SCHEMA public TO owner;
-		SET ROLE owner;
-	`);
-	db = drizzle(client, { schema });
-	await migrate(db, { migrationsFolder });
-	await client.exec(`
-		GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO app;
-		GRANT USAGE ON ALL SEQUENCES IN SCHEMA public TO app;
-		RESET ROLE;
-		SET ROLE app;
-	`);
+	({ client, db } = await createTestDb());
 	await db.insert(schema.user).values([
 		{ id: A, username: 'a', passwordHash: 'x' },
 		{ id: B, username: 'b', passwordHash: 'x' }
