@@ -15,7 +15,6 @@
 		"test:server": "vitest --config vitest.server.config.ts --run",
 		"test:e2e": "playwright test",
 		"test": "npm run test:server && npm run test:e2e",
-		"db:push": "drizzle-kit push",
 		"db:migrate": "drizzle-kit migrate",
 		"db:studio": "drizzle-kit studio"
 	},

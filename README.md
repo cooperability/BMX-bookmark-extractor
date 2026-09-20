@@ -114,7 +114,7 @@ Parser ground truth, Confirmed against `source_data/` by `yarn test:server` on N
 | `yarn test:server`          | Parser and sanitizer unit tests, 46 of 46      |
 | `yarn test:e2e`             | Playwright                                     |
 | `yarn test`                 | Both of the above                              |
-| `yarn db:push`              | Push the Drizzle schema (needs `DATABASE_URL`) |
+| `yarn db:migrate`           | Run the Drizzle migrations (needs `DATABASE_URL`) |
 | `./scripts/container <cmd>` | Same commands in a Node 22 image               |
 
 ## Deploy
