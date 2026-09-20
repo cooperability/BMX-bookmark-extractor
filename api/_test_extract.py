@@ -10,6 +10,7 @@ import threading
 import types
 import zlib
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from urllib.parse import urlsplit
 
 import pytest
 
@@ -516,3 +517,73 @@ def test_success_returns_extraction(server, monkeypatch):
     monkeypatch.setattr(extract, 'fetch', lambda url: ARTICLE)
     status, body = server(json.dumps({'url': 'http://example.com/'}), AUTH)
     assert (status, body['tier'], body['title']) == (200, 'full', 'Real title')
+
+
+@pytest.mark.parametrize(
+    'content_type, ok',
+    [
+        ('text/html', True),
+        ('text/plain', True),
+        ('application/xhtml+xml', True),
+        ('application/pdf', False),
+        ('image/png', False),
+        ('application/octet-stream', False),
+        ('video/mp4', False),
+    ],
+)
+def test_non_markup_content_type_rejected_before_body_read(monkeypatch, web, content_type, ok):
+    routes, _ = web
+    monkeypatch.setattr(socket, 'getaddrinfo', fake_dns({'ct.example': [PUBLIC_V4]}))
+    routes['ct.example'] = FakeResponse(200, b'<html><body>hi</body></html>', content_type=content_type)
+    if ok:
+        assert extract.fetch('http://ct.example/') == '<html><body>hi</body></html>'
+    else:
+        with pytest.raises(extract.Failed, match='unsupported_type'):
+            extract.fetch('http://ct.example/')
+
+
+def test_rejected_content_type_does_not_read_the_body(monkeypatch, web):
+    # The point of the gate: a 5 MB PDF must not be pulled down first.
+    routes, _ = web
+    monkeypatch.setattr(socket, 'getaddrinfo', fake_dns({'pdf.example': [PUBLIC_V4]}))
+    resp = FakeResponse(200, b'%PDF-1.7' + b'x' * 100000, content_type='application/pdf')
+    reads = []
+    inner = resp.read1
+    resp.read1 = lambda n: (reads.append(n), inner(n))[1]
+    routes['pdf.example'] = resp
+    with pytest.raises(extract.Failed, match='unsupported_type'):
+        extract.fetch('http://pdf.example/')
+    assert reads == []
+
+
+def test_socket_closed_when_tls_handshake_fails(monkeypatch):
+    # _open owns the socket until http.client adopts it; a bad certificate is
+    # routine and must not leak the fd.
+    closed = []
+
+    class FakeSock:
+        def close(self):
+            closed.append(True)
+
+    monkeypatch.setattr(socket, 'create_connection', lambda addr, timeout: FakeSock())
+    monkeypatch.setattr(
+        extract.TLS, 'wrap_socket', lambda *a, **k: (_ for _ in ()).throw(ssl.SSLCertVerificationError('bad cert'))
+    )
+    parts = urlsplit('https://tls.example/')
+    with pytest.raises(ssl.SSLError):
+        extract._open(parts, 443, PUBLIC_V4, 5)
+    assert closed == [True]
+
+
+def test_socket_kept_when_tls_handshake_succeeds(monkeypatch):
+    closed = []
+
+    class FakeSock:
+        def close(self):
+            closed.append(True)
+
+    monkeypatch.setattr(socket, 'create_connection', lambda addr, timeout: FakeSock())
+    monkeypatch.setattr(extract.TLS, 'wrap_socket', lambda sock, **k: sock)
+    parts = urlsplit('https://tls.example/')
+    assert extract._open(parts, 443, PUBLIC_V4, 5).sock is not None
+    assert closed == []

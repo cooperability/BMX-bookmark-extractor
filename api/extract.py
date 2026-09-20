@@ -105,12 +105,18 @@ def _open(parts, port, ip, timeout):
     # Connect to the address the guard vetted, not a second lookup, so DNS
     # rebinding between check and connect cannot swap in a private address.
     sock = socket.create_connection((ip, port), timeout)
-    if parts.scheme == 'https':
-        conn = http.client.HTTPSConnection(parts.hostname, port, timeout=timeout, context=TLS)
-        conn.sock = TLS.wrap_socket(sock, server_hostname=parts.hostname)
-    else:
-        conn = http.client.HTTPConnection(parts.hostname, port, timeout=timeout)
-        conn.sock = sock
+    try:
+        if parts.scheme == 'https':
+            conn = http.client.HTTPSConnection(parts.hostname, port, timeout=timeout, context=TLS)
+            conn.sock = TLS.wrap_socket(sock, server_hostname=parts.hostname)
+        else:
+            conn = http.client.HTTPConnection(parts.hostname, port, timeout=timeout)
+            conn.sock = sock
+    except BaseException:
+        # No conn yet, so the caller's finally: conn.close() cannot run. A bad
+        # certificate is routine, and the fd would outlive a warm instance.
+        sock.close()
+        raise
     return conn
 
 
@@ -138,6 +144,12 @@ def fetch(url):
                     continue
                 if resp.status != 200:
                     raise Failed(f'http_{resp.status}')
+                # trafilatura parses markup. Without this a PDF or image is read
+                # to MAX_BYTES and decoded with errors='replace' before it finds
+                # nothing. A missing header defaults to text/plain and is kept.
+                ctype = resp.headers.get_content_type()
+                if not (ctype.startswith('text/') or ctype in ('application/xhtml+xml', 'application/xml')):
+                    raise Failed('unsupported_type')
                 body = b''
                 while True:
                     sock.settimeout(_remaining(deadline))
