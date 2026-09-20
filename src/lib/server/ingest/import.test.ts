@@ -2,11 +2,17 @@ import { readFileSync } from 'node:fs';
 import { PGlite } from '@electric-sql/pglite';
 import { eq } from 'drizzle-orm';
 import type { PgliteDatabase } from 'drizzle-orm/pglite';
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { createTestDb } from '../db/test-db';
 import * as schema from '../db/schema';
 import { withTenant } from '../db/rls';
-import { importAnkiExport, MAX_IMPORT_BYTES, PayloadTooLargeError, readCappedText } from './import';
+import {
+	importAnkiExport,
+	MalformedImportError,
+	MAX_IMPORT_BYTES,
+	PayloadTooLargeError,
+	readCappedText
+} from './import';
 import { POST } from '../../../routes/api/import/+server';
 
 const ANTHRO = 'source_data/Anthro (Psych_Soc_Econ_Health).txt';
@@ -19,14 +25,27 @@ const CAROL = 'user_carol';
 const DAVE = 'user_dave';
 const EVE = 'user_eve';
 const FRANK = 'user_frank';
+const GRACE = 'user_grace';
+const HEIDI = 'user_heidi';
+const IVAN = 'user_ivan';
 
 let client: PGlite;
 let db: PgliteDatabase<typeof schema>;
 
+// src/lib/server/db throws without a real DATABASE_URL. The route imports it
+// dynamically, so hand it the pglite instance and the handler runs for real.
+const holder = vi.hoisted(() => ({ db: null as unknown }));
+vi.mock('../db', () => ({
+	get db() {
+		return holder.db;
+	}
+}));
+
 beforeAll(async () => {
 	({ client, db } = await createTestDb());
+	holder.db = db;
 	await db.insert(schema.user).values(
-		[ALICE, BOB, CAROL, DAVE, EVE, FRANK].map((id) => ({
+		[ALICE, BOB, CAROL, DAVE, EVE, FRANK, GRACE, HEIDI, IVAN].map((id) => ({
 			id,
 			username: id,
 			passwordHash: 'x'
@@ -256,5 +275,111 @@ describe('POST /api/import, route-level gates', () => {
 			locals: { user: { id: 'user_route_test', username: 'route' }, session: null }
 		});
 		await expect(POST(event)).rejects.toMatchObject({ status: 413 });
+	});
+});
+
+describe('importAnkiExport, findings from the pre-review of #304', () => {
+	// A quoted field left open at EOF: a truncated download, or a hand-edited
+	// export. relax_quotes does not cover it, csv-parse throws CSV_QUOTE_NOT_CLOSED.
+	const TRUNCATED = [
+		'#separator:tab',
+		'#guid column:1',
+		'#notetype column:2',
+		'#deck column:3',
+		'g1\tBasic\tDeck\t"unterminated front\tback'
+	].join('\n');
+
+	it('raises MalformedImportError on a truncated export instead of a raw CsvError', async () => {
+		await expect(importAnkiExport(db, GRACE, TRUNCATED, new Date())).rejects.toBeInstanceOf(
+			MalformedImportError
+		);
+	});
+
+	it('surfaces parser warnings rather than dropping the rows silently', async () => {
+		// A ragged file: the short row parses but loses columns, which the parser
+		// warns about. Reporting 2 imported and nothing else would be a lie.
+		const ragged = [
+			'#separator:tab',
+			'#guid column:1',
+			'#notetype column:2',
+			'#deck column:3',
+			'w1\tBasic\tDeck\tfront one\tback one',
+			'w2\tBasic\tDeck'
+		].join('\n');
+		const result = await importAnkiExport(db, GRACE, ragged, new Date());
+		expect(result.warnings.length).toBeGreaterThan(0);
+	});
+
+	it('returns a warnings array even when the export holds no notes', async () => {
+		const result = await importAnkiExport(db, GRACE, '#separator:tab\n', new Date());
+		expect(result).toMatchObject({ imported: 0, matched: 0, warnings: [] });
+	});
+
+	it('accumulates existing ids across select batches, not just the first 1000', async () => {
+		// 2500 rows spans three BATCH_SIZE windows. Before the select was chunked
+		// this passed on correctness and failed only past the 65535 bind-param
+		// cap; chunking it is what this guards against regressing.
+		const rows = Array.from({ length: 2500 }, (_, i) => [
+			`h-${i}`,
+			'Basic',
+			'Deck',
+			`front ${i}`,
+			`back ${i}`
+		]);
+		const first = await importAnkiExport(db, HEIDI, tsv(rows), new Date());
+		expect(first).toMatchObject({ imported: 2500, matched: 0 });
+
+		const second = await importAnkiExport(db, HEIDI, tsv(rows), new Date());
+		expect(second).toMatchObject({ imported: 0, matched: 2500 });
+	}, 60_000);
+
+	it('backfills a review_state row that went missing, so the node stays schedulable', async () => {
+		const file = tsv([
+			['i1', 'Basic', 'Deck', 'front one', 'back one'],
+			['i2', 'Basic', 'Deck', 'front two', 'back two']
+		]);
+		await importAnkiExport(db, IVAN, file, new Date());
+
+		const nodes = await withTenant(db, IVAN, (tx) => tx.select().from(schema.node));
+		const orphanId = nodes.find((n) => n.ankiGuid === 'i1')!.id;
+		await withTenant(db, IVAN, (tx) =>
+			tx.delete(schema.reviewState).where(eq(schema.reviewState.nodeId, orphanId))
+		);
+		expect(await withTenant(db, IVAN, (tx) => tx.select().from(schema.reviewState))).toHaveLength(
+			1
+		);
+
+		// Re-import matches both nodes, so neither is "new". Seeding only new ids
+		// left the orphan unschedulable forever.
+		const again = await importAnkiExport(db, IVAN, file, new Date());
+		expect(again).toMatchObject({ imported: 0, matched: 2 });
+		expect(await withTenant(db, IVAN, (tx) => tx.select().from(schema.reviewState))).toHaveLength(
+			2
+		);
+	});
+});
+
+describe('POST /api/import, malformed body', () => {
+	type PostEvent = Parameters<typeof POST>[0];
+
+	async function post(body: string, userId: string): Promise<Response> {
+		return await POST({
+			request: new Request('http://localhost/api/import', { method: 'POST', body }),
+			locals: { user: { id: userId, username: userId }, session: null }
+		} as unknown as PostEvent);
+	}
+
+	it('400s on a truncated export rather than 500ing out of the CSV parser', async () => {
+		const truncated = '#separator:tab\n#guid column:1\ng1\tBasic\t"unterminated';
+		await expect(post(truncated, GRACE)).rejects.toMatchObject({ status: 400 });
+	});
+
+	it('202s a clean import and passes warnings through to the body', async () => {
+		const ragged = ['#separator:tab', '#guid column:1', 'r1\tfront\tback', 'r2'].join('\n');
+		const response = await post(ragged, GRACE);
+		expect(response.status).toBe(202);
+		const body = await response.json();
+		expect(Array.isArray(body.warnings)).toBe(true);
+		expect(body.warnings.length).toBeGreaterThan(0);
 	});
 });

@@ -3,7 +3,7 @@ import type { PgDatabase, PgQueryResultHKT, PgTransaction } from 'drizzle-orm/pg
 import type { TablesRelationalConfig } from 'drizzle-orm';
 import { withTenant } from '../db/rls';
 import * as table from '../db/schema';
-import { parseAnkiExport, type AnkiNote } from './anki-tsv';
+import { parseAnkiExport, type AnkiNote, type ParseResult } from './anki-tsv';
 
 // Vercel caps request bodies at 4.5 MB, so a 25 MB cap is unreachable in
 // production; larger imports are a later Blob-upload slice.
@@ -15,6 +15,9 @@ export const MAX_IMPORT_BYTES = 4 * 1024 * 1024;
 const BATCH_SIZE = 1000;
 
 export class PayloadTooLargeError extends Error {}
+
+/** The upload is not a parseable Anki export. A 400, never a 500. */
+export class MalformedImportError extends Error {}
 
 /**
  * Reads a body stream into text, enforcing `limit` twice: once against the
@@ -68,6 +71,8 @@ export interface ImportResult {
 	/** Rows that already existed and were upserted, changed or not. */
 	matched: number;
 	jobId: string;
+	/** Rows that parsed but looked wrong. Surfaced, never dropped silently. */
+	warnings: string[];
 }
 
 type AnyDb = PgDatabase<PgQueryResultHKT, Record<string, unknown>, TablesRelationalConfig>;
@@ -83,7 +88,16 @@ export async function importAnkiExport(
 	raw: string,
 	now: Date
 ): Promise<ImportResult> {
-	const { notes } = parseAnkiExport(raw, userId);
+	let parsed: ParseResult;
+	try {
+		parsed = parseAnkiExport(raw, userId);
+	} catch (e) {
+		// csv-parse throws CsvError on a truncated export (CSV_QUOTE_NOT_CLOSED,
+		// which relax_quotes does not cover) and on a separator the preamble
+		// declares that it rejects. A bad upload, not a server fault.
+		throw new MalformedImportError(e instanceof Error ? e.message : 'unparseable export');
+	}
+	const { notes, warnings } = parsed;
 
 	// A repeated GUID (or repeated content, on the guid-less path) yields a
 	// repeated `id`. Two rows sharing an id in one INSERT..ON CONFLICT trips
@@ -99,17 +113,22 @@ export async function importAnkiExport(
 				.insert(table.job)
 				.values({ userId, kind: 'embed', payload: { nodeIds: [] } })
 				.returning({ id: table.job.id });
-			return { imported: 0, matched: 0, jobId: String(job.id) };
+			return { imported: 0, matched: 0, jobId: String(job.id), warnings };
 		});
 	}
 
 	return withTenant(db, userId, async (tx: AnyTx) => {
 		const ids = dedupedNotes.map((n) => n.id);
-		const existing = await tx
-			.select({ id: table.node.id })
-			.from(table.node)
-			.where(inArray(table.node.id, ids));
-		const existingIds = new Set(existing.map((r) => r.id));
+		// Batched for the same bind-param reason as the inserts below: one
+		// IN (...) over a 4 MiB import can carry well past the 65535 cap.
+		const existingIds = new Set<string>();
+		for (const batch of chunk(ids, BATCH_SIZE)) {
+			const rows = await tx
+				.select({ id: table.node.id })
+				.from(table.node)
+				.where(inArray(table.node.id, batch));
+			for (const row of rows) existingIds.add(row.id);
+		}
 		const newIds = ids.filter((id) => !existingIds.has(id));
 
 		// Bulk upsert on the primary key. `id` is already derived from
@@ -148,7 +167,11 @@ export async function importAnkiExport(
 				});
 		}
 
-		for (const batch of chunk(newIds, BATCH_SIZE)) {
+		// Every id, not just the new ones: a node that reached the table by some
+		// other path, or an import that died between these two statements, has no
+		// review_state row and is unschedulable forever. onConflictDoNothing makes
+		// the backfill free and leaves an existing row's schedule untouched.
+		for (const batch of chunk(ids, BATCH_SIZE)) {
 			await tx
 				.insert(table.reviewState)
 				.values(batch.map((nodeId) => ({ userId, nodeId, due: now })))
@@ -164,6 +187,11 @@ export async function importAnkiExport(
 			.values({ userId, kind: 'embed', payload: { nodeIds: ids } })
 			.returning({ id: table.job.id });
 
-		return { imported: newIds.length, matched: existingIds.size, jobId: String(job.id) };
+		return {
+			imported: newIds.length,
+			matched: existingIds.size,
+			jobId: String(job.id),
+			warnings
+		};
 	});
 }

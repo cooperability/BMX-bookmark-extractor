@@ -1,6 +1,7 @@
 import { error, json } from '@sveltejs/kit';
 import {
 	importAnkiExport,
+	MalformedImportError,
 	MAX_IMPORT_BYTES,
 	PayloadTooLargeError,
 	readCappedText
@@ -28,6 +29,19 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 	// Deferred past the auth/size gates: db/index.ts throws without a real
 	// DATABASE_URL, and route-level tests exercise those gates without one.
 	const { db } = await import('../../../lib/server/db');
-	const { imported, matched, jobId } = await importAnkiExport(db, locals.user.id, raw, new Date());
-	return json({ imported, matched, jobId }, { status: 202 });
+	try {
+		const { imported, matched, jobId, warnings } = await importAnkiExport(
+			db,
+			locals.user.id,
+			raw,
+			new Date()
+		);
+		return json({ imported, matched, jobId, warnings }, { status: 202 });
+	} catch (e) {
+		// The body is user-supplied and the preamble picks the delimiter, so an
+		// unparseable export is the client's error. Never echo the parser message:
+		// it quotes the failing row back.
+		if (e instanceof MalformedImportError) return error(400, 'Malformed Anki export');
+		throw e;
+	}
 };
