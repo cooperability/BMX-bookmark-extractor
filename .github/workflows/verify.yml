@@ -43,3 +43,26 @@ jobs:
       # fault and a genuine build break were indistinguishable from here.
       - name: Build
         run: yarn run build
+
+  extract:
+    name: api/extract.py tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+          cache-dependency-path: 'api/requirements*.txt'
+
+      - name: Install dependencies
+        run: pip install -r api/requirements-dev.txt
+
+      # The test file carries a leading underscore so Vercel never deploys it as a
+      # function, which also hides it from pytest discovery, so it is named here.
+      - name: Tests (100% coverage enforced)
+        run: python -m pytest api/_test_extract.py --cov=extract --cov-branch --cov-report=term-missing --cov-fail-under=100
