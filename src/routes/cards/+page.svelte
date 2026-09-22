@@ -26,7 +26,7 @@
 			hint="{s.cardsTotal} cards in total"
 			accent={s.dueNow > 0}
 		/>
-		<StatTile label="Reviewed today" value={s.reviewedToday} hint="UTC day" />
+		<StatTile label="Reviewed today" value={s.reviewedToday} hint="Since midnight, your time" />
 		<StatTile
 			label="Streak"
 			value="{s.streakDays}d"

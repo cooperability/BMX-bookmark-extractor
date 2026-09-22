@@ -12,8 +12,10 @@
 	type Key = 'tag' | 'cards' | 'reviewed' | 'stability' | 'score';
 
 	const pct = (n: number | null) => (n === null ? '–' : `${Math.round(n * 100)}%`);
+	// A round's finish time is an instant: show it on the user's calendar. Forecast
+	// days are already calendar-day strings in that zone, so they format as UTC.
 	const date = (d: Date, month: 'short' | 'numeric' = 'short') =>
-		d.toLocaleDateString('en', { month, day: 'numeric', timeZone: 'UTC' });
+		d.toLocaleDateString('en', { month, day: 'numeric', timeZone: data.timeZone });
 	const weekday = (day: string) =>
 		new Date(`${day}T00:00:00Z`).toLocaleDateString('en', { weekday: 'narrow', timeZone: 'UTC' });
 
