@@ -20,6 +20,10 @@ const { parseAnkiExport } = await import('../src/lib/server/ingest/anki-tsv.ts')
 const email = process.argv[2]?.trim().toLowerCase();
 if (!email) throw new Error('usage: yarn db:seed <email>');
 if (!process.env.DATABASE_URL) throw new Error('DATABASE_URL is not set');
+const allowed = (process.env.ALLOWED_EMAILS ?? '').split(',').map((e) => e.trim().toLowerCase());
+if (!allowed.includes(email)) {
+	console.warn(`warning: ${email} is not in ALLOWED_EMAILS, so this user cannot log in`);
+}
 
 const sql = postgres(process.env.DATABASE_URL, { onnotice: () => {} });
 try {

@@ -8,6 +8,13 @@
 			"when": 1790053740847,
 			"tag": "0000_daily_maelstrom",
 			"breakpoints": true
+		},
+		{
+			"idx": 1,
+			"version": "7",
+			"when": 1790055571138,
+			"tag": "0001_flawless_silver_samurai",
+			"breakpoints": true
 		}
 	]
 }

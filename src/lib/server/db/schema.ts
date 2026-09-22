@@ -157,9 +157,15 @@ export const reviewLog = pgTable(
 		// Cards or Quest. One write path, observable per surface, so "does the game
 		// improve adherence?" is answerable with data.
 		surface: text('surface').notNull(),
-		assessmentId: text('assessment_id').references(() => assessment.id)
+		assessmentId: text('assessment_id').references(() => assessment.id),
+		// 0 for a card's first try in a round, n for its nth relearning repeat. Unique
+		// per round so a retried request cannot log the same attempt twice.
+		attempt: smallint('attempt').notNull().default(0)
 	},
-	(t) => [index('idx_log_node').on(t.userId, t.nodeId)]
+	(t) => [
+		index('idx_log_node').on(t.userId, t.nodeId),
+		uniqueIndex('idx_log_attempt').on(t.assessmentId, t.nodeId, t.attempt)
+	]
 );
 
 /**

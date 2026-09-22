@@ -112,6 +112,7 @@ export async function recordGrade(
 	assessmentId: string,
 	nodeId: string,
 	rating: Grade,
+	attempt: number,
 	now = new Date()
 ): Promise<boolean> {
 	const a = await ownedOpenAssessment(userId, assessmentId);
@@ -127,19 +128,27 @@ export async function recordGrade(
 
 	const { next, elapsedDays } = grade(row.review, rating, now);
 	await db.transaction(async (tx) => {
+		// Log first: a duplicate attempt (a retried request) inserts nothing and must
+		// not advance the schedule a second time.
+		const logged = await tx
+			.insert(table.reviewLog)
+			.values({
+				userId,
+				nodeId,
+				rating,
+				elapsedDays,
+				reviewedAt: now,
+				surface: 'cards',
+				assessmentId,
+				attempt
+			})
+			.onConflictDoNothing()
+			.returning({ id: table.reviewLog.id });
+		if (logged.length === 0) return;
 		await tx
 			.insert(table.reviewState)
 			.values({ nodeId, userId, ...next })
 			.onConflictDoUpdate({ target: table.reviewState.nodeId, set: next });
-		await tx.insert(table.reviewLog).values({
-			userId,
-			nodeId,
-			rating,
-			elapsedDays,
-			reviewedAt: now,
-			surface: 'cards',
-			assessmentId
-		});
 	});
 	return true;
 }

@@ -57,7 +57,8 @@
 			await post('/api/review/grade', {
 				assessmentId: data.assessmentId,
 				nodeId: current.card.id,
-				rating
+				rating,
+				attempt: current.repeats
 			});
 			const [head, ...rest] = queue;
 			if (head.repeats === 0) done += 1;
