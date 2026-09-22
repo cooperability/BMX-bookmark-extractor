@@ -58,6 +58,9 @@ jobs:
         run: |
           node --input-type=module -e "import postgres from 'postgres'; const sql = postgres(process.env.DATABASE_URL); await sql\`create extension if not exists vector\`; await sql.end();"
           yarn db:migrate
+          # A schema.ts change without its migration leaves generate something to write.
+          yarn db:generate
+          test -z "$(git status --porcelain drizzle)" || { git status --porcelain drizzle; exit 1; }
 
       - name: Unit and database tests
         env:
