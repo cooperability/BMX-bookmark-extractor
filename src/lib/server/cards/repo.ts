@@ -54,8 +54,17 @@ export async function listDecks(userId: string, now = new Date()) {
 		.groupBy(table.node.deck)
 		.orderBy(table.node.deck);
 
+	// Only what the deck list shows: every finished round is returned, so keep rows narrow.
+	const a = table.assessment;
 	const history = await db
-		.select()
+		.select({
+			id: a.id,
+			deck: a.deck,
+			finishedAt: a.finishedAt,
+			score: a.score,
+			weak: a.weak,
+			strong: a.strong
+		})
 		.from(table.assessment)
 		.where(and(eq(table.assessment.userId, userId), isNotNull(table.assessment.finishedAt)))
 		.orderBy(desc(table.assessment.finishedAt));
@@ -102,14 +111,17 @@ async function roundProgress(userId: string, assessmentId: string) {
  * another and dropping the progress of the first.
  */
 export async function startRound(userId: string, deck: string, now = new Date()) {
+	// Named columns, not the whole node: `embedding` alone is 1024 floats per card.
+	const n = table.node;
 	const rows = await db
-		.select({ node: table.node, review: table.reviewState })
-		.from(table.node)
-		.leftJoin(table.reviewState, eq(table.reviewState.nodeId, table.node.id))
-		.where(
-			and(eq(table.node.userId, userId), eq(table.node.deck, deck), eq(table.node.kind, 'card'))
-		)
-		.orderBy(asc(table.node.createdAt), asc(table.node.id));
+		.select({
+			node: { id: n.id, front: n.front, back: n.back, tags: n.tags },
+			review: table.reviewState
+		})
+		.from(n)
+		.leftJoin(table.reviewState, eq(table.reviewState.nodeId, n.id))
+		.where(and(eq(n.userId, userId), eq(n.deck, deck), eq(n.kind, 'card')))
+		.orderBy(asc(n.createdAt), asc(n.id));
 	if (rows.length === 0) return null;
 	const byId = new Map(rows.map((r) => [r.node.id, r.node]));
 	const toCard = (id: string) => {
@@ -219,7 +231,7 @@ export async function recordGrade(
 	const a = await ownedOpenAssessment(userId, assessmentId);
 	if (!a || !a.cardIds.includes(nodeId)) return false;
 	const [row] = await db
-		.select({ node: table.node, review: table.reviewState })
+		.select({ id: table.node.id, review: table.reviewState })
 		.from(table.node)
 		.leftJoin(table.reviewState, eq(table.reviewState.nodeId, table.node.id))
 		.where(
