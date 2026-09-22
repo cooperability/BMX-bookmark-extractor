@@ -126,12 +126,16 @@ export function tagMastery(cards: MasteryCard[], latestAreas: AreaScore[] | null
 
 const isCard = eq(table.node.kind, 'card');
 
+// A relearning repeat inside a round writes a second review_log row. Stats count
+// the first attempt per (round, card) only, the same rule the round grade uses.
+const firstAttempt = sql`not exists (select 1 from ${table.reviewLog} r2 where r2.assessment_id = ${table.reviewLog.assessmentId} and r2.node_id = ${table.reviewLog.nodeId} and r2.id < ${table.reviewLog.id})`;
+
 async function dailyReviewCounts(userId: string) {
 	const day = sql<string>`to_char(${table.reviewLog.reviewedAt} at time zone 'UTC', 'YYYY-MM-DD')`;
 	const rows = await db
 		.select({ day, count: sql<number>`count(*)::int` })
 		.from(table.reviewLog)
-		.where(eq(table.reviewLog.userId, userId))
+		.where(and(eq(table.reviewLog.userId, userId), firstAttempt))
 		.groupBy(day);
 	return new Map(rows.map((r) => [r.day, r.count]));
 }
@@ -156,7 +160,8 @@ export async function overview(userId: string, now = new Date()) {
 			.where(
 				and(
 					eq(table.reviewLog.userId, userId),
-					gt(table.reviewLog.reviewedAt, new Date(now.getTime() - 30 * DAY))
+					gt(table.reviewLog.reviewedAt, new Date(now.getTime() - 30 * DAY)),
+					firstAttempt
 				)
 			),
 		dailyReviewCounts(userId)

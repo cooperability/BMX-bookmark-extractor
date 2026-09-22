@@ -128,7 +128,7 @@
 		>
 			<div
 				class="h-full rounded-full bg-accent transition-[width] duration-300"
-				style="width: {(done / total) * 100}%"
+				style="width: {total ? (done / total) * 100 : 0}%"
 			></div>
 		</div>
 	</header>
