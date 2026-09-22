@@ -14,7 +14,7 @@ export interface Prior {
 }
 
 export const ROUND_SIZE = 20;
-// New cards introduced per deck per UTC day. Each new card brings its own future
+// New cards introduced per deck per day, in the user's time zone. Each new card brings its own future
 // reviews, and back-to-back rounds with no cap snowball into a review backlog.
 export const NEW_PER_DAY = 20;
 const NEW_SHARE = 0.2;

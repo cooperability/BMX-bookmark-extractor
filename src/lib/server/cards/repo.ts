@@ -89,7 +89,7 @@ async function roundProgress(userId: string, assessmentId: string) {
  * a second tab, or a link preload lands on the same round rather than opening
  * another and dropping the progress of the first.
  */
-export async function startRound(userId: string, deck: string, now = new Date()) {
+export async function startRound(userId: string, deck: string, now = new Date(), tz = 'UTC') {
 	const rows = await db
 		.select({ node: table.node, review: table.reviewState })
 		.from(table.node)
@@ -138,7 +138,7 @@ export async function startRound(userId: string, deck: string, now = new Date())
 		prior,
 		now,
 		ROUND_SIZE,
-		NEW_PER_DAY - (await introducedToday(userId, deck, now))
+		NEW_PER_DAY - (await introducedToday(userId, deck, now, tz))
 	);
 	if (picked.length === 0) return null;
 
@@ -156,9 +156,8 @@ export async function startRound(userId: string, deck: string, now = new Date())
 	};
 }
 
-/** Cards in the deck whose first ever review fell on the current UTC day. */
-async function introducedToday(userId: string, deck: string, now: Date) {
-	const dayStart = `${now.toISOString().slice(0, 10)}T00:00:00Z`;
+/** Cards in the deck whose first ever review fell on today, in time zone `tz`. */
+async function introducedToday(userId: string, deck: string, now: Date, tz: string) {
 	const [{ n }] = await db
 		.select({ n: sql<number>`count(distinct ${table.reviewLog.nodeId})::int` })
 		.from(table.reviewLog)
@@ -167,7 +166,7 @@ async function introducedToday(userId: string, deck: string, now: Date) {
 			and(
 				eq(table.reviewLog.userId, userId),
 				eq(table.reviewLog.state, 0),
-				sql`${table.reviewLog.reviewedAt} >= ${dayStart}::timestamptz`,
+				sql`(${table.reviewLog.reviewedAt} at time zone ${tz})::date = (${now.toISOString()}::timestamptz at time zone ${tz})::date`,
 				eq(table.node.deck, deck)
 			)
 		);

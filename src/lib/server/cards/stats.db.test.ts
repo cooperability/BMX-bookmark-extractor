@@ -51,4 +51,25 @@ describe.skipIf(!hasDb)('overview against the database', () => {
 		// Daily counts still include every first attempt, new cards too.
 		expect(o.reviewedToday).toBe(3);
 	});
+
+	it('buckets daily counts in the given time zone', async () => {
+		const at = (iso: string) => ({
+			userId,
+			nodeId: `${run}-a`,
+			rating: 3,
+			state: 2,
+			attempt: 0,
+			surface: 'cards',
+			reviewedAt: new Date(iso)
+		});
+		// 20:00 and 21:00 on Sep 9 in Los Angeles; Sep 10 in UTC.
+		await db
+			.insert(table.reviewLog)
+			.values([at('2026-09-10T03:00:00Z'), at('2026-09-10T04:00:00Z')]);
+		const la = await overview(userId, now, 'America/Los_Angeles');
+		expect(la.reviewedToday).toBe(0);
+		expect(la.streakDays).toBe(1);
+		const utc = await overview(userId, now);
+		expect(utc.reviewedToday).toBe(2);
+	});
 });

@@ -1,10 +1,14 @@
 import { fail } from '@sveltejs/kit';
 import { importDeck, listDecks } from '$lib/server/cards/repo';
 import { overview } from '$lib/server/cards/stats';
+import { TZ_COOKIE, toTimeZone } from '$lib/timezone';
 import type { Actions, PageServerLoad } from './$types';
 
-export const load: PageServerLoad = async ({ locals }) => {
-	const [decks, stats] = await Promise.all([listDecks(locals.user!.id), overview(locals.user!.id)]);
+export const load: PageServerLoad = async ({ cookies, locals }) => {
+	const [decks, stats] = await Promise.all([
+		listDecks(locals.user!.id),
+		overview(locals.user!.id, new Date(), toTimeZone(cookies.get(TZ_COOKIE)))
+	]);
 	return { decks, stats };
 };
 

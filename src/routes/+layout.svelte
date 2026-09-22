@@ -1,11 +1,24 @@
 <script lang="ts">
 	import '../app.css';
+	import { onMount } from 'svelte';
+	import { invalidateAll } from '$app/navigation';
 	import { page } from '$app/state';
+	import { TZ_COOKIE, toTimeZone } from '$lib/timezone';
 	import { resolve } from '$app/paths';
 	import Logo from '$lib/components/brand/Logo.svelte';
 	import ThemeToggle from '$lib/components/brand/ThemeToggle.svelte';
 
 	let { data, children } = $props();
+
+	// Report the browser's time zone so days, streaks and the new-card cap follow
+	// the user's calendar. Reload the data once when it changes.
+	onMount(() => {
+		const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+		// Compare what the server would accept, so an unusable zone cannot reload every visit.
+		if (!tz || toTimeZone(tz) === data.timeZone) return;
+		document.cookie = `${TZ_COOKIE}=${encodeURIComponent(tz)}; path=/; max-age=31536000; samesite=lax`;
+		if (data.user) invalidateAll();
+	});
 
 	// The study screen is a focus mode: it carries its own minimal header.
 	const focus = $derived(page.url.pathname.startsWith('/cards/study'));

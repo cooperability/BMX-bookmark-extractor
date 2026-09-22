@@ -5,24 +5,46 @@ import { db } from '../db';
 import * as table from '../db/schema';
 import { classify, standingOf, STRONG_AT, UNTAGGED, WEAK_BELOW, type Standing } from './grading';
 
-// Every day boundary here is UTC. A user in UTC-8 sees "today" roll over at 4pm
-// local; per-user time zones are a later ticket.
+// Days are calendar days in the user's time zone (`tz`, an IANA name checked by
+// toTimeZone). Every function defaults to UTC.
 const DAY = 86_400_000;
+
+const formats = new Map<string, Intl.DateTimeFormat>();
+
+/** `YYYY-MM-DD` of the calendar day containing `d` in time zone `tz`. */
+export function dayIn(d: Date, tz = 'UTC'): string {
+	let f = formats.get(tz);
+	if (!f) {
+		// en-CA formats as YYYY-MM-DD.
+		f = new Intl.DateTimeFormat('en-CA', {
+			timeZone: tz,
+			year: 'numeric',
+			month: '2-digit',
+			day: '2-digit'
+		});
+		formats.set(tz, f);
+	}
+	return f.format(d);
+}
 
 /** `YYYY-MM-DD` of the UTC day containing `d`. */
 export const utcDay = (d: Date) => d.toISOString().slice(0, 10);
 
+/** Calendar arithmetic on `YYYY-MM-DD`, independent of any time zone. */
 export const addDays = (day: string, n: number) =>
 	utcDay(new Date(Date.parse(`${day}T00:00:00Z`) + n * DAY));
 
+const daysBetween = (from: string, to: string) =>
+	Math.round((Date.parse(`${to}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`)) / DAY);
+
 /**
- * Consecutive UTC days with at least one review, ending today. A day with no
+ * Consecutive days with at least one review, ending today. A day with no
  * review yet today does not break the streak until the day ends, so the count
  * then ends at yesterday.
  */
-export function streakDays(reviewDays: Iterable<string>, now: Date): number {
+export function streakDays(reviewDays: Iterable<string>, now: Date, tz = 'UTC'): number {
 	const days = new Set(reviewDays);
-	let day = utcDay(now);
+	let day = dayIn(now, tz);
 	if (!days.has(day)) day = addDays(day, -1);
 	let n = 0;
 	while (days.has(day)) {
@@ -43,9 +65,14 @@ export interface HeatCell {
  * GitHub-style grid: `weeks` columns of Monday..Sunday, the last column holding
  * today. Days after today are null.
  */
-export function heatmap(counts: Map<string, number>, now: Date, weeks = 12): (HeatCell | null)[][] {
-	const today = utcDay(now);
-	const weekday = (now.getUTCDay() + 6) % 7; // Monday = 0
+export function heatmap(
+	counts: Map<string, number>,
+	now: Date,
+	weeks = 12,
+	tz = 'UTC'
+): (HeatCell | null)[][] {
+	const today = dayIn(now, tz);
+	const weekday = (new Date(`${today}T00:00:00Z`).getUTCDay() + 6) % 7; // Monday = 0
 	const start = addDays(today, -weekday - 7 * (weeks - 1));
 	const days = Array.from({ length: weeks * 7 }, (_, i) => addDays(start, i));
 	const max = Math.max(0, ...days.filter((d) => d <= today).map((d) => counts.get(d) ?? 0));
@@ -59,15 +86,14 @@ export function heatmap(counts: Map<string, number>, now: Date, weeks = 12): (He
 }
 
 /**
- * Cards coming due per UTC day for `days` days from today. Overdue cards count
+ * Cards coming due per day for `days` days from today. Overdue cards count
  * toward today, since that is when they will be shown.
  */
-export function dueForecast(dues: Date[], now: Date, days = 14) {
-	const today = utcDay(now);
-	const start = Date.parse(`${today}T00:00:00Z`);
+export function dueForecast(dues: Date[], now: Date, days = 14, tz = 'UTC') {
+	const today = dayIn(now, tz);
 	const out = Array.from({ length: days }, (_, i) => ({ day: addDays(today, i), count: 0 }));
 	for (const due of dues) {
-		const i = Math.max(0, Math.floor((due.getTime() - start) / DAY));
+		const i = Math.max(0, daysBetween(today, dayIn(due, tz)));
 		if (i < days) out[i].count += 1;
 	}
 	return out;
@@ -133,18 +159,20 @@ const isCard = eq(table.node.kind, 'card');
 // the first attempt per (round, card) only, the same rule the round grade uses.
 const firstAttempt = eq(table.reviewLog.attempt, 0);
 
-async function dailyReviewCounts(userId: string) {
-	const day = sql<string>`to_char(${table.reviewLog.reviewedAt} at time zone 'UTC', 'YYYY-MM-DD')`;
+async function dailyReviewCounts(userId: string, tz: string) {
+	const day = sql<string>`to_char(${table.reviewLog.reviewedAt} at time zone ${tz}, 'YYYY-MM-DD')`;
 	const rows = await db
 		.select({ day, count: sql<number>`count(*)::int` })
 		.from(table.reviewLog)
 		.where(and(eq(table.reviewLog.userId, userId), firstAttempt))
-		.groupBy(day);
+		// By position: the day expression binds `tz` as a parameter, and a second copy
+		// of it in GROUP BY would be a different parameter Postgres cannot match.
+		.groupBy(sql`1`);
 	return new Map(rows.map((r) => [r.day, r.count]));
 }
 
 /** Home page numbers plus the review heatmap. */
-export async function overview(userId: string, now = new Date()) {
+export async function overview(userId: string, now = new Date(), tz = 'UTC') {
 	const [[cards], [ret], counts] = await Promise.all([
 		db
 			.select({
@@ -170,21 +198,21 @@ export async function overview(userId: string, now = new Date()) {
 					eq(table.reviewLog.state, 2)
 				)
 			),
-		dailyReviewCounts(userId)
+		dailyReviewCounts(userId, tz)
 	]);
 	return {
 		cardsTotal: cards.total,
 		dueNow: cards.due,
-		reviewedToday: counts.get(utcDay(now)) ?? 0,
-		streakDays: streakDays(counts.keys(), now),
+		reviewedToday: counts.get(dayIn(now, tz)) ?? 0,
+		streakDays: streakDays(counts.keys(), now, tz),
 		retention30d: ret.total ? ret.passed / ret.total : null,
 		reviews30d: ret.total,
-		heatmap: heatmap(counts, now)
+		heatmap: heatmap(counts, now, 12, tz)
 	};
 }
 
 /** Everything the deck page shows. Null when the user has no cards in `deck`. */
-export async function deckDetail(userId: string, deck: string, now = new Date()) {
+export async function deckDetail(userId: string, deck: string, now = new Date(), tz = 'UTC') {
 	const inDeck = and(eq(table.node.userId, userId), eq(table.node.deck, deck), isCard);
 	const [cards, history] = await Promise.all([
 		db
@@ -219,7 +247,9 @@ export async function deckDetail(userId: string, deck: string, now = new Date())
 		due: cards.filter((c) => seen(c) && c.due! <= now).length,
 		forecast: dueForecast(
 			cards.filter(seen).map((c) => c.due!),
-			now
+			now,
+			14,
+			tz
 		),
 		mastery: tagMastery(
 			cards.map((c) => ({ tags: c.tags, stability: seen(c) ? c.stability : null })),
