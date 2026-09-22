@@ -197,6 +197,12 @@ async function ownedOpenAssessment(userId: string, assessmentId: string) {
 	return a && !a.finishedAt ? a : null;
 }
 
+/**
+ * Grade one attempt at a card in an open round. Returns the rating stored for
+ * that attempt, which differs from `rating` when the attempt was already logged
+ * (a retried request): the first write wins, and the caller should act on what
+ * was stored. Null when the round, card or attempt is not valid.
+ */
 export async function recordGrade(
 	userId: string,
 	assessmentId: string,
@@ -204,9 +210,9 @@ export async function recordGrade(
 	rating: Grade,
 	attempt: number,
 	now = new Date()
-): Promise<boolean> {
+): Promise<number | null> {
 	const a = await ownedOpenAssessment(userId, assessmentId);
-	if (!a || !a.cardIds.includes(nodeId)) return false;
+	if (!a || !a.cardIds.includes(nodeId)) return null;
 	return db.transaction(async (tx) => {
 		// Lock the card so two tabs grading it at once cannot both read the same state.
 		const [row] = await tx
@@ -217,32 +223,37 @@ export async function recordGrade(
 				and(eq(table.node.id, nodeId), eq(table.node.userId, userId), eq(table.node.deck, a.deck))
 			)
 			.for('update', { of: table.node });
-		if (!row) return false;
+		if (!row) return null;
+
+		const prior = await tx
+			.select({ rating: table.reviewLog.rating })
+			.from(table.reviewLog)
+			.where(
+				and(eq(table.reviewLog.assessmentId, assessmentId), eq(table.reviewLog.nodeId, nodeId))
+			)
+			.orderBy(asc(table.reviewLog.attempt));
+		// A retry of an attempt already logged: report it, change nothing.
+		if (attempt < prior.length) return prior[attempt].rating;
+		// Attempts come in order, and a repeat follows only a miss.
+		if (attempt > prior.length || (attempt > 0 && prior[attempt - 1].rating !== 1)) return null;
 
 		const { next, elapsedDays, priorState } = grade(row.review, rating, now);
-		// Log first: a duplicate attempt (a retried request) inserts nothing and must
-		// not advance the schedule a second time.
-		const logged = await tx
-			.insert(table.reviewLog)
-			.values({
-				userId,
-				nodeId,
-				rating,
-				state: priorState,
-				elapsedDays,
-				reviewedAt: now,
-				surface: 'cards',
-				assessmentId,
-				attempt
-			})
-			.onConflictDoNothing()
-			.returning({ id: table.reviewLog.id });
-		if (logged.length === 0) return true;
+		await tx.insert(table.reviewLog).values({
+			userId,
+			nodeId,
+			rating,
+			state: priorState,
+			elapsedDays,
+			reviewedAt: now,
+			surface: 'cards',
+			assessmentId,
+			attempt
+		});
 		await tx
 			.insert(table.reviewState)
 			.values({ nodeId, userId, ...next })
 			.onConflictDoUpdate({ target: table.reviewState.nodeId, set: next });
-		return true;
+		return rating;
 	});
 }
 

@@ -69,10 +69,8 @@ describe.skipIf(!hasDb)('study rounds against the database', () => {
 			.update(table.assessment)
 			.set({ cardIds: [r.cards[0].id] })
 			.where(eq(table.assessment.id, r.assessmentId));
-		expect(await repo.recordGrade(userId, r.assessmentId, r.cards[1].id, 3, 0, at(0.1))).toBe(
-			false
-		);
-		expect(await repo.recordGrade(userId, r.assessmentId, r.cards[0].id, 3, 0, at(0.1))).toBe(true);
+		expect(await repo.recordGrade(userId, r.assessmentId, r.cards[1].id, 3, 0, at(0.1))).toBeNull();
+		expect(await repo.recordGrade(userId, r.assessmentId, r.cards[0].id, 3, 0, at(0.1))).toBe(3);
 	});
 
 	it('opens a new round once the last one is finished', async () => {

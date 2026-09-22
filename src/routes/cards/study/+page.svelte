@@ -57,7 +57,7 @@
 		if (!current || !flipped || busy) return;
 		busy = true;
 		try {
-			await post('/api/review/grade', {
+			const stored: { rating: number } = await post('/api/review/grade', {
 				assessmentId: data.assessmentId,
 				nodeId: current.card.id,
 				rating,
@@ -66,7 +66,7 @@
 			const [head, ...rest] = queue;
 			if (head.repeats === 0) done += 1;
 			queue =
-				rating === 1 && head.repeats < MAX_REPEATS
+				stored.rating === 1 && head.repeats < MAX_REPEATS
 					? [...rest, { ...head, repeats: head.repeats + 1 }]
 					: rest;
 			flipped = false;

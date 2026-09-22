@@ -15,7 +15,8 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 	) {
 		error(400, 'Bad grade.');
 	}
-	if (!(await recordGrade(locals.user.id, assessmentId, nodeId, rating as Grade, attempt)))
-		error(404);
-	return json({ ok: true });
+	const stored = await recordGrade(locals.user.id, assessmentId, nodeId, rating as Grade, attempt);
+	if (stored === null) error(404);
+	// A retried attempt keeps its first rating. The client re-queues on this one.
+	return json({ rating: stored });
 };

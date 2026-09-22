@@ -46,14 +46,28 @@ describe.skipIf(!hasDb)('recordGrade against the database', () => {
 	}
 
 	it('records a retried first attempt once', async () => {
-		expect(await recordGrade(userId, assessmentId, nodeId, 3, 0)).toBe(true);
-		expect(await recordGrade(userId, assessmentId, nodeId, 3, 0)).toBe(true);
+		expect(await recordGrade(userId, assessmentId, nodeId, 3, 0)).toBe(3);
+		expect(await recordGrade(userId, assessmentId, nodeId, 3, 0)).toBe(3);
+		expect(await counts()).toEqual({ logs: 1, reps: 1 });
+	});
+
+	it('answers a retry with a different rating with the rating it stored', async () => {
+		expect(await recordGrade(userId, assessmentId, nodeId, 1, 0)).toBe(1);
+		// The client lost the first response and the user pressed Good this time.
+		expect(await recordGrade(userId, assessmentId, nodeId, 3, 0)).toBe(1);
 		expect(await counts()).toEqual({ logs: 1, reps: 1 });
 	});
 
 	it('records a relearning repeat as a second attempt', async () => {
-		expect(await recordGrade(userId, assessmentId, nodeId, 1, 0)).toBe(true);
-		expect(await recordGrade(userId, assessmentId, nodeId, 3, 1)).toBe(true);
+		expect(await recordGrade(userId, assessmentId, nodeId, 1, 0)).toBe(1);
+		expect(await recordGrade(userId, assessmentId, nodeId, 3, 1)).toBe(3);
 		expect(await counts()).toEqual({ logs: 2, reps: 2 });
+	});
+
+	it('refuses an attempt that skips ahead or repeats a card that passed', async () => {
+		expect(await recordGrade(userId, assessmentId, nodeId, 3, 1)).toBeNull();
+		expect(await recordGrade(userId, assessmentId, nodeId, 3, 0)).toBe(3);
+		expect(await recordGrade(userId, assessmentId, nodeId, 3, 1)).toBeNull();
+		expect(await counts()).toEqual({ logs: 1, reps: 1 });
 	});
 });
