@@ -130,6 +130,8 @@ Keep one database on one path. `db:migrate` records what it applied, and `db:pus
 
 With `DATABASE_URL` set, `yarn test:server` also runs the database tests (`*.db.test.ts` and `repo.test.ts`). They create and delete their own rows, and they need the schema from `db:migrate`. CI has no database and skips them.
 
+Signed-in requests run under Postgres row-level security. `hooks.server.ts` wraps each one in `asTenant` (`src/lib/server/db/index.ts`): a transaction that sets `app.user_id` and switches to the `remediate_app` role, which migration `0003_rls` creates with a `tenant` policy on every table that has `user_id`. The role that runs `db:migrate` needs `CREATEROLE`, which Neon's owner role has. A database built with `db:push` has no policies, so the app still works there, without the second wall.
+
 Days, streaks, and the daily new-card cap follow the browser's time zone, which the app stores in a `tz` cookie on first load. Until then they use UTC.
 
 ## Deploy
