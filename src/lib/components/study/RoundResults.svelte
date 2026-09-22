@@ -17,6 +17,13 @@
 			: Math.round(grades.score * 100) - Math.round(priorScore * 100)
 	);
 	const areas = $derived([...grades.areas].sort((a, b) => a.score - b.score));
+	// A round can touch ~30 tags: by default keep every weak and middle area
+	// (< 0.85, the strong threshold) and only the 5 strongest of the rest.
+	let showAll = $state(false);
+	const cut = $derived(areas.findIndex((a) => a.score >= 0.85));
+	const shown = $derived(
+		showAll || cut === -1 ? areas : [...areas.slice(0, cut), ...areas.slice(cut).slice(-5)]
+	);
 	const barColor = (s: number) => (s < 0.6 ? 'bg-again' : s < 0.85 ? 'bg-hard' : 'bg-good');
 </script>
 
@@ -45,7 +52,7 @@
 		>
 			<p class="eyebrow">By area, weakest first</p>
 			<ul class="mt-4 flex flex-col gap-3">
-				{#each areas as a (a.tag)}
+				{#each shown as a (a.tag)}
 					<li>
 						<div class="flex items-baseline justify-between gap-3 text-sm">
 							<span class="truncate font-medium">{a.tag}</span>
@@ -64,6 +71,16 @@
 					</li>
 				{/each}
 			</ul>
+			{#if shown.length < areas.length || showAll}
+				<button
+					type="button"
+					class="btn btn-ghost mt-4 w-full text-muted"
+					aria-expanded={showAll}
+					onclick={() => (showAll = !showAll)}
+				>
+					{showAll ? 'Show fewer areas' : `Show all ${areas.length} areas`}
+				</button>
+			{/if}
 		</div>
 	{/if}
 

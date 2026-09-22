@@ -39,8 +39,11 @@
 	color-scheme: light;
 }
 
+/* data-theme on <html> is set server-side from the theme cookie (no inline
+   script under the CSP). light/dark force a palette, system defers to the OS.
+   The dark block is duplicated because a media query cannot share a selector list. */
 @media (prefers-color-scheme: dark) {
-	:root {
+	:root:not([data-theme='light']) {
 		--bg: #0c0b10;
 		--surface: #15141c;
 		--surface-2: #1e1c27;
@@ -56,6 +59,36 @@
 		--easy: #5aa9ff;
 		--glow: 0 0 40px -12px rgb(180 255 57 / 0.45);
 		color-scheme: dark;
+	}
+}
+
+:root[data-theme='dark'] {
+	--bg: #0c0b10;
+	--surface: #15141c;
+	--surface-2: #1e1c27;
+	--line: #2c2a38;
+	--fg: #efedf6;
+	--muted: #9a96a8;
+	--accent: #b4ff39;
+	--accent-fg: #0c0b10;
+	--accent-soft: #1f2a10;
+	--again: #ff5d5d;
+	--hard: #ffb347;
+	--good: #3ddc97;
+	--easy: #5aa9ff;
+	--glow: 0 0 40px -12px rgb(180 255 57 / 0.45);
+	color-scheme: dark;
+}
+
+/* dark: follows the same rule as the tokens: explicit dark, or system on a dark OS. */
+@custom-variant dark {
+	&:where([data-theme='dark'], [data-theme='dark'] *) {
+		@slot;
+	}
+	@media (prefers-color-scheme: dark) {
+		&:where(:root:not([data-theme='light']), :root:not([data-theme='light']) *) {
+			@slot;
+		}
 	}
 }
 

@@ -3,6 +3,7 @@
 	import { page } from '$app/state';
 	import { resolve } from '$app/paths';
 	import Logo from '$lib/components/brand/Logo.svelte';
+	import ThemeToggle from '$lib/components/brand/ThemeToggle.svelte';
 
 	let { data, children } = $props();
 
@@ -24,8 +25,11 @@
 					<span class="hidden font-mono text-xs text-muted sm:inline">{data.user.email}</span>
 					<button class="btn btn-ghost">Log out</button>
 				</form>
+				<ThemeToggle theme={data.theme} />
 			</div>
 		</nav>
+	{:else if !data.user && !focus}
+		<div class="fixed right-4 bottom-4 z-20"><ThemeToggle theme={data.theme} /></div>
 	{/if}
 	{@render children()}
 </div>
