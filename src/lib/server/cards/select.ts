@@ -14,6 +14,9 @@ export interface Prior {
 }
 
 export const ROUND_SIZE = 20;
+// New cards introduced per deck per UTC day. Each new card brings its own future
+// reviews, and back-to-back rounds with no cap snowball into a review backlog.
+export const NEW_PER_DAY = 20;
 const NEW_SHARE = 0.2;
 const STRONG_PROBE_SHARE = 0.1;
 
@@ -26,7 +29,8 @@ const STRONG_PROBE_SHARE = 0.1;
  *    practice on the gaps the last assessment found.
  * 3. A few not-due cards from strong areas, so "strong" is re-tested rather
  *    than assumed.
- * 4. New cards, spread across tags so every area gets a first measurement.
+ * 4. New cards, spread across tags so every area gets a first measurement, at
+ *    most `maxNew` of them: what is left of the deck's daily allowance.
  *
  * The result is interleaved by tag. Mixed practice beats blocked practice for
  * telling similar concepts apart.
@@ -35,7 +39,8 @@ export function selectRound(
 	cards: Candidate[],
 	prior: Prior | null,
 	now: Date,
-	size = ROUND_SIZE
+	size = ROUND_SIZE,
+	maxNew = NEW_PER_DAY
 ): Candidate[] {
 	const weak = new Set(prior?.weak ?? []);
 	const strong = new Set(prior?.strong ?? []);
@@ -44,7 +49,10 @@ export function selectRound(
 	const r = (c: Candidate) => retrievability(c.review, now) ?? 1;
 	const leastRetrievable = (a: Candidate, b: Candidate) => r(a) - r(b);
 
-	const fresh = cards.filter((c) => !c.review || c.review.state === 0);
+	const fresh = interleave(cards.filter((c) => !c.review || c.review.state === 0)).slice(
+		0,
+		Math.max(0, maxNew)
+	);
 	const seen = cards.filter((c) => c.review && c.review.state !== 0);
 	const due = seen.filter((c) => c.review!.due <= now);
 	const notDue = seen.filter((c) => c.review!.due > now);
@@ -71,10 +79,10 @@ export function selectRound(
 	);
 	take(notDue.filter(isWeak).sort(leastRetrievable), reviewCap);
 	take(strongPool, picked.length + strongReserve);
-	take(interleave(fresh), picked.length + newReserve);
+	take(fresh, picked.length + newReserve);
 	// Short deck or few new cards: top up with whatever is least retrievable.
 	take([...seen].sort(leastRetrievable), size);
-	take(interleave(fresh), size);
+	take(fresh, size);
 
 	return interleave(picked);
 }

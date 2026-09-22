@@ -5,7 +5,7 @@ import * as table from '$lib/server/db/schema';
 import { parseAnkiExport } from '$lib/server/ingest/anki-tsv';
 import { classify, gradeRound, mergeStanding, standingOf } from './grading';
 import { grade } from './scheduler';
-import { selectRound } from './select';
+import { NEW_PER_DAY, ROUND_SIZE, selectRound } from './select';
 
 export async function importDeck(userId: string, raw: string) {
 	const { notes, warnings } = parseAnkiExport(raw, userId);
@@ -136,8 +136,11 @@ export async function startRound(userId: string, deck: string, now = new Date())
 	const picked = selectRound(
 		rows.map((r) => ({ id: r.node.id, tags: r.node.tags, review: r.review })),
 		prior,
-		now
+		now,
+		ROUND_SIZE,
+		NEW_PER_DAY - (await introducedToday(userId, deck, now))
 	);
+	if (picked.length === 0) return null;
 
 	const id = crypto.randomUUID();
 	const cardIds = picked.map((p) => p.id);
@@ -151,6 +154,24 @@ export async function startRound(userId: string, deck: string, now = new Date())
 		cards: cardIds.map(toCard),
 		progress: {} as Record<string, number[]>
 	};
+}
+
+/** Cards in the deck whose first ever review fell on the current UTC day. */
+async function introducedToday(userId: string, deck: string, now: Date) {
+	const dayStart = `${now.toISOString().slice(0, 10)}T00:00:00Z`;
+	const [{ n }] = await db
+		.select({ n: sql<number>`count(distinct ${table.reviewLog.nodeId})::int` })
+		.from(table.reviewLog)
+		.innerJoin(table.node, eq(table.node.id, table.reviewLog.nodeId))
+		.where(
+			and(
+				eq(table.reviewLog.userId, userId),
+				eq(table.reviewLog.state, 0),
+				sql`${table.reviewLog.reviewedAt} >= ${dayStart}::timestamptz`,
+				eq(table.node.deck, deck)
+			)
+		);
+	return n;
 }
 
 /** Grade an abandoned round on what it has, or delete it if nothing was graded. */

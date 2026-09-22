@@ -8,6 +8,7 @@ const { db } = hasDb ? await import('../db') : ({} as typeof import('../db'));
 const repo = hasDb ? await import('./repo') : ({} as typeof import('./repo'));
 
 const HOUR = 3_600_000;
+const CARDS = 5;
 const t0 = new Date('2026-09-01T12:00:00Z');
 const at = (h: number) => new Date(t0.getTime() + h * HOUR);
 
@@ -28,7 +29,7 @@ describe.skipIf(!hasDb)('study rounds against the database', () => {
 		await cleanup();
 		await db.insert(table.user).values({ id: userId, email: `${userId}@test.invalid` });
 		await db.insert(table.node).values(
-			Array.from({ length: 5 }, (_, i) => ({
+			Array.from({ length: CARDS }, (_, i) => ({
 				id: `${run}-n${i}`,
 				userId,
 				deck,
@@ -131,5 +132,35 @@ describe.skipIf(!hasDb)('study rounds against the database', () => {
 			.where(eq(table.reviewLog.nodeId, id))
 			.orderBy(table.reviewLog.id);
 		expect(logs.map((l) => l.state)).toEqual([0, 1]);
+	});
+
+	it("stops introducing new cards once the day's allowance is spent", async () => {
+		const { NEW_PER_DAY } = await import('./select');
+		await db.insert(table.node).values(
+			Array.from({ length: NEW_PER_DAY + 10 }, (_, i) => ({
+				id: `${run}-x${i}`,
+				userId,
+				deck,
+				front: `x${i}`,
+				tags: ['x']
+			}))
+		);
+		const first = (await repo.startRound(userId, deck, at(0)))!;
+		expect(first.cards).toHaveLength(NEW_PER_DAY);
+		for (const c of first.cards)
+			await repo.recordGrade(userId, first.assessmentId, c.id, 3, at(0.1));
+		await repo.finishRound(userId, first.assessmentId, at(0.2));
+
+		// Same UTC day: only cards already introduced come back.
+		const second = (await repo.startRound(userId, deck, at(0.5)))!;
+		const introduced = new Set(first.cards.map((c) => c.id));
+		expect(second.cards.every((c) => introduced.has(c.id))).toBe(true);
+		for (const c of second.cards)
+			await repo.recordGrade(userId, second.assessmentId, c.id, 3, at(0.6));
+		await repo.finishRound(userId, second.assessmentId, at(0.7));
+
+		// Next UTC day: new cards again.
+		const third = (await repo.startRound(userId, deck, at(24)))!;
+		expect(third.cards.some((c) => !introduced.has(c.id))).toBe(true);
 	});
 });

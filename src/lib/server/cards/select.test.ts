@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { ReviewState } from '$lib/server/db/schema';
-import { interleave, selectRound, type Candidate } from './select';
+import { interleave, NEW_PER_DAY, selectRound, type Candidate } from './select';
 
 const DAY = 86_400_000;
 const now = new Date('2026-09-01T12:00:00Z');
@@ -156,6 +156,39 @@ describe('selectRound priorities', () => {
 		const fresh = many(50, () => newCard('f'));
 		const out = selectRound([...due, ...fresh], null, now, 20);
 		expect(out).toHaveLength(20);
+	});
+});
+
+describe('selectRound daily new-card allowance', () => {
+	it('serves no more new cards than maxNew, even on a first round', () => {
+		const deck = many(30, () => newCard('a'));
+		expect(selectRound(deck, null, now, 20, 7)).toHaveLength(7);
+		expect(selectRound(deck, null, now, 20, 0)).toHaveLength(0);
+		expect(selectRound(deck, null, now, 20, -3)).toHaveLength(0);
+	});
+
+	it('tops up with reviewed cards once the allowance is spent', () => {
+		const deck = [...many(10, () => newCard('a')), ...many(10, () => seenCard('b', { dueIn: 3 }))];
+		const out = selectRound(deck, null, now, 12, 0);
+		expect(out).toHaveLength(10);
+		expect(out.every((c) => c.review)).toBe(true);
+	});
+
+	it('spreads a partial allowance across tags', () => {
+		const deck = [...many(10, () => newCard('a')), ...many(10, () => newCard('b'))];
+		const out = selectRound(deck, null, now, 20, 4);
+		expect(out.map(firstTag).sort()).toEqual(['a', 'a', 'b', 'b']);
+	});
+
+	it(`defaults the allowance to NEW_PER_DAY (${NEW_PER_DAY})`, () => {
+		expect(
+			selectRound(
+				many(40, () => newCard('a')),
+				null,
+				now,
+				40
+			)
+		).toHaveLength(NEW_PER_DAY);
 	});
 });
 
