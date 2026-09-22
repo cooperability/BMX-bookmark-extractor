@@ -53,6 +53,14 @@ describe.skipIf(!hasDb)('study rounds against the database', () => {
 		expect(await openRounds()).toHaveLength(1);
 	});
 
+	it('opens one round when several loads race', async () => {
+		const rounds = await Promise.all(
+			Array.from({ length: 6 }, () => repo.startRound(userId, deck, at(0)))
+		);
+		expect(new Set(rounds.map((r) => r!.assessmentId)).size).toBe(1);
+		expect(await openRounds()).toHaveLength(1);
+	});
+
 	it('returns the ratings logged so far, per card, in attempt order', async () => {
 		const r = (await repo.startRound(userId, deck, at(0)))!;
 		const [a, b] = r.cards;
@@ -99,6 +107,28 @@ describe.skipIf(!hasDb)('study rounds against the database', () => {
 		expect(next.assessmentId).not.toBe(fresh.assessmentId);
 		const ids = (await openRounds()).map((a) => a.id);
 		expect(ids).not.toContain(fresh.assessmentId);
+	});
+
+	it('closes extra open rounds oldest first, carrying standing in order', async () => {
+		// Two open rounds for one deck, as rounds opened before resume existed left them.
+		const open = async (id: string, h: number, card: string, rating: number) => {
+			await db.insert(table.assessment).values({
+				id,
+				userId,
+				deck,
+				startedAt: at(h),
+				cardIds: [card]
+			});
+			await repo.recordGrade(userId, id, card, rating as 1 | 3, 0, at(h + 0.1));
+		};
+		await open(`${run}-old`, 0, `${run}-n0`, 1); // even: missed
+		await open(`${run}-new`, 1, `${run}-n2`, 3); // even: recalled
+		await repo.startRound(userId, deck, at(20));
+		const rows = await openRounds();
+		const newer = rows.find((a) => a.id === `${run}-new`)!;
+		// Closed second, so its standing holds both: 0.75 * miss + hit.
+		expect(newer.finishedAt).toEqual(at(1.1));
+		expect(newer.standing).toEqual([{ tag: 'even', cards: 1.75, credit: 1 }]);
 	});
 
 	it('carries a weak tag into the next round when that round does not test it', async () => {
@@ -162,5 +192,37 @@ describe.skipIf(!hasDb)('study rounds against the database', () => {
 		// Next UTC day: new cards again.
 		const third = (await repo.startRound(userId, deck, at(24)))!;
 		expect(third.cards.some((c) => !introduced.has(c.id))).toBe(true);
+	});
+});
+
+describe.skipIf(!hasDb)('importDeck against the database', () => {
+	const run = crypto.randomUUID().slice(0, 8);
+	const userId = `test-import-${run}`;
+	async function cleanup() {
+		await db.delete(table.node).where(eq(table.node.userId, userId));
+		await db.delete(table.user).where(eq(table.user.id, userId));
+	}
+	beforeEach(async () => {
+		await cleanup();
+		await db.insert(table.user).values({ id: userId, email: `${userId}@test.invalid` });
+	});
+	afterAll(cleanup);
+
+	it('imports an export that repeats a note, keeping the last copy', async () => {
+		const raw = [
+			'#separator:tab',
+			'#html:true',
+			'#guid column:1',
+			'#deck column:2',
+			'#tags column:5',
+			'g1\tD\tfront one\tback one\ta',
+			'g2\tD\tfront two\tback two\tb',
+			'g1\tD\tfront one\tback edited\ta'
+		].join('\n');
+		const res = await repo.importDeck(userId, raw);
+		expect(res.imported).toBe(2);
+		expect(res.warnings.some((w) => /repeat/i.test(w))).toBe(true);
+		const rows = await db.select().from(table.node).where(eq(table.node.userId, userId));
+		expect(rows.map((r) => r.back).sort()).toEqual(['back edited', 'back two']);
 	});
 });

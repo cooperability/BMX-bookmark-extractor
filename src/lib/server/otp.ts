@@ -73,13 +73,7 @@ async function failuresToday(email: string, now: Date): Promise<number> {
  * address has used its daily sends.
  */
 export async function issueCode(email: string, now = new Date()): Promise<string | null> {
-	const [existing] = await db
-		.select()
-		.from(table.loginCode)
-		.where(eq(table.loginCode.email, email));
-	if (existing && now.getTime() - existing.createdAt.getTime() < RESEND_AFTER_MS) return null;
-	if ((await spend(email, 'sends', now)).sends > MAX_SENDS) return null;
-
+	const t = table.loginCode;
 	const code = newCode();
 	const row = {
 		email,
@@ -88,10 +82,24 @@ export async function issueCode(email: string, now = new Date()): Promise<string
 		createdAt: now,
 		expiresAt: new Date(now.getTime() + CODE_TTL_MS)
 	};
-	await db
-		.insert(table.loginCode)
+	// One statement: a code younger than RESEND_AFTER_MS blocks the overwrite, so
+	// two sends in flight at once cannot both issue a code.
+	const cutoff = new Date(now.getTime() - RESEND_AFTER_MS).toISOString();
+	const issued = await db
+		.insert(t)
 		.values(row)
-		.onConflictDoUpdate({ target: table.loginCode.email, set: row });
+		.onConflictDoUpdate({
+			target: t.email,
+			set: row,
+			setWhere: sql`${t.createdAt} <= ${cutoff}::timestamptz`
+		})
+		.returning({ email: t.email });
+	if (issued.length === 0) return null;
+	if ((await spend(email, 'sends', now)).sends > MAX_SENDS) {
+		// Over budget: withdraw the code before anyone has seen it.
+		await db.delete(t).where(and(eq(t.email, email), eq(t.codeHash, row.codeHash)));
+		return null;
+	}
 	return code;
 }
 

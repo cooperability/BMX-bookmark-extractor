@@ -4,6 +4,10 @@ import { overview } from '$lib/server/cards/stats';
 import { TZ_COOKIE, toTimeZone } from '$lib/timezone';
 import type { Actions, PageServerLoad } from './$types';
 
+// Vercel rejects request bodies over 4.5 MB before the function runs. The two
+// source decks are 0.4 MB and 0.5 MB.
+const MAX_IMPORT_BYTES = 4 * 1024 * 1024;
+
 export const load: PageServerLoad = async ({ cookies, locals }) => {
 	const [decks, stats] = await Promise.all([
 		listDecks(locals.user!.id),
@@ -18,7 +22,15 @@ export const actions: Actions = {
 		if (!(file instanceof File) || file.size === 0) {
 			return fail(400, { message: 'Choose an Anki .txt export.' });
 		}
-		const { imported, warnings } = await importDeck(locals.user!.id, await file.text());
-		return { message: `Imported ${imported} cards.`, warnings };
+		if (file.size > MAX_IMPORT_BYTES) {
+			return fail(413, { message: 'That file is over 4 MB. Export one deck at a time.' });
+		}
+		try {
+			const { imported, warnings } = await importDeck(locals.user!.id, await file.text());
+			return { message: `Imported ${imported} cards.`, warnings };
+		} catch (e) {
+			console.error('[cards] import', e);
+			return fail(400, { message: 'Could not read that file as an Anki export.' });
+		}
 	}
 };

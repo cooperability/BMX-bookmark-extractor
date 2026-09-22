@@ -31,7 +31,9 @@
 		grades = null;
 		failed = null;
 		// Every card was graded but the round never closed, e.g. the finish request failed.
-		if (queue.length === 0) untrack(retry);
+		// Test the local result: reading `queue` here would make this effect depend on
+		// the state it just wrote, and Svelte aborts the loop.
+		if (resumed.queue.length === 0) untrack(retry);
 	});
 
 	const current = $derived(queue[0]);

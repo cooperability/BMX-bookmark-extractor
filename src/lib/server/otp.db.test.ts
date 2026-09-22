@@ -34,6 +34,13 @@ describe.skipIf(!hasDb)('login codes against the database', () => {
 		expect(await otp.issueCode(email, at(1.5))).not.toBeNull();
 	});
 
+	it('issues one code when several sends race', async () => {
+		const codes = await Promise.all(Array.from({ length: 10 }, () => otp.issueCode(email, at(0))));
+		const issued = codes.filter((c) => c !== null);
+		expect(issued).toHaveLength(1);
+		expect(await otp.verifyCode(email, issued[0]!, at(1))).toBe(true);
+	});
+
 	it(`stops issuing after MAX_SENDS codes in a day, and resumes the next day`, async () => {
 		for (let i = 0; i < otp.MAX_SENDS; i++)
 			expect(await otp.issueCode(email, at(i * 2))).not.toBeNull();
