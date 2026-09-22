@@ -1,6 +1,6 @@
 import { and, asc, eq, gt, isNotNull, sql } from 'drizzle-orm';
-// Relative, not $lib: the server vitest config has no SvelteKit alias, and the
-// pure helpers below are unit tested against this module.
+// Relative imports: stats.test.ts mocks '../db' to unit test the pure helpers
+// below without a database.
 import { db } from '../db';
 import * as table from '../db/schema';
 import { classify, standingOf, STRONG_AT, UNTAGGED, WEAK_BELOW, type Standing } from './grading';

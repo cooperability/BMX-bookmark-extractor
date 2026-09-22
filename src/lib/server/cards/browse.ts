@@ -1,5 +1,4 @@
 import { and, asc, count, desc, eq, ilike, isNull, or, sql, type SQL } from 'drizzle-orm';
-// Relative, not $lib: the server vitest config has no SvelteKit alias.
 import { db } from '../db';
 import * as table from '../db/schema';
 

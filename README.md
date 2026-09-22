@@ -126,6 +126,12 @@ Parser ground truth, Confirmed against `source_data/` by `yarn test:server` on N
 5. `yarn dev`, then request a login code. With `GMAIL_USER` unset, the dev server terminal prints `[auth] login code for <email>: <code>`.
 6. `yarn db:down` stops the container and keeps the data volume.
 
+Keep one database on one path. `db:migrate` records what it applied, and `db:push` does not, so a later `db:migrate` against a pushed database fails on tables that already exist. Use `db:push` only on a throwaway database.
+
+With `DATABASE_URL` set, `yarn test:server` also runs the database tests (`*.db.test.ts` and `repo.test.ts`). They create and delete their own rows, and they need the schema from `db:migrate`. CI has no database and skips them.
+
+Days, streaks, and the daily new-card cap follow the browser's time zone, which the app stores in a `tz` cookie on first load. Until then they use UTC.
+
 ## Deploy
 
 The Vercel Git integration owns every deploy. It builds production on `main` and a preview on each pull request. There is no second deploy path. GitHub Actions runs lint, typecheck, and `yarn test:server` on Node 22, and deploys nothing.
