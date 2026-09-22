@@ -42,6 +42,18 @@ export const loginCode = pgTable('login_code', {
 });
 
 /**
+ * Per-address budget across codes, over a rolling window. A code's own 5-try
+ * limit resets whenever a new code is issued, so without this an attacker who
+ * knows an allowed address gets 5 guesses a minute, indefinitely.
+ */
+export const loginThrottle = pgTable('login_throttle', {
+	email: text('email').primaryKey(),
+	windowStart: timestamp('window_start', { withTimezone: true, mode: 'date' }).notNull(),
+	sends: integer('sends').notNull().default(0),
+	failures: integer('failures').notNull().default(0)
+});
+
+/**
  * The shared primitive. One row reads as a flashcard, a harvested document, or a
  * Quest room depending on the surface asking.
  */
