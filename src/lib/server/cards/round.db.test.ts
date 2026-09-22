@@ -53,6 +53,14 @@ describe.skipIf(!hasDb)('study rounds against the database', () => {
 		expect(await openRounds()).toHaveLength(1);
 	});
 
+	it('opens one round when several loads race', async () => {
+		const rounds = await Promise.all(
+			Array.from({ length: 6 }, () => repo.startRound(userId, deck, at(0)))
+		);
+		expect(new Set(rounds.map((r) => r!.assessmentId)).size).toBe(1);
+		expect(await openRounds()).toHaveLength(1);
+	});
+
 	it('returns the ratings logged so far, per card, in attempt order', async () => {
 		const r = (await repo.startRound(userId, deck, at(0)))!;
 		const [a, b] = r.cards;

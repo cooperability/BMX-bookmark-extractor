@@ -170,9 +170,30 @@ export async function startRound(userId: string, deck: string, now = new Date())
 
 	const id = crypto.randomUUID();
 	const cardIds = picked.map((p) => p.id);
-	await db
-		.insert(table.assessment)
-		.values({ id, userId, deck, cardCount: cardIds.length, cardIds, startedAt: now });
+	// Two loads at once (a double click, two tabs) must not both open a round. The
+	// lock serializes openers of this deck; whoever loses finds the winner's round.
+	const opened = await db.transaction(async (tx) => {
+		await tx.execute(
+			sql`select pg_advisory_xact_lock(hashtextextended(${JSON.stringify(['round', userId, deck])}, 0))`
+		);
+		const [raced] = await tx
+			.select({ id: table.assessment.id })
+			.from(table.assessment)
+			.where(
+				and(
+					eq(table.assessment.userId, userId),
+					eq(table.assessment.deck, deck),
+					isNull(table.assessment.finishedAt)
+				)
+			)
+			.limit(1);
+		if (raced) return false;
+		await tx
+			.insert(table.assessment)
+			.values({ id, userId, deck, cardCount: cardIds.length, cardIds, startedAt: now });
+		return true;
+	});
+	if (!opened) return startRound(userId, deck, now);
 
 	return {
 		assessmentId: id,
