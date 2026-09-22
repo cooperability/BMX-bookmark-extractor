@@ -7,15 +7,11 @@
 	import RatingBar from '$lib/components/study/RatingBar.svelte';
 	import RoundIntro from '$lib/components/study/RoundIntro.svelte';
 	import RoundResults from '$lib/components/study/RoundResults.svelte';
-	import { RATINGS, type Grades } from '$lib/components/study/ratings';
+	import { MAX_REPEATS, RATINGS, type Grades } from '$lib/components/study/ratings';
 
 	let { data } = $props();
 
 	type Card = (typeof data.cards)[number];
-
-	// Anki-style relearning inside the round: a missed card comes back at the end,
-	// at most this many times. Only the first attempt is graded.
-	const MAX_REPEATS = 2;
 
 	let queue = $state<{ card: Card; repeats: number }[]>([]);
 	let done = $state(0);

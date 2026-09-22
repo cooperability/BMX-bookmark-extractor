@@ -117,17 +117,19 @@ export async function recordGrade(
 ): Promise<boolean> {
 	const a = await ownedOpenAssessment(userId, assessmentId);
 	if (!a) return false;
-	const [row] = await db
-		.select({ node: table.node, review: table.reviewState })
-		.from(table.node)
-		.leftJoin(table.reviewState, eq(table.reviewState.nodeId, table.node.id))
-		.where(
-			and(eq(table.node.id, nodeId), eq(table.node.userId, userId), eq(table.node.deck, a.deck))
-		);
-	if (!row) return false;
+	return db.transaction(async (tx) => {
+		// Lock the card so two tabs grading it at once cannot both read the same state.
+		const [row] = await tx
+			.select({ node: table.node, review: table.reviewState })
+			.from(table.node)
+			.leftJoin(table.reviewState, eq(table.reviewState.nodeId, table.node.id))
+			.where(
+				and(eq(table.node.id, nodeId), eq(table.node.userId, userId), eq(table.node.deck, a.deck))
+			)
+			.for('update', { of: table.node });
+		if (!row) return false;
 
-	const { next, elapsedDays } = grade(row.review, rating, now);
-	await db.transaction(async (tx) => {
+		const { next, elapsedDays } = grade(row.review, rating, now);
 		// Log first: a duplicate attempt (a retried request) inserts nothing and must
 		// not advance the schedule a second time.
 		const logged = await tx
@@ -144,13 +146,13 @@ export async function recordGrade(
 			})
 			.onConflictDoNothing()
 			.returning({ id: table.reviewLog.id });
-		if (logged.length === 0) return;
+		if (logged.length === 0) return true;
 		await tx
 			.insert(table.reviewState)
 			.values({ nodeId, userId, ...next })
 			.onConflictDoUpdate({ target: table.reviewState.nodeId, set: next });
+		return true;
 	});
-	return true;
 }
 
 /** Writes the grading artifact from each card's first attempt in the round. */

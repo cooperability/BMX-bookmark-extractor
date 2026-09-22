@@ -1,3 +1,8 @@
+// Anki-style relearning inside a round: a missed card comes back at the end, at
+// most this many times. Only the first attempt is graded. The grade endpoint
+// accepts attempts 0..MAX_REPEATS, so both sides must read this one value.
+export const MAX_REPEATS = 2;
+
 // Class strings stay literal so Tailwind can see them.
 export const RATINGS = [
 	{

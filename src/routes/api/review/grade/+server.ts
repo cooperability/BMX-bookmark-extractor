@@ -1,5 +1,6 @@
 import { error, json } from '@sveltejs/kit';
 import type { Grade } from 'ts-fsrs';
+import { MAX_REPEATS } from '$lib/components/study/ratings';
 import { recordGrade } from '$lib/server/cards/repo';
 import type { RequestHandler } from './$types';
 
@@ -8,7 +9,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 	const { assessmentId, nodeId, rating, attempt } = await request.json();
 	if (
 		![1, 2, 3, 4].includes(rating) ||
-		![0, 1, 2].includes(attempt) ||
+		!(Number.isInteger(attempt) && attempt >= 0 && attempt <= MAX_REPEATS) ||
 		typeof assessmentId !== 'string' ||
 		typeof nodeId !== 'string'
 	) {

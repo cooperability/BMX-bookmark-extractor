@@ -86,9 +86,12 @@ export async function browseCards(userId: string, deck: string, p: BrowseParams,
 	const isNew = or(isNull(rs.nodeId), eq(rs.state, 0))!;
 	const pattern = `%${escapeLike(p.q)}%`;
 	const inDeck = and(eq(n.userId, userId), eq(n.deck, deck), eq(n.kind, 'card'));
+	// Match visible text only: raw fields are HTML, and "div" or "nbsp" hit most cards.
+	const visible = (col: typeof n.front | typeof n.back) =>
+		sql`regexp_replace(regexp_replace(${col}, '<[^>]*>', ' ', 'g'), '&[a-z0-9#]+;', ' ', 'gi')`;
 	const where = and(
 		inDeck,
-		p.q ? or(ilike(n.front, pattern), ilike(n.back, pattern)) : undefined,
+		p.q ? or(ilike(visible(n.front), pattern), ilike(visible(n.back), pattern)) : undefined,
 		p.tag ? sql`${p.tag} = any(${n.tags})` : undefined,
 		p.state === null ? undefined : p.state === 'new' ? isNew : eq(rs.state, STATES.indexOf(p.state))
 	);
