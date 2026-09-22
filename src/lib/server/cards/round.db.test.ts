@@ -164,3 +164,35 @@ describe.skipIf(!hasDb)('study rounds against the database', () => {
 		expect(third.cards.some((c) => !introduced.has(c.id))).toBe(true);
 	});
 });
+
+describe.skipIf(!hasDb)('importDeck against the database', () => {
+	const run = crypto.randomUUID().slice(0, 8);
+	const userId = `test-import-${run}`;
+	async function cleanup() {
+		await db.delete(table.node).where(eq(table.node.userId, userId));
+		await db.delete(table.user).where(eq(table.user.id, userId));
+	}
+	beforeEach(async () => {
+		await cleanup();
+		await db.insert(table.user).values({ id: userId, email: `${userId}@test.invalid` });
+	});
+	afterAll(cleanup);
+
+	it('imports an export that repeats a note, keeping the last copy', async () => {
+		const raw = [
+			'#separator:tab',
+			'#html:true',
+			'#guid column:1',
+			'#deck column:2',
+			'#tags column:5',
+			'g1\tD\tfront one\tback one\ta',
+			'g2\tD\tfront two\tback two\tb',
+			'g1\tD\tfront one\tback edited\ta'
+		].join('\n');
+		const res = await repo.importDeck(userId, raw);
+		expect(res.imported).toBe(2);
+		expect(res.warnings.some((w) => /repeat/i.test(w))).toBe(true);
+		const rows = await db.select().from(table.node).where(eq(table.node.userId, userId));
+		expect(rows.map((r) => r.back).sort()).toEqual(['back edited', 'back two']);
+	});
+});

@@ -8,7 +8,19 @@ import { grade } from './scheduler';
 import { NEW_PER_DAY, ROUND_SIZE, selectRound } from './select';
 
 export async function importDeck(userId: string, raw: string) {
-	const { notes, warnings } = parseAnkiExport(raw, userId);
+	const parsed = parseAnkiExport(raw, userId);
+	const warnings = [...parsed.warnings];
+	// One INSERT cannot upsert the same id twice, so a repeated note (same GUID, or
+	// identical content without one) would fail its whole batch. The last copy wins,
+	// as it would have if the rows were imported one at a time.
+	const byId = new Map<string, (typeof parsed.notes)[number]>();
+	for (const n of parsed.notes) {
+		if (byId.has(n.id))
+			warnings.push(`Note repeated in the export: kept the last copy of ${n.id}.`);
+		byId.delete(n.id);
+		byId.set(n.id, n);
+	}
+	const notes = [...byId.values()];
 	const excluded = (col: string) => sql.raw(`excluded.${col}`);
 	for (let i = 0; i < notes.length; i += 500) {
 		await db
