@@ -1,11 +1,12 @@
 import { fail } from '@sveltejs/kit';
 import { importDeck, listDecks } from '$lib/server/cards/repo';
+import { overview } from '$lib/server/cards/stats';
 import type { Actions, PageServerLoad } from './$types';
 
-export const load: PageServerLoad = async ({ locals }) => ({
-	email: locals.user!.email,
-	decks: await listDecks(locals.user!.id)
-});
+export const load: PageServerLoad = async ({ locals }) => {
+	const [decks, stats] = await Promise.all([listDecks(locals.user!.id), overview(locals.user!.id)]);
+	return { decks, stats };
+};
 
 export const actions: Actions = {
 	import: async ({ request, locals }) => {

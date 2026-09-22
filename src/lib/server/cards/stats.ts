@@ -1,0 +1,226 @@
+import { and, asc, eq, gt, isNotNull, sql } from 'drizzle-orm';
+// Relative, not $lib: the server vitest config has no SvelteKit alias, and the
+// pure helpers below are unit tested against this module.
+import { db } from '../db';
+import * as table from '../db/schema';
+import { STRONG_AT, UNTAGGED, WEAK_BELOW, type AreaScore } from './grading';
+
+// Every day boundary here is UTC. A user in UTC-8 sees "today" roll over at 4pm
+// local; per-user time zones are a later ticket.
+const DAY = 86_400_000;
+
+/** `YYYY-MM-DD` of the UTC day containing `d`. */
+export const utcDay = (d: Date) => d.toISOString().slice(0, 10);
+
+export const addDays = (day: string, n: number) =>
+	utcDay(new Date(Date.parse(`${day}T00:00:00Z`) + n * DAY));
+
+/**
+ * Consecutive UTC days with at least one review, ending today. A day with no
+ * review yet today does not break the streak until the day ends, so the count
+ * then ends at yesterday.
+ */
+export function streakDays(reviewDays: Iterable<string>, now: Date): number {
+	const days = new Set(reviewDays);
+	let day = utcDay(now);
+	if (!days.has(day)) day = addDays(day, -1);
+	let n = 0;
+	while (days.has(day)) {
+		n += 1;
+		day = addDays(day, -1);
+	}
+	return n;
+}
+
+export interface HeatCell {
+	day: string;
+	count: number;
+	/** 0 = none, 1..4 = quartile of the busiest day in the window. */
+	level: number;
+}
+
+/**
+ * GitHub-style grid: `weeks` columns of Monday..Sunday, the last column holding
+ * today. Days after today are null.
+ */
+export function heatmap(counts: Map<string, number>, now: Date, weeks = 12): (HeatCell | null)[][] {
+	const today = utcDay(now);
+	const weekday = (now.getUTCDay() + 6) % 7; // Monday = 0
+	const start = addDays(today, -weekday - 7 * (weeks - 1));
+	const days = Array.from({ length: weeks * 7 }, (_, i) => addDays(start, i));
+	const max = Math.max(0, ...days.filter((d) => d <= today).map((d) => counts.get(d) ?? 0));
+	return Array.from({ length: weeks }, (_, w) =>
+		days.slice(w * 7, w * 7 + 7).map((day) => {
+			if (day > today) return null;
+			const count = counts.get(day) ?? 0;
+			return { day, count, level: count === 0 ? 0 : Math.ceil((count / max) * 4) };
+		})
+	);
+}
+
+/**
+ * Cards coming due per UTC day for `days` days from today. Overdue cards count
+ * toward today, since that is when they will be shown.
+ */
+export function dueForecast(dues: Date[], now: Date, days = 14) {
+	const today = utcDay(now);
+	const start = Date.parse(`${today}T00:00:00Z`);
+	const out = Array.from({ length: days }, (_, i) => ({ day: addDays(today, i), count: 0 }));
+	for (const due of dues) {
+		const i = Math.max(0, Math.floor((due.getTime() - start) / DAY));
+		if (i < days) out[i].count += 1;
+	}
+	return out;
+}
+
+export type Band = 'strong' | 'mid' | 'weak';
+
+export const band = (score: number | null): Band | null =>
+	score === null ? null : score >= STRONG_AT ? 'strong' : score < WEAK_BELOW ? 'weak' : 'mid';
+
+export interface MasteryCard {
+	tags: string[];
+	/** Null when the card has never been graded. */
+	stability: number | null;
+}
+
+export interface TagMastery {
+	tag: string;
+	cards: number;
+	reviewed: number;
+	/** Mean FSRS stability in days over reviewed cards, null if none. */
+	stability: number | null;
+	/** This tag's score in the newest finished round, null if it was not in that round. */
+	score: number | null;
+	band: Band | null;
+}
+
+export function tagMastery(cards: MasteryCard[], latestAreas: AreaScore[] | null): TagMastery[] {
+	const acc = new Map<string, { cards: number; reviewed: number; sum: number }>();
+	for (const c of cards) {
+		for (const tag of c.tags.length ? c.tags : [UNTAGGED]) {
+			const a = acc.get(tag) ?? { cards: 0, reviewed: 0, sum: 0 };
+			a.cards += 1;
+			if (c.stability !== null) {
+				a.reviewed += 1;
+				a.sum += c.stability;
+			}
+			acc.set(tag, a);
+		}
+	}
+	const scores = new Map((latestAreas ?? []).map((a) => [a.tag, a.score]));
+	return [...acc]
+		.map(([tag, a]) => {
+			const score = scores.get(tag) ?? null;
+			return {
+				tag,
+				cards: a.cards,
+				reviewed: a.reviewed,
+				stability: a.reviewed ? a.sum / a.reviewed : null,
+				score,
+				band: band(score)
+			};
+		})
+		.sort((x, y) => y.cards - x.cards || x.tag.localeCompare(y.tag));
+}
+
+const isCard = eq(table.node.kind, 'card');
+
+async function dailyReviewCounts(userId: string) {
+	const day = sql<string>`to_char(${table.reviewLog.reviewedAt} at time zone 'UTC', 'YYYY-MM-DD')`;
+	const rows = await db
+		.select({ day, count: sql<number>`count(*)::int` })
+		.from(table.reviewLog)
+		.where(eq(table.reviewLog.userId, userId))
+		.groupBy(day);
+	return new Map(rows.map((r) => [r.day, r.count]));
+}
+
+/** Home page numbers plus the review heatmap. */
+export async function overview(userId: string, now = new Date()) {
+	const [[cards], [ret], counts] = await Promise.all([
+		db
+			.select({
+				total: sql<number>`count(*)::int`,
+				due: sql<number>`count(*) filter (where ${table.reviewState.state} != 0 and ${table.reviewState.due} <= ${now.toISOString()}::timestamptz)::int`
+			})
+			.from(table.node)
+			.leftJoin(table.reviewState, eq(table.reviewState.nodeId, table.node.id))
+			.where(and(eq(table.node.userId, userId), isCard)),
+		db
+			.select({
+				total: sql<number>`count(*)::int`,
+				passed: sql<number>`count(*) filter (where ${table.reviewLog.rating} > 1)::int`
+			})
+			.from(table.reviewLog)
+			.where(
+				and(
+					eq(table.reviewLog.userId, userId),
+					gt(table.reviewLog.reviewedAt, new Date(now.getTime() - 30 * DAY))
+				)
+			),
+		dailyReviewCounts(userId)
+	]);
+	return {
+		cardsTotal: cards.total,
+		dueNow: cards.due,
+		reviewedToday: counts.get(utcDay(now)) ?? 0,
+		streakDays: streakDays(counts.keys(), now),
+		retention30d: ret.total ? ret.passed / ret.total : null,
+		reviews30d: ret.total,
+		heatmap: heatmap(counts, now)
+	};
+}
+
+/** Everything the deck page shows. Null when the user has no cards in `deck`. */
+export async function deckDetail(userId: string, deck: string, now = new Date()) {
+	const inDeck = and(eq(table.node.userId, userId), eq(table.node.deck, deck), isCard);
+	const [cards, history] = await Promise.all([
+		db
+			.select({
+				tags: table.node.tags,
+				state: table.reviewState.state,
+				due: table.reviewState.due,
+				stability: table.reviewState.stability
+			})
+			.from(table.node)
+			.leftJoin(table.reviewState, eq(table.reviewState.nodeId, table.node.id))
+			.where(inDeck),
+		db
+			.select()
+			.from(table.assessment)
+			.where(
+				and(
+					eq(table.assessment.userId, userId),
+					eq(table.assessment.deck, deck),
+					isNotNull(table.assessment.finishedAt)
+				)
+			)
+			.orderBy(asc(table.assessment.finishedAt))
+	]);
+	if (cards.length === 0) return null;
+
+	const seen = (c: (typeof cards)[number]) => c.state !== null && c.state !== 0;
+	const latest = history.at(-1);
+	return {
+		total: cards.length,
+		fresh: cards.filter((c) => !seen(c)).length,
+		due: cards.filter((c) => seen(c) && c.due! <= now).length,
+		forecast: dueForecast(
+			cards.filter(seen).map((c) => c.due!),
+			now
+		),
+		mastery: tagMastery(
+			cards.map((c) => ({ tags: c.tags, stability: seen(c) ? c.stability : null })),
+			(latest?.areas as AreaScore[] | null) ?? null
+		),
+		history: history.map((a) => ({
+			id: a.id,
+			finishedAt: a.finishedAt!,
+			cardCount: a.cardCount,
+			score: a.score,
+			strong: a.strong,
+			weak: a.weak
+		}))
+	};
+}

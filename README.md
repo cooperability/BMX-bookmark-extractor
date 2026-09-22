@@ -117,6 +117,15 @@ Parser ground truth, Confirmed against `source_data/` by `yarn test:server` on N
 | `yarn db:push`              | Push the Drizzle schema (needs `DATABASE_URL`) |
 | `./scripts/container <cmd>` | Same commands in a Node 22 image               |
 
+## Local development
+
+1. `yarn db:up` starts Postgres 17 with pgvector on port 5433 (`docker-compose.yml`).
+2. `cp .env.example .env`, then set `DATABASE_URL="postgres://postgres:dev@localhost:5433/remediate"` and add your address to `ALLOWED_EMAILS`.
+3. `yarn db:migrate` applies `drizzle/`. After a schema change, `yarn db:generate` writes the next migration.
+4. `yarn db:seed you@example.com` creates that user and imports both `source_data/` decks, 457 cards. Rerunning it updates in place.
+5. `yarn dev`, then request a login code. With `GMAIL_USER` unset, the dev server terminal prints `[auth] login code for <email>: <code>`.
+6. `yarn db:down` stops the container and keeps the data volume.
+
 ## Deploy
 
 The Vercel Git integration owns every deploy. It builds production on `main` and a preview on each pull request. There is no second deploy path. GitHub Actions runs lint, typecheck, and `yarn test:server` on Node 22, and deploys nothing.
