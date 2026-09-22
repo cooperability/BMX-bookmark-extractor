@@ -2,6 +2,7 @@
 	import { resolve } from '$app/paths';
 	import BarChart from '$lib/components/charts/BarChart.svelte';
 	import LineChart from '$lib/components/charts/LineChart.svelte';
+	import CardBrowser from '$lib/components/deck/CardBrowser.svelte';
 	import StatTile from '$lib/components/deck/StatTile.svelte';
 	import StudyLink from '$lib/components/deck/StudyLink.svelte';
 
@@ -40,6 +41,10 @@
 			return desc ? -c : c;
 		})
 	);
+	// Real decks carry ~70 tags; the full table buried the card browser below it.
+	const TAG_ROWS = 12;
+	let allTags = $state(false);
+	const shownRows = $derived(allTags ? rows : rows.slice(0, TAG_ROWS));
 
 	const forecastTotal = $derived(data.forecast.reduce((n, d) => n + d.count, 0));
 	const bars = $derived(
@@ -149,7 +154,7 @@
 					</tr>
 				</thead>
 				<tbody>
-					{#each rows as r (r.tag)}
+					{#each shownRows as r (r.tag)}
 						<tr class="border-b border-line last:border-0 hover:bg-surface-2">
 							<td class="px-5 py-2">
 								<span class="flex items-center gap-2">
@@ -172,7 +177,16 @@
 				</tbody>
 			</table>
 		</div>
+		{#if rows.length > TAG_ROWS}
+			<div class="border-t border-line px-5 py-3">
+				<button class="btn btn-ghost px-2 py-1 text-muted" onclick={() => (allTags = !allTags)}>
+					{allTags ? 'Show fewer' : `Show all ${rows.length} tags`}
+				</button>
+			</div>
+		{/if}
 	</section>
+
+	<CardBrowser deck={data.deck} browse={data.browse} />
 
 	<section class="mt-8">
 		<h2 class="eyebrow">Round history</h2>
