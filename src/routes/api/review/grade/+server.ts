@@ -5,7 +5,8 @@ import type { RequestHandler } from './$types';
 
 export const POST: RequestHandler = async ({ request, locals }) => {
 	if (!locals.user) error(401);
-	const { assessmentId, nodeId, rating } = await request.json();
+	// A malformed body is the client's error, not a 500.
+	const { assessmentId, nodeId, rating } = await request.json().catch(() => ({}));
 	if (
 		![1, 2, 3, 4].includes(rating) ||
 		typeof assessmentId !== 'string' ||
