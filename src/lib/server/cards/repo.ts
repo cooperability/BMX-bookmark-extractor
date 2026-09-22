@@ -3,7 +3,7 @@ import type { Grade } from 'ts-fsrs';
 import { db } from '$lib/server/db';
 import * as table from '$lib/server/db/schema';
 import { parseAnkiExport } from '$lib/server/ingest/anki-tsv';
-import { gradeRound } from './grading';
+import { classify, gradeRound, mergeStanding, standingOf } from './grading';
 import { grade } from './scheduler';
 import { selectRound } from './select';
 
@@ -213,7 +213,11 @@ export async function recordGrade(
 	return true;
 }
 
-/** Writes the grading artifact from each card's first attempt in the round. */
+/**
+ * Writes the grading artifact. The score and areas come from each card's first
+ * attempt in this round; weak and strong come from the standing carried forward
+ * from the deck's previous round plus this one.
+ */
 export async function finishRound(userId: string, assessmentId: string, now = new Date()) {
 	const a = await ownedOpenAssessment(userId, assessmentId);
 	if (!a) return null;
@@ -232,10 +236,19 @@ export async function finishRound(userId: string, assessmentId: string, now = ne
 	const first = new Map<string, { tags: string[]; rating: number }>();
 	for (const l of logs) if (!first.has(l.nodeId)) first.set(l.nodeId, l);
 
-	const g = gradeRound([...first.values()]);
+	const round = gradeRound([...first.values()]);
+	const standing = mergeStanding(standingOf(await latestAssessment(userId, a.deck)), round.areas);
+	const g = { ...round, ...classify(standing) };
 	await db
 		.update(table.assessment)
-		.set({ finishedAt: now, score: g.score, areas: g.areas, strong: g.strong, weak: g.weak })
+		.set({
+			finishedAt: now,
+			score: g.score,
+			areas: g.areas,
+			standing,
+			strong: g.strong,
+			weak: g.weak
+		})
 		.where(eq(table.assessment.id, assessmentId));
 	return g;
 }

@@ -99,4 +99,24 @@ describe.skipIf(!hasDb)('study rounds against the database', () => {
 		const ids = (await openRounds()).map((a) => a.id);
 		expect(ids).not.toContain(fresh.assessmentId);
 	});
+
+	it('carries a weak tag into the next round when that round does not test it', async () => {
+		const pick = async (h: number, ids: string[]) => {
+			const r = (await repo.startRound(userId, deck, at(h)))!;
+			await db
+				.update(table.assessment)
+				.set({ cardIds: ids })
+				.where(eq(table.assessment.id, r.assessmentId));
+			return r.assessmentId;
+		};
+		const r1 = await pick(0, [`${run}-n0`]);
+		await repo.recordGrade(userId, r1, `${run}-n0`, 1, at(0.1));
+		expect((await repo.finishRound(userId, r1, at(0.2)))!.weak).toEqual(['even']);
+
+		const r2 = await pick(1, [`${run}-n1`]);
+		await repo.recordGrade(userId, r2, `${run}-n1`, 3, at(1.1));
+		const g = (await repo.finishRound(userId, r2, at(1.2)))!;
+		expect(g.areas.map((a) => a.tag)).toEqual(['odd']);
+		expect(g.weak).toEqual(['even']);
+	});
 });

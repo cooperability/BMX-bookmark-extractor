@@ -184,7 +184,10 @@ export const assessment = pgTable(
 			.notNull()
 			.default(sql`'{}'::text[]`),
 		score: real('score'), // 0..1, first attempts only
-		areas: jsonb('areas'), // AreaScore[], one per tag
+		areas: jsonb('areas'), // AreaScore[], one per tag measured in this round
+		// Standing[]: per-tag evidence carried across rounds. `strong` and `weak` are
+		// read from it, not from this round's areas alone. See grading.ts.
+		standing: jsonb('standing'),
 		strong: text('strong')
 			.array()
 			.notNull()

@@ -1,5 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { gradeRound, UNTAGGED } from './grading';
+import {
+	classify,
+	gradeRound,
+	mergeStanding,
+	MIN_CARDS_FOR_STRONG,
+	STANDING_DECAY,
+	standingOf,
+	UNTAGGED
+} from './grading';
 
 const area = (g: ReturnType<typeof gradeRound>, tag: string) => g.areas.find((a) => a.tag === tag);
 
@@ -73,5 +81,74 @@ describe('gradeRound', () => {
 			{ tags: ['mid'], rating: 2 }
 		]);
 		expect(g.areas.map((a) => a.tag)).toEqual(['bad', 'mid', 'good']);
+	});
+});
+
+describe('tag standing across rounds', () => {
+	const areas = (cards: { tags: string[]; rating: number }[]) => gradeRound(cards).areas;
+
+	it('keeps a tag weak until a later round re-tests it', () => {
+		const s1 = mergeStanding([], areas([{ tags: ['a', 'b'], rating: 1 }]));
+		expect(classify(s1).weak).toEqual(['a', 'b']);
+		// Round 2 never measures `b`: it stays weak instead of being forgotten.
+		const s2 = mergeStanding(
+			s1,
+			areas([
+				{ tags: ['a'], rating: 3 },
+				{ tags: ['a'], rating: 3 }
+			])
+		);
+		expect(classify(s2).weak).toEqual(['b']);
+	});
+
+	it('needs two good rounds to lift a single miss out of weak', () => {
+		const s1 = mergeStanding([], areas([{ tags: ['a'], rating: 1 }]));
+		const s2 = mergeStanding(s1, areas([{ tags: ['a'], rating: 3 }]));
+		// Evidence 0.75 miss + 1 hit: 0.57, still weak.
+		expect(classify(s2).weak).toEqual(['a']);
+		const s3 = mergeStanding(s2, areas([{ tags: ['a'], rating: 3 }]));
+		// 1.75 / 2.31: 0.76, out of weak and short of strong.
+		expect(classify(s3)).toEqual({ strong: [], weak: [] });
+	});
+
+	it('needs MIN_CARDS_FOR_STRONG of evidence before calling a tag strong', () => {
+		const one = mergeStanding([], areas([{ tags: ['a'], rating: 4 }]));
+		expect(classify(one).strong).toEqual([]);
+		const two = mergeStanding(one, areas([{ tags: ['a'], rating: 4 }]));
+		// 1 * 0.75 + 1 = 1.75 cards of evidence, still short of 2.
+		expect(two[0].cards).toBeCloseTo(1.75);
+		expect(classify(two).strong).toEqual([]);
+		expect(classify(mergeStanding(two, areas([{ tags: ['a'], rating: 4 }]))).strong).toEqual(['a']);
+	});
+
+	it('lets a tag sampled once per round become strong', () => {
+		let s = mergeStanding([], []);
+		for (let i = 0; i < 10; i++) s = mergeStanding(s, areas([{ tags: ['a'], rating: 3 }]));
+		expect(classify(s).strong).toEqual(['a']);
+		expect(MIN_CARDS_FOR_STRONG).toBeLessThan(1 / (1 - STANDING_DECAY));
+	});
+
+	it('orders weak weakest first and strong strongest first', () => {
+		const s = mergeStanding(
+			[],
+			areas([
+				{ tags: ['mid', 'hard'], rating: 2 },
+				{ tags: ['hard'], rating: 1 },
+				{ tags: ['top', 'good'], rating: 4 },
+				{ tags: ['top', 'good'], rating: 4 },
+				{ tags: ['good'], rating: 4 },
+				{ tags: ['good'], rating: 4 },
+				{ tags: ['good'], rating: 2 }
+			])
+		);
+		const c = classify(s);
+		expect(c.weak).toEqual(['hard', 'mid']);
+		expect(c.strong).toEqual(['top', 'good']);
+	});
+
+	it('seeds from a round stored before standing existed', () => {
+		const legacy = { standing: null, areas: [{ tag: 'a', cards: 2, again: 1, score: 0.5 }] };
+		expect(standingOf(legacy)).toEqual([{ tag: 'a', cards: 2, credit: 1 }]);
+		expect(standingOf(null)).toEqual([]);
 	});
 });
