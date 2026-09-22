@@ -15,6 +15,13 @@
 			"when": 1790055571138,
 			"tag": "0001_flawless_silver_samurai",
 			"breakpoints": true
+		},
+		{
+			"idx": 2,
+			"version": "7",
+			"when": 1790100737192,
+			"tag": "0002_naive_moon_knight",
+			"breakpoints": true
 		}
 	]
 }
