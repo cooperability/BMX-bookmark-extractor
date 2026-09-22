@@ -12,6 +12,22 @@ jobs:
     name: Lint, typecheck, test
     runs-on: ubuntu-latest
 
+    # The database tests (*.db.test.ts) skip without DATABASE_URL. This service
+    # gives them one, so grading, rounds and login run against real Postgres here.
+    services:
+      postgres:
+        image: pgvector/pgvector:pg17
+        env:
+          POSTGRES_PASSWORD: dev
+          POSTGRES_DB: remediate
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d remediate"
+          --health-interval 2s
+          --health-timeout 5s
+          --health-retries 30
+
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -35,7 +51,16 @@ jobs:
       - name: Typecheck
         run: yarn run check
 
-      - name: Unit tests
+      - name: Database schema
+        env:
+          DATABASE_URL: postgres://postgres:dev@localhost:5432/remediate
+        run: |
+          node --input-type=module -e "import postgres from 'postgres'; const sql = postgres(process.env.DATABASE_URL); await sql\`create extension if not exists vector\`; await sql.end();"
+          yarn drizzle-kit push --force
+
+      - name: Unit and database tests
+        env:
+          DATABASE_URL: postgres://postgres:dev@localhost:5432/remediate
         run: yarn run test:server
 
       # Actions owns the build signal. Without this the only proof the app
