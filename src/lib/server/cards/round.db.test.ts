@@ -101,6 +101,28 @@ describe.skipIf(!hasDb)('study rounds against the database', () => {
 		expect(ids).not.toContain(fresh.assessmentId);
 	});
 
+	it('closes extra open rounds oldest first, carrying standing in order', async () => {
+		// Two open rounds for one deck, as rounds opened before resume existed left them.
+		const open = async (id: string, h: number, card: string, rating: number) => {
+			await db.insert(table.assessment).values({
+				id,
+				userId,
+				deck,
+				startedAt: at(h),
+				cardIds: [card]
+			});
+			await repo.recordGrade(userId, id, card, rating as 1 | 3, at(h + 0.1));
+		};
+		await open(`${run}-old`, 0, `${run}-n0`, 1); // even: missed
+		await open(`${run}-new`, 1, `${run}-n2`, 3); // even: recalled
+		await repo.startRound(userId, deck, at(20));
+		const rows = await openRounds();
+		const newer = rows.find((a) => a.id === `${run}-new`)!;
+		// Closed second, so its standing holds both: 0.75 * miss + hit.
+		expect(newer.finishedAt).toEqual(at(1.1));
+		expect(newer.standing).toEqual([{ tag: 'even', cards: 1.75, credit: 1 }]);
+	});
+
 	it('carries a weak tag into the next round when that round does not test it', async () => {
 		const pick = async (h: number, ids: string[]) => {
 			const r = (await repo.startRound(userId, deck, at(h)))!;

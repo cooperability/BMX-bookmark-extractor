@@ -140,20 +140,22 @@ export async function startRound(userId: string, deck: string, now = new Date())
 			)
 		)
 		.orderBy(desc(table.assessment.startedAt));
-	for (const a of open) {
-		const fresh = now.getTime() - a.startedAt.getTime() < RESUME_WITHIN_MS;
-		// A card deleted by a re-import since the round opened is dropped from it.
-		const cardIds = a.cardIds.filter((id) => byId.has(id));
-		if (fresh && cardIds.length > 0) {
-			const prior = await latestAssessment(userId, deck);
-			return {
-				assessmentId: a.id,
-				prior: prior && { score: prior.score, weak: prior.weak, strong: prior.strong },
-				cards: cardIds.map(toCard),
-				progress: await roundProgress(userId, a.id)
-			};
-		}
-		await closeStaleRound(userId, a.id);
+	// A card deleted by a re-import since the round opened is dropped from it.
+	const live = (a: (typeof open)[number]) => a.cardIds.filter((id) => byId.has(id));
+	const resumable = open.find(
+		(a) => now.getTime() - a.startedAt.getTime() < RESUME_WITHIN_MS && live(a).length > 0
+	);
+	// Close every other open round, oldest first, so each one's standing builds on
+	// the round before it. Only data from before rounds were resumable has several.
+	for (const a of [...open].reverse()) if (a !== resumable) await closeStaleRound(userId, a.id);
+	if (resumable) {
+		const prior = await latestAssessment(userId, deck);
+		return {
+			assessmentId: resumable.id,
+			prior: prior && { score: prior.score, weak: prior.weak, strong: prior.strong },
+			cards: live(resumable).map(toCard),
+			progress: await roundProgress(userId, resumable.id)
+		};
 	}
 
 	const prior = await latestAssessment(userId, deck);
