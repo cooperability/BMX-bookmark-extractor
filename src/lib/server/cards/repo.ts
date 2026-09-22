@@ -1,11 +1,11 @@
-import { and, asc, desc, eq, isNotNull, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, isNotNull, isNull, sql } from 'drizzle-orm';
 import type { Grade } from 'ts-fsrs';
 import { db } from '$lib/server/db';
 import * as table from '$lib/server/db/schema';
 import { parseAnkiExport } from '$lib/server/ingest/anki-tsv';
-import { gradeRound } from './grading';
+import { classify, gradeRound, mergeStanding, standingOf } from './grading';
 import { grade } from './scheduler';
-import { selectRound } from './select';
+import { NEW_PER_DAY, ROUND_SIZE, selectRound } from './select';
 
 export async function importDeck(userId: string, raw: string) {
 	const { notes, warnings } = parseAnkiExport(raw, userId);
@@ -67,6 +67,28 @@ async function latestAssessment(userId: string, deck: string) {
 	return a ?? null;
 }
 
+// An unfinished round this recent is resumed on the next visit. Older ones are
+// closed: graded if they hold any grades, deleted if they hold none.
+const RESUME_WITHIN_MS = 12 * 60 * 60 * 1000;
+
+/** Ratings logged so far in a round, per card, in attempt order. */
+async function roundProgress(userId: string, assessmentId: string) {
+	const logs = await db
+		.select({ nodeId: table.reviewLog.nodeId, rating: table.reviewLog.rating })
+		.from(table.reviewLog)
+		.where(and(eq(table.reviewLog.userId, userId), eq(table.reviewLog.assessmentId, assessmentId)))
+		.orderBy(asc(table.reviewLog.attempt), asc(table.reviewLog.id));
+	const progress: Record<string, number[]> = {};
+	for (const l of logs) (progress[l.nodeId] ??= []).push(l.rating);
+	return progress;
+}
+
+/**
+ * Open the study round for a deck: the unfinished one if it is recent, else a new
+ * one. Loading the study page calls this, so it must be safe to repeat: a reload,
+ * a second tab, or a link preload lands on the same round rather than opening
+ * another and dropping the progress of the first.
+ */
 export async function startRound(userId: string, deck: string, now = new Date()) {
 	const rows = await db
 		.select({ node: table.node, review: table.reviewState })
@@ -77,26 +99,94 @@ export async function startRound(userId: string, deck: string, now = new Date())
 		)
 		.orderBy(asc(table.node.createdAt), asc(table.node.id));
 	if (rows.length === 0) return null;
+	const byId = new Map(rows.map((r) => [r.node.id, r.node]));
+	const toCard = (id: string) => {
+		const n = byId.get(id)!;
+		return { id: n.id, front: n.front, back: n.back, tags: n.tags };
+	};
+
+	const open = await db
+		.select()
+		.from(table.assessment)
+		.where(
+			and(
+				eq(table.assessment.userId, userId),
+				eq(table.assessment.deck, deck),
+				isNull(table.assessment.finishedAt)
+			)
+		)
+		.orderBy(desc(table.assessment.startedAt));
+	for (const a of open) {
+		const fresh = now.getTime() - a.startedAt.getTime() < RESUME_WITHIN_MS;
+		// A card deleted by a re-import since the round opened is dropped from it.
+		const cardIds = a.cardIds.filter((id) => byId.has(id));
+		if (fresh && cardIds.length > 0) {
+			const prior = await latestAssessment(userId, deck);
+			return {
+				assessmentId: a.id,
+				prior: prior && { score: prior.score, weak: prior.weak, strong: prior.strong },
+				cards: cardIds.map(toCard),
+				progress: await roundProgress(userId, a.id)
+			};
+		}
+		await closeStaleRound(userId, a.id);
+	}
 
 	const prior = await latestAssessment(userId, deck);
 	const picked = selectRound(
 		rows.map((r) => ({ id: r.node.id, tags: r.node.tags, review: r.review })),
 		prior,
-		now
+		now,
+		ROUND_SIZE,
+		NEW_PER_DAY - (await introducedToday(userId, deck, now))
 	);
-	const byId = new Map(rows.map((r) => [r.node.id, r.node]));
+	if (picked.length === 0) return null;
 
 	const id = crypto.randomUUID();
-	await db.insert(table.assessment).values({ id, userId, deck, cardCount: picked.length });
+	const cardIds = picked.map((p) => p.id);
+	await db
+		.insert(table.assessment)
+		.values({ id, userId, deck, cardCount: cardIds.length, cardIds, startedAt: now });
 
 	return {
 		assessmentId: id,
 		prior: prior && { score: prior.score, weak: prior.weak, strong: prior.strong },
-		cards: picked.map((p) => {
-			const n = byId.get(p.id)!;
-			return { id: n.id, front: n.front, back: n.back, tags: n.tags };
-		})
+		cards: cardIds.map(toCard),
+		progress: {} as Record<string, number[]>
 	};
+}
+
+/** Cards in the deck whose first ever review fell on the current UTC day. */
+async function introducedToday(userId: string, deck: string, now: Date) {
+	const dayStart = `${now.toISOString().slice(0, 10)}T00:00:00Z`;
+	const [{ n }] = await db
+		.select({ n: sql<number>`count(distinct ${table.reviewLog.nodeId})::int` })
+		.from(table.reviewLog)
+		.innerJoin(table.node, eq(table.node.id, table.reviewLog.nodeId))
+		.where(
+			and(
+				eq(table.reviewLog.userId, userId),
+				eq(table.reviewLog.state, 0),
+				sql`${table.reviewLog.reviewedAt} >= ${dayStart}::timestamptz`,
+				eq(table.node.deck, deck)
+			)
+		);
+	return n;
+}
+
+/** Grade an abandoned round on what it has, or delete it if nothing was graded. */
+async function closeStaleRound(userId: string, assessmentId: string) {
+	const [last] = await db
+		.select({ at: table.reviewLog.reviewedAt })
+		.from(table.reviewLog)
+		.where(and(eq(table.reviewLog.userId, userId), eq(table.reviewLog.assessmentId, assessmentId)))
+		.orderBy(desc(table.reviewLog.reviewedAt))
+		.limit(1);
+	if (last) await finishRound(userId, assessmentId, last.at);
+	else
+		await db
+			.delete(table.assessment)
+			.where(and(eq(table.assessment.id, assessmentId), eq(table.assessment.userId, userId)));
 }
 
 async function ownedOpenAssessment(userId: string, assessmentId: string) {
@@ -116,7 +206,7 @@ export async function recordGrade(
 	now = new Date()
 ): Promise<boolean> {
 	const a = await ownedOpenAssessment(userId, assessmentId);
-	if (!a) return false;
+	if (!a || !a.cardIds.includes(nodeId)) return false;
 	return db.transaction(async (tx) => {
 		// Lock the card so two tabs grading it at once cannot both read the same state.
 		const [row] = await tx
@@ -129,7 +219,7 @@ export async function recordGrade(
 			.for('update', { of: table.node });
 		if (!row) return false;
 
-		const { next, elapsedDays } = grade(row.review, rating, now);
+		const { next, elapsedDays, priorState } = grade(row.review, rating, now);
 		// Log first: a duplicate attempt (a retried request) inserts nothing and must
 		// not advance the schedule a second time.
 		const logged = await tx
@@ -138,6 +228,7 @@ export async function recordGrade(
 				userId,
 				nodeId,
 				rating,
+				state: priorState,
 				elapsedDays,
 				reviewedAt: now,
 				surface: 'cards',
@@ -155,7 +246,11 @@ export async function recordGrade(
 	});
 }
 
-/** Writes the grading artifact from each card's first attempt in the round. */
+/**
+ * Writes the grading artifact. The score and areas come from each card's first
+ * attempt in this round; weak and strong come from the standing carried forward
+ * from the deck's previous round plus this one.
+ */
 export async function finishRound(userId: string, assessmentId: string, now = new Date()) {
 	const a = await ownedOpenAssessment(userId, assessmentId);
 	if (!a) return null;
@@ -174,10 +269,19 @@ export async function finishRound(userId: string, assessmentId: string, now = ne
 	const first = new Map<string, { tags: string[]; rating: number }>();
 	for (const l of logs) if (!first.has(l.nodeId)) first.set(l.nodeId, l);
 
-	const g = gradeRound([...first.values()]);
+	const round = gradeRound([...first.values()]);
+	const standing = mergeStanding(standingOf(await latestAssessment(userId, a.deck)), round.areas);
+	const g = { ...round, ...classify(standing) };
 	await db
 		.update(table.assessment)
-		.set({ finishedAt: now, score: g.score, areas: g.areas, strong: g.strong, weak: g.weak })
+		.set({
+			finishedAt: now,
+			score: g.score,
+			areas: g.areas,
+			standing,
+			strong: g.strong,
+			weak: g.weak
+		})
 		.where(eq(table.assessment.id, assessmentId));
 	return g;
 }

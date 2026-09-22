@@ -1,71 +1,44 @@
-// Runs against the real database named by DATABASE_URL (loaded from .env when
-// present) and skips without one. Every row it writes is removed afterwards.
-import { existsSync } from 'node:fs';
+import { hasDb } from '../testing/db';
 import { eq } from 'drizzle-orm';
-import { drizzle } from 'drizzle-orm/postgres-js';
-import postgres from 'postgres';
-import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import * as table from '../db/schema';
 
-if (!process.env.DATABASE_URL && existsSync('.env')) process.loadEnvFile('.env');
-const url = process.env.DATABASE_URL;
+// Loaded only with a database: `$lib/server/db` throws at import without one.
+// Every row this writes is removed afterwards.
+const { db } = hasDb ? await import('../db') : ({} as typeof import('../db'));
+const { recordGrade } = hasDb ? await import('./repo') : ({} as typeof import('./repo'));
 
-const { client, db } = vi.hoisted(() => ({
-	client: { current: null as ReturnType<typeof postgres> | null },
-	db: { current: null as ReturnType<typeof drizzle<typeof import('../db/schema')>> | null }
-}));
-
-// repo.ts imports through SvelteKit aliases, which this vitest config does not resolve.
-vi.mock('$lib/server/db', () => ({
-	get db() {
-		return db.current;
-	}
-}));
-vi.mock('$lib/server/db/schema', () => import('../db/schema'));
-vi.mock('$lib/server/ingest/anki-tsv', () => ({ parseAnkiExport: () => ({}) }));
-
-const { recordGrade } = await import('./repo');
-
-describe.skipIf(!url)('recordGrade against the database', () => {
+describe.skipIf(!hasDb)('recordGrade against the database', () => {
 	const run = crypto.randomUUID();
 	const userId = `test-user-${run}`;
 	const nodeId = `test-node-${run}`;
 	let assessmentId = '';
 
-	if (url) {
-		client.current = postgres(url, { onnotice: () => {} });
-		db.current = drizzle(client.current, { schema: table });
-	}
-	const q = () => db.current!;
-
 	beforeEach(async () => {
 		await cleanup();
-		await q()
-			.insert(table.user)
-			.values({ id: userId, email: `${userId}@test.invalid` });
-		await q()
+		await db.insert(table.user).values({ id: userId, email: `${userId}@test.invalid` });
+		await db
 			.insert(table.node)
 			.values({ id: nodeId, userId, deck: 'test-deck', front: 'f', back: 'b' });
 		assessmentId = crypto.randomUUID();
-		await q().insert(table.assessment).values({ id: assessmentId, userId, deck: 'test-deck' });
+		await db
+			.insert(table.assessment)
+			.values({ id: assessmentId, userId, deck: 'test-deck', cardIds: [nodeId] });
 	});
 
 	async function cleanup() {
-		await q().delete(table.reviewLog).where(eq(table.reviewLog.userId, userId));
-		await q().delete(table.reviewState).where(eq(table.reviewState.userId, userId));
-		await q().delete(table.assessment).where(eq(table.assessment.userId, userId));
-		await q().delete(table.node).where(eq(table.node.userId, userId));
-		await q().delete(table.user).where(eq(table.user.id, userId));
+		await db.delete(table.reviewLog).where(eq(table.reviewLog.userId, userId));
+		await db.delete(table.reviewState).where(eq(table.reviewState.userId, userId));
+		await db.delete(table.assessment).where(eq(table.assessment.userId, userId));
+		await db.delete(table.node).where(eq(table.node.userId, userId));
+		await db.delete(table.user).where(eq(table.user.id, userId));
 	}
 
-	afterAll(async () => {
-		await cleanup();
-		await client.current?.end();
-	});
+	afterAll(cleanup);
 
 	async function counts() {
-		const logs = await q().select().from(table.reviewLog).where(eq(table.reviewLog.userId, userId));
-		const [state] = await q()
+		const logs = await db.select().from(table.reviewLog).where(eq(table.reviewLog.userId, userId));
+		const [state] = await db
 			.select()
 			.from(table.reviewState)
 			.where(eq(table.reviewState.nodeId, nodeId));

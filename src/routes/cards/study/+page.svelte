@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { untrack } from 'svelte';
 	import { invalidate } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import { fly } from 'svelte/transition';
@@ -7,7 +8,8 @@
 	import RatingBar from '$lib/components/study/RatingBar.svelte';
 	import RoundIntro from '$lib/components/study/RoundIntro.svelte';
 	import RoundResults from '$lib/components/study/RoundResults.svelte';
-	import { MAX_REPEATS, RATINGS, type Grades } from '$lib/components/study/ratings';
+	import { RATINGS, type Grades } from '$lib/components/study/ratings';
+	import { MAX_REPEATS, resumeQueue } from '$lib/cards/round';
 
 	let { data } = $props();
 
@@ -21,11 +23,15 @@
 	let failed = $state<string | null>(null);
 
 	$effect.pre(() => {
-		queue = data.cards.map((card) => ({ card, repeats: 0 }));
-		done = 0;
+		// A reload resumes the open round: replay what the server already logged.
+		const resumed = resumeQueue(data.cards, data.progress);
+		queue = resumed.queue;
+		done = resumed.done;
 		flipped = false;
 		grades = null;
 		failed = null;
+		// Every card was graded but the round never closed, e.g. the finish request failed.
+		if (queue.length === 0) untrack(retry);
 	});
 
 	const current = $derived(queue[0]);
@@ -38,6 +44,7 @@
 			headers: { 'content-type': 'application/json' },
 			body: JSON.stringify(body)
 		});
+		if (res.status === 401) throw new Error('Your session ended. Log in again');
 		if (!res.ok) throw new Error(`${path} ${res.status}`);
 		return res.json();
 	}

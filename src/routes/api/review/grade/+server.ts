@@ -1,6 +1,6 @@
 import { error, json } from '@sveltejs/kit';
 import type { Grade } from 'ts-fsrs';
-import { MAX_REPEATS } from '$lib/components/study/ratings';
+import { MAX_REPEATS } from '$lib/cards/round';
 import { recordGrade } from '$lib/server/cards/repo';
 import type { RequestHandler } from './$types';
 

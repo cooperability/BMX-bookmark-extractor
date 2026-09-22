@@ -41,6 +41,11 @@ describe('grade', () => {
 	it('reports elapsed days since the last review', () => {
 		expect(grade(reviewCard(now), 3, now).elapsedDays).toBe(5);
 	});
+
+	it('reports the state the card was in before the review', () => {
+		expect(grade(null, 3, now).priorState).toBe(0);
+		expect(grade(reviewCard(now), 1, now).priorState).toBe(2);
+	});
 });
 
 describe('retrievability', () => {
