@@ -1,8 +1,29 @@
-import type { Handle } from '@sveltejs/kit';
+import { redirect, type Handle } from '@sveltejs/kit';
+import * as auth from '$lib/server/auth';
+import { isAllowed } from '$lib/server/otp';
+
+const PUBLIC = ['/', '/login', '/api/health'];
 
 export const handle: Handle = async ({ event, resolve }) => {
-	// This is a minimal passthrough handle function.
-	// Add any future global SvelteKit hooks here.
-	const response = await resolve(event);
-	return response;
+	const token = event.cookies.get(auth.sessionCookieName);
+	if (token) {
+		let { session, user } = await auth.validateSessionToken(token);
+		// Dropping an address from ALLOWED_EMAILS ends its sessions on the next request.
+		if (session && user && !isAllowed(user.email)) {
+			await auth.invalidateSession(session.id);
+			session = null;
+			user = null;
+		}
+		if (session) auth.setSessionTokenCookie(event, token, session.expiresAt);
+		else auth.deleteSessionTokenCookie(event);
+		event.locals.user = user;
+		event.locals.session = session;
+	} else {
+		event.locals.user = null;
+		event.locals.session = null;
+	}
+
+	if (!event.locals.user && !PUBLIC.includes(event.url.pathname)) redirect(303, '/login');
+
+	return resolve(event);
 };
