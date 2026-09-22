@@ -50,7 +50,7 @@
 			class="panel p-5 sm:p-6"
 			in:fly={{ y: still ? 0 : 16, duration: 400, delay: still ? 0 : 80 }}
 		>
-			<p class="eyebrow">By area, weakest first</p>
+			<p class="eyebrow">This round by area, weakest first</p>
 			<ul class="mt-4 flex flex-col gap-3">
 				{#each shown as a (a.tag)}
 					<li>
@@ -91,7 +91,7 @@
 		>
 			{#if grades.weak.length}
 				<div class="panel p-5">
-					<p class="eyebrow">Weak</p>
+					<p class="eyebrow">Weak across rounds</p>
 					<div class="mt-3 flex flex-wrap gap-1.5">
 						{#each grades.weak as tag (tag)}
 							<span class="chip border-again/30 bg-again/10 text-again">{tag}</span>
@@ -101,7 +101,7 @@
 			{/if}
 			{#if grades.strong.length}
 				<div class="panel p-5">
-					<p class="eyebrow">Strong</p>
+					<p class="eyebrow">Strong across rounds</p>
 					<div class="mt-3 flex flex-wrap gap-1.5">
 						{#each grades.strong as tag (tag)}
 							<span class="chip border-good/30 bg-good/10 text-good">{tag}</span>

@@ -62,7 +62,7 @@
 		{ key: 'cards', label: 'Cards', num: true },
 		{ key: 'reviewed', label: 'Reviewed', num: true },
 		{ key: 'stability', label: 'Stability', num: true },
-		{ key: 'score', label: 'Last score', num: true }
+		{ key: 'score', label: 'Standing', num: true }
 	];
 </script>
 

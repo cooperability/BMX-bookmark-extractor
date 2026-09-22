@@ -120,17 +120,25 @@ describe('tagMastery', () => {
 		]);
 	});
 
-	it('takes each tag score from the latest round areas', () => {
-		const [a, b] = tagMastery(
+	it('takes each tag score and band from the carried standing', () => {
+		const [a, b, c] = tagMastery(
 			[
 				{ tags: ['a'], stability: 1 },
 				{ tags: ['a'], stability: 1 },
-				{ tags: ['b'], stability: 1 }
+				{ tags: ['a'], stability: 1 },
+				{ tags: ['b'], stability: 1 },
+				{ tags: ['b'], stability: 1 },
+				{ tags: ['c'], stability: 1 }
 			],
-			[{ tag: 'b', cards: 1, again: 1, score: 0 }]
+			[
+				{ tag: 'b', cards: 1, credit: 0 },
+				{ tag: 'c', cards: 1, credit: 1 }
+			]
 		);
-		expect(a.score).toBeNull();
+		expect(a).toMatchObject({ tag: 'a', score: null, band: null });
 		expect(b).toMatchObject({ tag: 'b', score: 0, band: 'weak' });
+		// A perfect score on one card of evidence is not yet strong, as in selection.
+		expect(c).toMatchObject({ tag: 'c', score: 1, band: 'mid' });
 	});
 });
 

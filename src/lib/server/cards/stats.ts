@@ -3,7 +3,7 @@ import { and, asc, eq, gt, isNotNull, sql } from 'drizzle-orm';
 // pure helpers below are unit tested against this module.
 import { db } from '../db';
 import * as table from '../db/schema';
-import { STRONG_AT, UNTAGGED, WEAK_BELOW, type AreaScore } from './grading';
+import { classify, standingOf, STRONG_AT, UNTAGGED, WEAK_BELOW, type Standing } from './grading';
 
 // Every day boundary here is UTC. A user in UTC-8 sees "today" roll over at 4pm
 // local; per-user time zones are a later ticket.
@@ -90,12 +90,13 @@ export interface TagMastery {
 	reviewed: number;
 	/** Mean FSRS stability in days over reviewed cards, null if none. */
 	stability: number | null;
-	/** This tag's score in the newest finished round, null if it was not in that round. */
+	/** The tag's standing carried across rounds (see grading.ts), null if never measured. */
 	score: number | null;
+	/** The same call the next round's selection makes: weak, strong, or neither. */
 	band: Band | null;
 }
 
-export function tagMastery(cards: MasteryCard[], latestAreas: AreaScore[] | null): TagMastery[] {
+export function tagMastery(cards: MasteryCard[], standing: Standing[] | null): TagMastery[] {
 	const acc = new Map<string, { cards: number; reviewed: number; sum: number }>();
 	for (const c of cards) {
 		for (const tag of c.tags.length ? c.tags : [UNTAGGED]) {
@@ -108,19 +109,21 @@ export function tagMastery(cards: MasteryCard[], latestAreas: AreaScore[] | null
 			acc.set(tag, a);
 		}
 	}
-	const scores = new Map((latestAreas ?? []).map((a) => [a.tag, a.score]));
+	const scores = new Map(
+		(standing ?? []).filter((s) => s.cards > 0).map((s) => [s.tag, s.credit / s.cards])
+	);
+	const { strong, weak } = classify(standing ?? []);
+	const bandOf = (tag: string): Band | null =>
+		!scores.has(tag) ? null : weak.includes(tag) ? 'weak' : strong.includes(tag) ? 'strong' : 'mid';
 	return [...acc]
-		.map(([tag, a]) => {
-			const score = scores.get(tag) ?? null;
-			return {
-				tag,
-				cards: a.cards,
-				reviewed: a.reviewed,
-				stability: a.reviewed ? a.sum / a.reviewed : null,
-				score,
-				band: band(score)
-			};
-		})
+		.map(([tag, a]) => ({
+			tag,
+			cards: a.cards,
+			reviewed: a.reviewed,
+			stability: a.reviewed ? a.sum / a.reviewed : null,
+			score: scores.get(tag) ?? null,
+			band: bandOf(tag)
+		}))
 		.sort((x, y) => y.cards - x.cards || x.tag.localeCompare(y.tag));
 }
 
@@ -128,7 +131,7 @@ const isCard = eq(table.node.kind, 'card');
 
 // A relearning repeat inside a round writes a second review_log row. Stats count
 // the first attempt per (round, card) only, the same rule the round grade uses.
-const firstAttempt = sql`not exists (select 1 from ${table.reviewLog} r2 where r2.assessment_id = ${table.reviewLog.assessmentId} and r2.node_id = ${table.reviewLog.nodeId} and r2.id < ${table.reviewLog.id})`;
+const firstAttempt = eq(table.reviewLog.attempt, 0);
 
 async function dailyReviewCounts(userId: string) {
 	const day = sql<string>`to_char(${table.reviewLog.reviewedAt} at time zone 'UTC', 'YYYY-MM-DD')`;
@@ -161,7 +164,10 @@ export async function overview(userId: string, now = new Date()) {
 				and(
 					eq(table.reviewLog.userId, userId),
 					gt(table.reviewLog.reviewedAt, new Date(now.getTime() - 30 * DAY)),
-					firstAttempt
+					firstAttempt,
+					// Retention is recall of cards already learned. New cards and learning
+					// steps fail by design and would drag the figure down.
+					eq(table.reviewLog.state, 2)
 				)
 			),
 		dailyReviewCounts(userId)
@@ -217,7 +223,7 @@ export async function deckDetail(userId: string, deck: string, now = new Date())
 		),
 		mastery: tagMastery(
 			cards.map((c) => ({ tags: c.tags, stability: seen(c) ? c.stability : null })),
-			(latest?.areas as AreaScore[] | null) ?? null
+			standingOf(latest ?? null)
 		),
 		history: history.map((a) => ({
 			id: a.id,

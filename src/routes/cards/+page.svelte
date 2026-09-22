@@ -35,7 +35,7 @@
 		<StatTile
 			label="30-day retention"
 			value={pct(s.retention30d)}
-			hint="{s.reviews30d} reviews, anything above Again"
+			hint="{s.reviews30d} reviews of learned cards, anything above Again"
 		/>
 	</section>
 
