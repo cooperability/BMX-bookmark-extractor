@@ -55,6 +55,7 @@
 			headers: { 'content-type': 'application/json' },
 			body: JSON.stringify(body)
 		});
+		if (res.status === 401) throw new Error('Your session ended. Log in again');
 		if (!res.ok) throw new Error(`${path} ${res.status}`);
 		return res.json();
 	}
