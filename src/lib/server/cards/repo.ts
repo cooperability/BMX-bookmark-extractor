@@ -194,7 +194,7 @@ export async function recordGrade(
 		);
 	if (!row) return false;
 
-	const { next, elapsedDays } = grade(row.review, rating, now);
+	const { next, elapsedDays, priorState } = grade(row.review, rating, now);
 	await db.transaction(async (tx) => {
 		await tx
 			.insert(table.reviewState)
@@ -204,6 +204,7 @@ export async function recordGrade(
 			userId,
 			nodeId,
 			rating,
+			state: priorState,
 			elapsedDays,
 			reviewedAt: now,
 			surface: 'cards',

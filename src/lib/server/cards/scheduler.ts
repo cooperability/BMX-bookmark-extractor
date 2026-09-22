@@ -52,9 +52,9 @@ export function grade(
 	s: StoredState | null | undefined,
 	rating: Grade,
 	now: Date
-): { next: StoredState; elapsedDays: number } {
+): { next: StoredState; elapsedDays: number; priorState: number } {
 	const { card, log } = f.next(toCard(s, now), now, rating);
-	return { next: fromCard(card), elapsedDays: log.elapsed_days };
+	return { next: fromCard(card), elapsedDays: log.elapsed_days, priorState: log.state };
 }
 
 /** Probability of recall now. 1 for a card never reviewed has no meaning, so new cards return null. */

@@ -119,4 +119,17 @@ describe.skipIf(!hasDb)('study rounds against the database', () => {
 		expect(g.areas.map((a) => a.tag)).toEqual(['odd']);
 		expect(g.weak).toEqual(['even']);
 	});
+
+	it('logs the state each card was in before it was graded', async () => {
+		const r = (await repo.startRound(userId, deck, at(0)))!;
+		const id = r.cards[0].id;
+		await repo.recordGrade(userId, r.assessmentId, id, 3, at(0.1));
+		await repo.recordGrade(userId, r.assessmentId, id, 3, at(0.2));
+		const logs = await db
+			.select({ state: table.reviewLog.state })
+			.from(table.reviewLog)
+			.where(eq(table.reviewLog.nodeId, id))
+			.orderBy(table.reviewLog.id);
+		expect(logs.map((l) => l.state)).toEqual([0, 1]);
+	});
 });

@@ -150,6 +150,11 @@ export const reviewLog = pgTable(
 			.notNull()
 			.references(() => node.id),
 		rating: smallint('rating').notNull(), // 1..4
+		// FSRS state before this review, 0 new 1 learn 2 review 3 relearn. Separates
+		// true retention (reviews of state 2) from learning steps, and is one of the
+		// inputs the FSRS optimizer needs when TDD R7 comes due. Null only on rows
+		// written before the column existed.
+		state: smallint('state'),
 		elapsedDays: integer('elapsed_days').notNull().default(0),
 		reviewedAt: timestamp('reviewed_at', { withTimezone: true, mode: 'date' })
 			.notNull()
