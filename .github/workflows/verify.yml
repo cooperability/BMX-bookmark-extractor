@@ -51,12 +51,13 @@ jobs:
       - name: Typecheck
         run: yarn run check
 
+      # Migrations, not push: this also proves drizzle/ builds the schema from empty.
       - name: Database schema
         env:
           DATABASE_URL: postgres://postgres:dev@localhost:5432/remediate
         run: |
           node --input-type=module -e "import postgres from 'postgres'; const sql = postgres(process.env.DATABASE_URL); await sql\`create extension if not exists vector\`; await sql.end();"
-          yarn drizzle-kit push --force
+          yarn db:migrate
 
       - name: Unit and database tests
         env:
