@@ -177,6 +177,12 @@ export const assessment = pgTable(
 		startedAt: timestamp('started_at', { withTimezone: true, mode: 'date' }).notNull().defaultNow(),
 		finishedAt: timestamp('finished_at', { withTimezone: true, mode: 'date' }),
 		cardCount: integer('card_count').notNull().default(0),
+		// The round's cards in serving order. Lets a reload resume the round instead of
+		// opening a new one, and lets a grade prove its card belongs to the round.
+		cardIds: text('card_ids')
+			.array()
+			.notNull()
+			.default(sql`'{}'::text[]`),
 		score: real('score'), // 0..1, first attempts only
 		areas: jsonb('areas'), // AreaScore[], one per tag
 		strong: text('strong')

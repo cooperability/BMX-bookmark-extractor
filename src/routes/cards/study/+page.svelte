@@ -1,6 +1,8 @@
 <script lang="ts">
+	import { untrack } from 'svelte';
 	import { invalidate } from '$app/navigation';
 	import { resolve } from '$app/paths';
+	import { MAX_REPEATS, resumeQueue } from '$lib/cards/round';
 
 	let { data } = $props();
 
@@ -14,10 +16,6 @@
 		{ value: 3, label: 'Good', key: '3', class: 'bg-green-700' },
 		{ value: 4, label: 'Easy', key: '4', class: 'bg-sky-700' }
 	];
-	// Anki-style relearning inside the round: a missed card comes back at the end,
-	// at most this many times. Only the first attempt is graded.
-	const MAX_REPEATS = 2;
-
 	let queue = $state<{ card: Card; repeats: number }[]>([]);
 	let done = $state(0);
 	let flipped = $state(false);
@@ -26,12 +24,27 @@
 	let failed = $state<string | null>(null);
 
 	$effect.pre(() => {
-		queue = data.cards.map((card) => ({ card, repeats: 0 }));
-		done = 0;
+		// A reload resumes the open round: replay what the server already logged.
+		const resumed = resumeQueue(data.cards, data.progress);
+		queue = resumed.queue;
+		done = resumed.done;
 		flipped = false;
 		grades = null;
 		failed = null;
+		// Every card was graded but the round never closed, e.g. the finish request failed.
+		if (queue.length === 0) untrack(finish);
 	});
+
+	async function finish() {
+		busy = true;
+		try {
+			grades = await post('/api/review/finish', { assessmentId: data.assessmentId });
+		} catch (e) {
+			failed = String(e);
+		} finally {
+			busy = false;
+		}
+	}
 
 	const current = $derived(queue[0]);
 	const pct = (n: number | null) => (n === null ? '–' : `${Math.round(n * 100)}%`);
@@ -62,13 +75,12 @@
 					? [...rest, { ...head, repeats: head.repeats + 1 }]
 					: rest;
 			flipped = false;
-			if (queue.length === 0)
-				grades = await post('/api/review/finish', { assessmentId: data.assessmentId });
 		} catch (e) {
 			failed = String(e);
 		} finally {
 			busy = false;
 		}
+		if (queue.length === 0) await finish();
 	}
 
 	function onkeydown(e: KeyboardEvent) {
