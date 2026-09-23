@@ -8,7 +8,8 @@ import postgres from 'postgres';
 
 if (!process.env.DATABASE_URL && existsSync('.env')) process.loadEnvFile('.env');
 const url = process.env.DATABASE_URL;
-const EMAIL = 'e2e@test.invalid';
+// Not study.test.ts's address: user.email is unique and the files run in parallel.
+const EMAIL = 'e2e-error@test.invalid';
 const USER_ID = 'e2e-error-user';
 
 test.describe('error page', () => {
@@ -49,6 +50,15 @@ test.describe('error page', () => {
 		await expect(page.getByRole('link', { name: 'Go home' })).toHaveAttribute('href', '/');
 		await expect(page.getByRole('link', { name: 'Open decks' })).toHaveAttribute('href', '/cards');
 		await expect(page).toHaveTitle('404 · Remediate');
+		await expect(page.getByRole('heading', { level: 1, name: '404' })).toBeVisible();
 		expect(errors).toEqual([]);
+	});
+
+	// A route's own error() message says more than the generic line.
+	test('a 404 raised by a route keeps its message', async ({ page, context, baseURL }) => {
+		await context.addCookies([{ name: 'auth-session', value: token, url: baseURL! }]);
+		const res = await page.goto('/cards/deck?deck=no-such-deck');
+		expect(res?.status()).toBe(404);
+		await expect(page.getByText('No cards in that deck.')).toBeVisible();
 	});
 });

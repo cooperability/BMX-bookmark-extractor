@@ -4,13 +4,15 @@
 	import Logo from '$lib/components/brand/Logo.svelte';
 
 	const is404 = $derived(page.status === 404);
-	// A 5xx message can carry internals (a stack, a query fragment): never show it.
-	// A non-404 4xx message (e.g. from an `error()` call) is written for users, so it is safe.
+	// A 5xx message can carry internals (a stack, a query fragment): never show it. A 4xx
+	// message from a route's error() call is written for users. 'Not Found' is the
+	// router's own, for a path that matches nothing.
+	const own = $derived(page.error?.message && page.error.message !== 'Not Found');
 	const message = $derived(
-		is404
-			? 'That page does not exist.'
-			: page.status < 500 && page.error?.message
-				? page.error.message
+		page.status < 500 && own
+			? page.error!.message
+			: is404
+				? 'That page does not exist.'
 				: 'Something broke on our side.'
 	);
 </script>
@@ -27,15 +29,14 @@
 
 		<div class="panel p-6 sm:p-8">
 			<p class="eyebrow">Error</p>
-			<p class="mt-2 font-mono text-6xl font-semibold text-accent">{page.status}</p>
+			<h1 class="mt-2 font-mono text-6xl font-semibold text-accent">{page.status}</h1>
 			<p class="mt-3 text-sm text-muted">{message}</p>
 
 			<div class="mt-6 flex flex-col items-center gap-2">
 				<a href={resolve('/')} class="btn btn-primary w-full py-2.5">Go home</a>
+				<!-- Signed-out visitors never get here: hooks send them to /login first. -->
 				{#if is404 && page.data.user}
 					<a href={resolve('/cards')} class="btn btn-ghost w-full py-2.5">Open decks</a>
-				{:else if is404}
-					<a href={resolve('/login')} class="btn btn-ghost w-full py-2.5">Log in</a>
 				{/if}
 			</div>
 		</div>
