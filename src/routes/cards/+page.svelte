@@ -105,7 +105,8 @@
 			/>
 		</label>
 		<div class="mt-3 flex items-center gap-3">
-			<button class="btn btn-primary" disabled={!fileName || importing}>
+			<!-- Not gated on fileName: that is empty until hydration, and the input is required. -->
+			<button class="btn btn-primary" disabled={importing}>
 				{importing ? 'Importing…' : 'Import deck'}
 			</button>
 			{#if form?.message}

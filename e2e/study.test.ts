@@ -89,4 +89,20 @@ test.describe('study round', () => {
 		await expect(counter).toHaveText('0 / 20');
 		expect(errors).toEqual([]);
 	});
+
+	// Also covers a file chosen before hydration: the server-rendered form must submit.
+	test.describe('without JavaScript', () => {
+		test.use({ javaScriptEnabled: false });
+
+		test('imports a deck', async ({ page, context, baseURL }) => {
+			await context.addCookies([{ name: 'auth-session', value: token, url: baseURL! }]);
+			await page.goto('/cards');
+			await page.setInputFiles(
+				'input[type=file]',
+				'source_data/CompSci (AIML_Web3_Math_Logic_Tech).txt'
+			);
+			await page.getByRole('button', { name: 'Import deck' }).click();
+			await expect(page.getByText('Imported 137 cards.')).toBeVisible();
+		});
+	});
 });
