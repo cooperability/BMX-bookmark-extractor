@@ -13,9 +13,16 @@ export const handle: Handle = async ({ event, resolve }) => {
 		try {
 			lookup = await auth.validateSessionToken(token);
 		} catch (error) {
-			// A database outage must not 500 public pages. Signed out is fail-closed, and the
-			// cookie stays so a valid session works again once the database is back.
-			console.error('Session lookup failed, treating the request as signed out', error);
+			// Off the public pages a failure stays a failure: signing everyone out would hide
+			// a broken query behind a login loop.
+			if (!PUBLIC.includes(event.url.pathname)) throw error;
+			// A database outage must not take down public pages. Signed out is fail-closed, and
+			// the cookie stays so the session works again once the database is back. The query
+			// error carries the SQL and the session id, so only the driver's cause is logged.
+			const cause = error instanceof Error && error.cause instanceof Error ? error.cause : null;
+			console.error(
+				`[auth] session lookup failed, rendering signed out: ${cause?.message ?? 'unknown'}`
+			);
 		}
 	}
 	if (token && lookup) {

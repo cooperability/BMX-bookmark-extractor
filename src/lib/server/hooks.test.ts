@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-// No database here: the session lookup fails the way it does during an outage.
+// No database here: the session lookup fails the way drizzle reports an outage, with
+// the query and its params in the message and the driver error as the cause.
 vi.mock('$lib/server/db', () => ({
 	db: {},
 	asTenant: vi.fn(async () => {
@@ -10,7 +11,9 @@ vi.mock('$lib/server/db', () => ({
 vi.mock('$lib/server/auth', () => ({
 	sessionCookieName: 'auth-session',
 	validateSessionToken: vi.fn(async () => {
-		throw new Error('connect ECONNREFUSED');
+		throw new Error('Failed query: select ... from "session"\nparams: 5e55107dea5e', {
+			cause: new Error('connect ECONNREFUSED 127.0.0.1:5432')
+		});
 	}),
 	invalidateSession: vi.fn(),
 	setSessionTokenCookie: vi.fn(),
@@ -48,22 +51,31 @@ describe('auth hook when the session lookup throws', () => {
 		expect(e.locals.session).toBeNull();
 		expect(auth.deleteSessionTokenCookie).not.toHaveBeenCalled();
 		expect(console.error).toHaveBeenCalledOnce();
-		expect(JSON.stringify(vi.mocked(console.error).mock.calls)).not.toContain('stale-token');
 	});
 
-	it('redirects pages to /login', async () => {
+	// The query error carries the session id (a hash of the token) and the SQL.
+	it('logs the cause only, never the token, query or params', async () => {
+		await handle({ event: event('/'), resolve: async () => new Response('page') });
+		const logged = JSON.stringify(vi.mocked(console.error).mock.calls);
+		expect(logged).toContain('ECONNREFUSED');
+		expect(logged).not.toContain('stale-token');
+		expect(logged).not.toContain('5e55107dea5e');
+		expect(logged).not.toContain('select');
+	});
+
+	// Signing out every user would hide a broken query behind a login loop. Outside the
+	// public pages the failure stays a failure.
+	it('rethrows on pages that need a session', async () => {
 		const resolve = vi.fn(async () => new Response('page'));
-		await expect(handle({ event: event('/cards'), resolve })).rejects.toMatchObject({
-			status: 303,
-			location: '/login'
-		});
+		await expect(handle({ event: event('/cards'), resolve })).rejects.toThrow('Failed query');
 		expect(resolve).not.toHaveBeenCalled();
 	});
 
-	it('answers API routes with 401', async () => {
+	it('rethrows on API routes', async () => {
 		const resolve = vi.fn(async () => new Response('page'));
-		const res = await handle({ event: event('/api/review/grade'), resolve });
-		expect(res.status).toBe(401);
+		await expect(handle({ event: event('/api/review/grade'), resolve })).rejects.toThrow(
+			'Failed query'
+		);
 		expect(resolve).not.toHaveBeenCalled();
 	});
 });
