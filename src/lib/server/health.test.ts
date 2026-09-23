@@ -16,7 +16,8 @@ describe('databaseStatus', () => {
 		expect(await databaseStatus()).toBe('ok');
 	});
 
-	it('is down when the query fails, e.g. DATABASE_URL unset', async () => {
+	// DATABASE_URL unset reaches here only once db/index.ts checks it on use (#311).
+	it('is down when the query fails', async () => {
 		execute.mockImplementation(() => {
 			throw new Error('DATABASE_URL is not set');
 		});
