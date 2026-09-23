@@ -19,8 +19,8 @@ import {
 
 export const user = pgTable('user', {
 	id: text('id').primaryKey(),
-	username: text('username').notNull().unique(),
-	passwordHash: text('password_hash').notNull(),
+	// Login is an emailed one-time code to an allowlisted address. No passwords.
+	email: text('email').notNull().unique(),
 	createdAt: timestamp('created_at', { withTimezone: true, mode: 'date' }).notNull().defaultNow()
 });
 
@@ -30,6 +30,27 @@ export const session = pgTable('session', {
 		.notNull()
 		.references(() => user.id),
 	expiresAt: timestamp('expires_at', { withTimezone: true, mode: 'date' }).notNull()
+});
+
+/** One pending emailed code per address. Only the hash is stored. */
+export const loginCode = pgTable('login_code', {
+	email: text('email').primaryKey(),
+	codeHash: text('code_hash').notNull(),
+	attempts: integer('attempts').notNull().default(0),
+	createdAt: timestamp('created_at', { withTimezone: true, mode: 'date' }).notNull().defaultNow(),
+	expiresAt: timestamp('expires_at', { withTimezone: true, mode: 'date' }).notNull()
+});
+
+/**
+ * Per-address budget across codes, over a rolling window. A code's own 5-try
+ * limit resets whenever a new code is issued, so without this an attacker who
+ * knows an allowed address gets 5 guesses a minute, indefinitely.
+ */
+export const loginThrottle = pgTable('login_throttle', {
+	email: text('email').primaryKey(),
+	windowStart: timestamp('window_start', { withTimezone: true, mode: 'date' }).notNull(),
+	sends: integer('sends').notNull().default(0),
+	failures: integer('failures').notNull().default(0)
 });
 
 /**
@@ -117,6 +138,9 @@ export const reviewState = pgTable(
 		reps: integer('reps').notNull().default(0),
 		lapses: integer('lapses').notNull().default(0),
 		state: smallint('state').notNull().default(0), // 0 new 1 learn 2 review 3 relearn
+		// Which (re)learning step the card is on. ts-fsrs needs it to walk the phases.
+		learningSteps: integer('learning_steps').notNull().default(0),
+		scheduledDays: integer('scheduled_days').notNull().default(0),
 		lastReview: timestamp('last_review', { withTimezone: true, mode: 'date' })
 	},
 	(t) => [
@@ -138,15 +162,59 @@ export const reviewLog = pgTable(
 			.notNull()
 			.references(() => node.id),
 		rating: smallint('rating').notNull(), // 1..4
+		// FSRS state before this review, 0 new 1 learn 2 review 3 relearn. Separates
+		// true retention (reviews of state 2) from learning steps, and is one of the
+		// inputs the FSRS optimizer needs when TDD R7 comes due. Null only on rows
+		// written before the column existed.
+		state: smallint('state'),
 		elapsedDays: integer('elapsed_days').notNull().default(0),
 		reviewedAt: timestamp('reviewed_at', { withTimezone: true, mode: 'date' })
 			.notNull()
 			.defaultNow(),
 		// Cards or Quest. One write path, observable per surface, so "does the game
 		// improve adherence?" is answerable with data.
-		surface: text('surface').notNull()
+		surface: text('surface').notNull(),
+		assessmentId: text('assessment_id').references(() => assessment.id)
 	},
 	(t) => [index('idx_log_node').on(t.userId, t.nodeId)]
+);
+
+/**
+ * The grading artifact: one row per study round over one deck. The next round
+ * for that deck reads `weak` and `strong` to decide which cards to include.
+ */
+export const assessment = pgTable(
+	'assessments',
+	{
+		id: text('id').primaryKey(),
+		userId: text('user_id')
+			.notNull()
+			.references(() => user.id),
+		deck: text('deck').notNull(),
+		startedAt: timestamp('started_at', { withTimezone: true, mode: 'date' }).notNull().defaultNow(),
+		finishedAt: timestamp('finished_at', { withTimezone: true, mode: 'date' }),
+		cardCount: integer('card_count').notNull().default(0),
+		// The round's cards in serving order. Lets a reload resume the round instead of
+		// opening a new one, and lets a grade prove its card belongs to the round.
+		cardIds: text('card_ids')
+			.array()
+			.notNull()
+			.default(sql`'{}'::text[]`),
+		score: real('score'), // 0..1, first attempts only
+		areas: jsonb('areas'), // AreaScore[], one per tag measured in this round
+		// Standing[]: per-tag evidence carried across rounds. `strong` and `weak` are
+		// read from it, not from this round's areas alone. See grading.ts.
+		standing: jsonb('standing'),
+		strong: text('strong')
+			.array()
+			.notNull()
+			.default(sql`'{}'::text[]`),
+		weak: text('weak')
+			.array()
+			.notNull()
+			.default(sql`'{}'::text[]`)
+	},
+	(t) => [index('idx_assessment_deck').on(t.userId, t.deck, t.finishedAt)]
 );
 
 /**
@@ -211,6 +279,7 @@ export type Node = typeof node.$inferSelect;
 export type Edge = typeof edge.$inferSelect;
 export type ReviewState = typeof reviewState.$inferSelect;
 export type ReviewLog = typeof reviewLog.$inferSelect;
+export type Assessment = typeof assessment.$inferSelect;
 export type Harvest = typeof harvest.$inferSelect;
 export type QuestRun = typeof questRun.$inferSelect;
 export type Job = typeof job.$inferSelect;
