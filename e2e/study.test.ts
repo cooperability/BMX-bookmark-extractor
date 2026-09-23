@@ -67,7 +67,15 @@ test.describe('study round', () => {
 		const counter = page.locator('header .font-mono').first();
 		await expect(counter).toHaveText('0 / 20');
 
-		await grade(page, '1'); // Again: owed one relearning repeat
+		// Each rating shows the interval it would schedule. A new card: minutes for
+		// Again, days for Easy.
+		await page.keyboard.press('Space');
+		await expect(page.getByRole('button', { name: /Again/ })).toContainText(/\d+m/);
+		await expect(page.getByRole('button', { name: /Easy/ })).toContainText(/\d+d/);
+		await Promise.all([
+			page.waitForResponse((r) => r.url().endsWith('/api/review/grade') && r.ok()),
+			page.keyboard.press('1') // Again: owed one relearning repeat
+		]);
 		await grade(page, '3');
 		await expect(counter).toHaveText('2 / 20');
 
