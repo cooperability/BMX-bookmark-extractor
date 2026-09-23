@@ -88,8 +88,18 @@ test.describe('study round', () => {
 		await page.reload();
 		await expect(counter).toHaveText('2 / 20');
 
-		// 18 untried cards, then the missed one comes back marked as relearning.
-		for (let i = 0; i < 18; i++) await grade(page, '3');
+		// A keyboard user who tabs to a rating and presses Enter gets that rating: the
+		// window shortcut must not swallow Enter as a flip.
+		await page.keyboard.press('Space');
+		await page.getByRole('button', { name: /Good/ }).focus();
+		await Promise.all([
+			page.waitForResponse((r) => r.url().endsWith('/api/review/grade') && r.ok()),
+			page.keyboard.press('Enter')
+		]);
+		await expect(counter).toHaveText('3 / 20');
+
+		// 17 more untried cards, then the missed one comes back marked as relearning.
+		for (let i = 0; i < 17; i++) await grade(page, '3');
 		await expect(counter).toHaveText('20 / 20');
 		await expect(page.getByText('relearning')).toBeVisible();
 		await grade(page, '3');

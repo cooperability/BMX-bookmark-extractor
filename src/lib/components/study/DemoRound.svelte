@@ -4,7 +4,8 @@
 	import Flashcard from './Flashcard.svelte';
 	import RatingBar from './RatingBar.svelte';
 	import RoundResults from './RoundResults.svelte';
-	import { RATINGS, type Grades } from './ratings';
+	import { studyKey } from './keys';
+	import type { Grades } from './ratings';
 	import { MAX_REPEATS } from '$lib/cards/round';
 	import { gradeRound, type GradedCard } from '$lib/cards/grading';
 
@@ -80,14 +81,12 @@
 
 	// Bound to the demo, not the window: Space must still scroll the landing page.
 	function onkeydown(e: KeyboardEvent) {
-		if (grades || !current || e.ctrlKey || e.metaKey || e.altKey) return;
-		if (e.target instanceof HTMLButtonElement && (e.key === ' ' || e.key === 'Enter')) return;
-		if (e.key === ' ' || e.key === 'Enter') {
+		if (grades || !current) return;
+		const k = studyKey(e);
+		if (k === 'flip') {
 			e.preventDefault();
 			flipped = true;
-		}
-		const r = RATINGS.find((x) => x.key === e.key);
-		if (r) rate(r.value);
+		} else if (k !== null) rate(k);
 	}
 </script>
 
