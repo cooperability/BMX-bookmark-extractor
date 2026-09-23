@@ -101,6 +101,13 @@ test.describe('study round', () => {
 			await page.goto('/cards');
 			await expect(page.getByRole('button', { name: 'Log out' })).toBeVisible();
 			expect(await overflow(), `/cards at ${width}px`).toBe(0);
+			// A squeezed row wraps Log out instead of overflowing, so check the items too.
+			const button = (await page.getByRole('button', { name: 'Log out' }).boundingBox())!;
+			const toggle = (await page.getByRole('group', { name: 'Theme' }).boundingBox())!;
+			expect(button.height, `Log out on one line at ${width}px`).toBeLessThan(48);
+			expect(toggle.x + toggle.width, `toggle inside the gutter at ${width}px`).toBeLessThanOrEqual(
+				width - 16
+			);
 
 			await page.getByRole('link', { name: 'Details' }).first().click();
 			await page.waitForURL(/\/cards\/deck/);

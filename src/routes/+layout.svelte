@@ -28,7 +28,12 @@
 	{#if data.user && !focus}
 		<nav class="sticky top-0 z-20 border-b border-line bg-bg/80 backdrop-blur">
 			<div class="mx-auto flex h-14 max-w-6xl items-center gap-3 px-4 sm:gap-6">
-				<a href={resolve('/cards')} aria-label="Remediate decks"><Logo /></a>
+				<!-- Below 360px the wordmark gives way so Log out stays on one line. -->
+				<a
+					href={resolve('/cards')}
+					aria-label="Remediate decks"
+					class="max-[359px]:[&_span_span]:hidden"><Logo /></a
+				>
 				<!-- Phones drop this duplicate of the logo link to fit Log out and the theme toggle. -->
 				<a
 					href={resolve('/cards')}
@@ -37,7 +42,7 @@
 				>
 				<form method="POST" action="/login?/logout" class="ml-auto flex items-center gap-3">
 					<span class="hidden font-mono text-xs text-muted sm:inline">{data.user.email}</span>
-					<button class="btn btn-ghost">Log out</button>
+					<button class="btn btn-ghost whitespace-nowrap">Log out</button>
 				</form>
 				<ThemeToggle theme={data.theme} />
 			</div>
