@@ -11,7 +11,15 @@ function requireUrl() {
 	if (!env.DATABASE_URL) throw new Error('DATABASE_URL is not set');
 }
 
-const client = postgres(env.DATABASE_URL ?? '');
+// Serverless defaults. postgres.js waits 30 s on a connect and keeps idle
+// connections forever. On Vercel that meant a request hung for 30 s while the
+// database was unreachable, and a frozen instance held connections Neon had
+// already dropped. Fail a connect in 10 s, and let idle ones go after 20 s.
+const client = postgres(env.DATABASE_URL ?? '', {
+	connect_timeout: 10,
+	idle_timeout: 20,
+	max_lifetime: 60 * 30
+});
 const root = drizzle(client, { schema });
 
 type Tx = Parameters<Parameters<typeof root.transaction>[0]>[0];
