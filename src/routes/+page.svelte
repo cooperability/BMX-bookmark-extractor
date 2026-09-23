@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
 	import Logo from '$lib/components/brand/Logo.svelte';
+	import DemoRound from '$lib/components/study/DemoRound.svelte';
 
 	let { data } = $props();
 
@@ -96,6 +97,20 @@
 						</div>
 					</div>
 				</div>
+			</div>
+		</section>
+
+		<section class="mt-24" aria-labelledby="try-heading">
+			<p class="eyebrow">Try it</p>
+			<h2 id="try-heading" class="mt-2 text-3xl font-bold tracking-tight">
+				Study a five-card round.
+			</h2>
+			<p class="mt-2 max-w-xl text-muted">
+				The same study screen signed-in decks use. Flip with Space, grade with 1 to 4. Answer Again
+				and the card comes back before the round ends. Nothing is saved.
+			</p>
+			<div class="mt-8 max-w-3xl">
+				<DemoRound />
 			</div>
 		</section>
 
