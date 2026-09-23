@@ -67,6 +67,19 @@ test.describe('study round', () => {
 		const counter = page.locator('header .font-mono').first();
 		await expect(counter).toHaveText('0 / 20');
 
+		// Anki cards use <code> for literal code. The typography plugin's decorative
+		// backticks around it read as part of the answer.
+		const tick = await page
+			.locator('.card-html')
+			.first()
+			.evaluate((el) => {
+				const code = el.appendChild(document.createElement('code'));
+				const content = getComputedStyle(code, '::before').content;
+				code.remove();
+				return content;
+			});
+		expect(tick).toBe('none');
+
 		await grade(page, '1'); // Again: owed one relearning repeat
 		await grade(page, '3');
 		await expect(counter).toHaveText('2 / 20');
