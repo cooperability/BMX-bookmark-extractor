@@ -14,15 +14,17 @@ export const handle: Handle = async ({ event, resolve }) => {
 			lookup = await auth.validateSessionToken(token);
 		} catch (error) {
 			// Off the public pages a failure stays a failure: signing everyone out would hide
-			// a broken query behind a login loop.
-			if (!PUBLIC.includes(event.url.pathname)) throw error;
+			// a broken query behind a login loop. A POST (logout) must not report success
+			// either, since it could not revoke the session.
+			const readOnly = event.request.method === 'GET' || event.request.method === 'HEAD';
+			if (!PUBLIC.includes(event.url.pathname) || !readOnly) throw error;
 			// A database outage must not take down public pages. Signed out is fail-closed, and
 			// the cookie stays so the session works again once the database is back. The query
 			// error carries the SQL and the session id, so only the driver's cause is logged.
 			const cause = error instanceof Error && error.cause instanceof Error ? error.cause : null;
-			console.error(
-				`[auth] session lookup failed, rendering signed out: ${cause?.message ?? 'unknown'}`
-			);
+			// A localhost host gives an AggregateError with an empty message and the code alone.
+			const reason = cause?.message || (cause as { code?: string } | null)?.code || 'unknown';
+			console.error(`[auth] session lookup failed, rendering signed out: ${reason}`);
 		}
 	}
 	if (token && lookup) {

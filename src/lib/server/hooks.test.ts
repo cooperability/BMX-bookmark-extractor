@@ -23,9 +23,10 @@ vi.mock('$lib/server/auth', () => ({
 const auth = await import('$lib/server/auth');
 const { handle } = await import('../../hooks.server');
 
-function event(path: string) {
+function event(path: string, method = 'GET') {
 	return {
 		url: new URL(`http://localhost${path}`),
+		request: new Request(`http://localhost${path}`, { method }),
 		cookies: {
 			get: (name: string) => (name === 'auth-session' ? 'stale-token' : undefined),
 			set: () => {},
@@ -68,6 +69,28 @@ describe('auth hook when the session lookup throws', () => {
 	it('rethrows on pages that need a session', async () => {
 		const resolve = vi.fn(async () => new Response('page'));
 		await expect(handle({ event: event('/cards'), resolve })).rejects.toThrow('Failed query');
+		expect(resolve).not.toHaveBeenCalled();
+	});
+
+	// A localhost URL makes node try ::1 and 127.0.0.1: the cause is an AggregateError
+	// with an empty message and the code on the error itself.
+	it('logs the error code when the cause has no message', async () => {
+		vi.mocked(auth.validateSessionToken).mockRejectedValueOnce(
+			new Error('Failed query', {
+				cause: Object.assign(new AggregateError([], ''), { code: 'ECONNREFUSED' })
+			})
+		);
+		await handle({ event: event('/'), resolve: async () => new Response('page') });
+		expect(JSON.stringify(vi.mocked(console.error).mock.calls)).toContain('ECONNREFUSED');
+	});
+
+	// Logging out posts to /login. Rendering it signed out would clear the cookie and
+	// report success while the session row lives on.
+	it('rethrows on a public path when the request changes state', async () => {
+		const resolve = vi.fn(async () => new Response('page'));
+		await expect(handle({ event: event('/login?/logout', 'POST'), resolve })).rejects.toThrow(
+			'Failed query'
+		);
 		expect(resolve).not.toHaveBeenCalled();
 	});
 
