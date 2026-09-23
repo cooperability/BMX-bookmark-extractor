@@ -8,8 +8,18 @@ const PUBLIC = ['/', '/login', '/api/health', '/theme'];
 
 export const handle: Handle = async ({ event, resolve }) => {
 	const token = event.cookies.get(auth.sessionCookieName);
+	let lookup: Awaited<ReturnType<typeof auth.validateSessionToken>> | undefined;
 	if (token) {
-		let { session, user } = await auth.validateSessionToken(token);
+		try {
+			lookup = await auth.validateSessionToken(token);
+		} catch (error) {
+			// A database outage must not 500 public pages. Signed out is fail-closed, and the
+			// cookie stays so a valid session works again once the database is back.
+			console.error('Session lookup failed, treating the request as signed out', error);
+		}
+	}
+	if (token && lookup) {
+		let { session, user } = lookup;
 		// Dropping an address from ALLOWED_EMAILS ends its sessions on the next request.
 		if (session && user && !isAllowed(user.email)) {
 			await auth.invalidateSession(session.id);
