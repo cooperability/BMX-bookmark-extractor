@@ -32,7 +32,9 @@
 
 			<div class="mt-6 flex flex-col items-center gap-2">
 				<a href={resolve('/')} class="btn btn-primary w-full py-2.5">Go home</a>
-				{#if is404}
+				{#if is404 && page.data.user}
+					<a href={resolve('/cards')} class="btn btn-ghost w-full py-2.5">Open decks</a>
+				{:else if is404}
 					<a href={resolve('/login')} class="btn btn-ghost w-full py-2.5">Log in</a>
 				{/if}
 			</div>
