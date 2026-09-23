@@ -1,56 +1,128 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
+	import { resolve } from '$app/paths';
+	import type { SubmitFunction } from '@sveltejs/kit';
+	import Logo from '$lib/components/brand/Logo.svelte';
 
 	let { form } = $props();
+
+	let code = $state('');
+	let focused = $state(false);
+	let submitting = $state(false);
+	let verifyForm = $state<HTMLFormElement>();
+
+	const focusOnMount = (node: HTMLElement) => node.focus();
+
+	function onCodeInput() {
+		code = code.replace(/\D/g, '').slice(0, 6);
+		if (code.length === 6 && !submitting) verifyForm?.requestSubmit();
+	}
+
+	const track: SubmitFunction = () => {
+		submitting = true;
+		return async ({ result, update }) => {
+			await update();
+			submitting = false;
+			if (result.type === 'failure') code = '';
+		};
+	};
 </script>
 
 <svelte:head>
 	<title>Log in · Remediate</title>
 </svelte:head>
 
-<main class="mx-auto max-w-sm px-4 py-16">
-	<h1 class="text-2xl font-bold text-gray-900">Log in</h1>
+<main class="grid min-h-dvh place-items-center px-4 py-12">
+	<div class="w-full max-w-sm">
+		<a href={resolve('/')} class="mx-auto mb-8 flex w-fit" aria-label="Remediate home">
+			<Logo size={32} />
+		</a>
 
-	{#if form?.sent}
-		<p class="mt-4 text-sm text-gray-700">
-			If {form.email} is allowed, a 6-digit code is on its way. It expires in 10 minutes.
-		</p>
-		<form method="POST" action="?/verify" use:enhance class="mt-6 space-y-3">
-			<input type="hidden" name="email" value={form.email} />
-			<input
-				name="code"
-				inputmode="numeric"
-				autocomplete="one-time-code"
-				pattern={'[0-9]{6}'}
-				maxlength="6"
-				required
-				placeholder="123456"
-				aria-label="Login code"
-				class="w-full rounded border-gray-300 text-center text-2xl tracking-widest"
-			/>
-			<button class="w-full rounded bg-gray-900 px-4 py-2 text-white">Verify</button>
-		</form>
-		<form method="POST" action="?/send" use:enhance class="mt-2">
-			<input type="hidden" name="email" value={form.email} />
-			<button class="text-sm text-gray-600 underline">Send a new code</button>
-		</form>
-	{:else}
-		<form method="POST" action="?/send" use:enhance class="mt-6 space-y-3">
-			<input
-				name="email"
-				type="email"
-				autocomplete="email"
-				required
-				placeholder="you@example.com"
-				aria-label="Email"
-				value={form?.email ?? ''}
-				class="w-full rounded border-gray-300"
-			/>
-			<button class="w-full rounded bg-gray-900 px-4 py-2 text-white">Email me a code</button>
-		</form>
-	{/if}
+		<div class="panel p-6 sm:p-8">
+			<p class="eyebrow">{form?.sent ? 'Step 2 of 2' : 'Step 1 of 2'}</p>
+			<h1 class="mt-2 text-2xl font-bold tracking-tight">
+				{form?.sent ? 'Enter your code' : 'Log in'}
+			</h1>
 
-	{#if form?.message}
-		<p class="mt-4 text-sm text-red-700" role="alert">{form.message}</p>
-	{/if}
+			{#if form?.sent}
+				<p class="mt-3 text-sm text-muted">
+					If <span class="font-medium text-fg">{form.email}</span> is allowed, a 6-digit code is on its
+					way. It expires in 10 minutes.
+				</p>
+				<form
+					bind:this={verifyForm}
+					method="POST"
+					action="?/verify"
+					use:enhance={track}
+					class="mt-6 space-y-4"
+				>
+					<input type="hidden" name="email" value={form.email} />
+					<div class="relative">
+						<div class="grid grid-cols-6 gap-2" aria-hidden="true">
+							{#each [0, 1, 2, 3, 4, 5] as i (i)}
+								{@const active = focused && i === Math.min(code.length, 5)}
+								<span
+									class="grid aspect-[4/5] place-items-center rounded-xl border bg-surface-2 font-mono text-2xl font-semibold transition {active
+										? 'border-accent ring-2 ring-accent/40'
+										: code[i]
+											? 'border-fg/30'
+											: 'border-line'}"
+								>
+									{code[i] ?? ''}
+								</span>
+							{/each}
+						</div>
+						<input
+							use:focusOnMount
+							name="code"
+							bind:value={code}
+							oninput={onCodeInput}
+							onfocus={() => (focused = true)}
+							onblur={() => (focused = false)}
+							inputmode="numeric"
+							autocomplete="one-time-code"
+							pattern={'[0-9]{6}'}
+							maxlength="6"
+							required
+							aria-label="Login code"
+							class="absolute inset-0 h-full w-full cursor-text border-0 bg-transparent text-transparent caret-transparent opacity-0 focus:ring-0"
+						/>
+					</div>
+					<button class="btn btn-primary w-full py-2.5" disabled={submitting}>
+						{submitting ? 'Checking…' : 'Verify'}
+					</button>
+				</form>
+				<form method="POST" action="?/send" use:enhance class="mt-3 text-center">
+					<input type="hidden" name="email" value={form.email} />
+					<button class="text-sm text-muted underline-offset-4 hover:text-fg hover:underline">
+						Send a new code
+					</button>
+				</form>
+			{:else}
+				<p class="mt-3 text-sm text-muted">No password. We email you a 6-digit code.</p>
+				<form method="POST" action="?/send" use:enhance class="mt-6 space-y-4">
+					<input
+						name="email"
+						type="email"
+						autocomplete="email"
+						required
+						placeholder="you@example.com"
+						aria-label="Email"
+						value={form?.email ?? ''}
+						class="input py-2.5"
+					/>
+					<button class="btn btn-primary w-full py-2.5">Email me a code</button>
+				</form>
+			{/if}
+
+			{#if form?.message}
+				<p
+					class="mt-4 rounded-xl border border-again/30 bg-again/10 px-3 py-2 text-sm text-again"
+					role="alert"
+				>
+					{form.message}
+				</p>
+			{/if}
+		</div>
+	</div>
 </main>

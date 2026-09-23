@@ -98,7 +98,7 @@ async function roundProgress(userId: string, assessmentId: string) {
 		.select({ nodeId: table.reviewLog.nodeId, rating: table.reviewLog.rating })
 		.from(table.reviewLog)
 		.where(and(eq(table.reviewLog.userId, userId), eq(table.reviewLog.assessmentId, assessmentId)))
-		.orderBy(asc(table.reviewLog.id));
+		.orderBy(asc(table.reviewLog.attempt), asc(table.reviewLog.id));
 	const progress: Record<string, number[]> = {};
 	for (const l of logs) (progress[l.nodeId] ??= []).push(l.rating);
 	return progress;
@@ -110,7 +110,7 @@ async function roundProgress(userId: string, assessmentId: string) {
  * a second tab, or a link preload lands on the same round rather than opening
  * another and dropping the progress of the first.
  */
-export async function startRound(userId: string, deck: string, now = new Date()) {
+export async function startRound(userId: string, deck: string, now = new Date(), tz = 'UTC') {
 	// Named columns, not the whole node: `embedding` alone is 1024 floats per card.
 	const n = table.node;
 	const rows = await db
@@ -164,7 +164,7 @@ export async function startRound(userId: string, deck: string, now = new Date())
 		prior,
 		now,
 		ROUND_SIZE,
-		NEW_PER_DAY - (await introducedToday(userId, deck, now))
+		NEW_PER_DAY - (await introducedToday(userId, deck, now, tz))
 	);
 	if (picked.length === 0) return null;
 
@@ -193,7 +193,7 @@ export async function startRound(userId: string, deck: string, now = new Date())
 			.values({ id, userId, deck, cardCount: cardIds.length, cardIds, startedAt: now });
 		return true;
 	});
-	if (!opened) return startRound(userId, deck, now);
+	if (!opened) return startRound(userId, deck, now, tz);
 
 	return {
 		assessmentId: id,
@@ -203,9 +203,8 @@ export async function startRound(userId: string, deck: string, now = new Date())
 	};
 }
 
-/** Cards in the deck whose first ever review fell on the current UTC day. */
-async function introducedToday(userId: string, deck: string, now: Date) {
-	const dayStart = `${now.toISOString().slice(0, 10)}T00:00:00Z`;
+/** Cards in the deck whose first ever review fell on today, in time zone `tz`. */
+async function introducedToday(userId: string, deck: string, now: Date, tz: string) {
 	const [{ n }] = await db
 		.select({ n: sql<number>`count(distinct ${table.reviewLog.nodeId})::int` })
 		.from(table.reviewLog)
@@ -214,7 +213,7 @@ async function introducedToday(userId: string, deck: string, now: Date) {
 			and(
 				eq(table.reviewLog.userId, userId),
 				eq(table.reviewLog.state, 0),
-				sql`${table.reviewLog.reviewedAt} >= ${dayStart}::timestamptz`,
+				sql`(${table.reviewLog.reviewedAt} at time zone ${tz})::date = (${now.toISOString()}::timestamptz at time zone ${tz})::date`,
 				eq(table.node.deck, deck)
 			)
 		);
@@ -244,30 +243,47 @@ async function ownedOpenAssessment(userId: string, assessmentId: string) {
 	return a && !a.finishedAt ? a : null;
 }
 
+/**
+ * Grade one attempt at a card in an open round. Returns the rating stored for
+ * that attempt, which differs from `rating` when the attempt was already logged
+ * (a retried request): the first write wins, and the caller should act on what
+ * was stored. Null when the round, card or attempt is not valid.
+ */
 export async function recordGrade(
 	userId: string,
 	assessmentId: string,
 	nodeId: string,
 	rating: Grade,
+	attempt: number,
 	now = new Date()
-): Promise<boolean> {
+): Promise<number | null> {
 	const a = await ownedOpenAssessment(userId, assessmentId);
-	if (!a || !a.cardIds.includes(nodeId)) return false;
-	const [row] = await db
-		.select({ id: table.node.id, review: table.reviewState })
-		.from(table.node)
-		.leftJoin(table.reviewState, eq(table.reviewState.nodeId, table.node.id))
-		.where(
-			and(eq(table.node.id, nodeId), eq(table.node.userId, userId), eq(table.node.deck, a.deck))
-		);
-	if (!row) return false;
+	if (!a || !a.cardIds.includes(nodeId)) return null;
+	return db.transaction(async (tx) => {
+		// Lock the card so two tabs grading it at once cannot both read the same state.
+		const [row] = await tx
+			.select({ id: table.node.id, review: table.reviewState })
+			.from(table.node)
+			.leftJoin(table.reviewState, eq(table.reviewState.nodeId, table.node.id))
+			.where(
+				and(eq(table.node.id, nodeId), eq(table.node.userId, userId), eq(table.node.deck, a.deck))
+			)
+			.for('update', { of: table.node });
+		if (!row) return null;
 
-	const { next, elapsedDays, priorState } = grade(row.review, rating, now);
-	await db.transaction(async (tx) => {
-		await tx
-			.insert(table.reviewState)
-			.values({ nodeId, userId, ...next })
-			.onConflictDoUpdate({ target: table.reviewState.nodeId, set: next });
+		const prior = await tx
+			.select({ rating: table.reviewLog.rating })
+			.from(table.reviewLog)
+			.where(
+				and(eq(table.reviewLog.assessmentId, assessmentId), eq(table.reviewLog.nodeId, nodeId))
+			)
+			.orderBy(asc(table.reviewLog.attempt));
+		// A retry of an attempt already logged: report it, change nothing.
+		if (attempt < prior.length) return prior[attempt].rating;
+		// Attempts come in order, and a repeat follows only a miss.
+		if (attempt > prior.length || (attempt > 0 && prior[attempt - 1].rating !== 1)) return null;
+
+		const { next, elapsedDays, priorState } = grade(row.review, rating, now);
 		await tx.insert(table.reviewLog).values({
 			userId,
 			nodeId,
@@ -276,10 +292,15 @@ export async function recordGrade(
 			elapsedDays,
 			reviewedAt: now,
 			surface: 'cards',
-			assessmentId
+			assessmentId,
+			attempt
 		});
+		await tx
+			.insert(table.reviewState)
+			.values({ nodeId, userId, ...next })
+			.onConflictDoUpdate({ target: table.reviewState.nodeId, set: next });
+		return rating;
 	});
-	return true;
 }
 
 /**
