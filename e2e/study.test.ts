@@ -103,6 +103,31 @@ test.describe('study round', () => {
 		expect(errors).toEqual([]);
 	});
 
+	// Runs after the round above, so the dashboard has a deck to show.
+	test('signed-in pages fit a phone screen', async ({ page, context, baseURL }) => {
+		await context.addCookies([{ name: 'auth-session', value: token, url: baseURL! }]);
+		const overflow = () => page.evaluate(() => document.documentElement.scrollWidth - innerWidth);
+
+		// 320 is the WCAG reflow width.
+		for (const width of [375, 320]) {
+			await page.setViewportSize({ width, height: 800 });
+			await page.goto('/cards');
+			await expect(page.getByRole('button', { name: 'Log out' })).toBeVisible();
+			expect(await overflow(), `/cards at ${width}px`).toBe(0);
+			// A squeezed row wraps Log out instead of overflowing, so check the items too.
+			const button = (await page.getByRole('button', { name: 'Log out' }).boundingBox())!;
+			const toggle = (await page.getByRole('group', { name: 'Theme' }).boundingBox())!;
+			expect(button.height, `Log out on one line at ${width}px`).toBeLessThan(48);
+			expect(toggle.x + toggle.width, `toggle inside the gutter at ${width}px`).toBeLessThanOrEqual(
+				width - 16
+			);
+
+			await page.getByRole('link', { name: 'Details' }).first().click();
+			await page.waitForURL(/\/cards\/deck/);
+			expect(await overflow(), `deck page at ${width}px`).toBe(0);
+		}
+	});
+
 	// Also covers a file chosen before hydration: the server-rendered form must submit.
 	test.describe('without JavaScript', () => {
 		test.use({ javaScriptEnabled: false });
