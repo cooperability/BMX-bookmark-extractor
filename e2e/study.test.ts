@@ -90,6 +90,21 @@ test.describe('study round', () => {
 		expect(errors).toEqual([]);
 	});
 
+	// Runs after the round above, so the dashboard has a deck to show.
+	test('signed-in pages fit a phone screen', async ({ page, context, baseURL }) => {
+		await context.addCookies([{ name: 'auth-session', value: token, url: baseURL! }]);
+		await page.setViewportSize({ width: 375, height: 800 });
+		const overflow = () => page.evaluate(() => document.documentElement.scrollWidth - innerWidth);
+
+		await page.goto('/cards');
+		await expect(page.getByRole('button', { name: 'Log out' })).toBeVisible();
+		expect(await overflow()).toBe(0);
+
+		await page.getByRole('link', { name: 'Details' }).first().click();
+		await page.waitForURL(/\/cards\/deck/);
+		expect(await overflow()).toBe(0);
+	});
+
 	// Also covers a file chosen before hydration: the server-rendered form must submit.
 	test.describe('without JavaScript', () => {
 		test.use({ javaScriptEnabled: false });

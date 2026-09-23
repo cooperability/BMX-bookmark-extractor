@@ -29,9 +29,10 @@
 		<nav class="sticky top-0 z-20 border-b border-line bg-bg/80 backdrop-blur">
 			<div class="mx-auto flex h-14 max-w-6xl items-center gap-6 px-4">
 				<a href={resolve('/cards')} aria-label="Remediate decks"><Logo /></a>
+				<!-- Phones drop this duplicate of the logo link to fit Log out and the theme toggle. -->
 				<a
 					href={resolve('/cards')}
-					class="text-sm text-muted hover:text-fg"
+					class="hidden text-sm text-muted hover:text-fg sm:inline"
 					aria-current={page.url.pathname === '/cards' ? 'page' : undefined}>Decks</a
 				>
 				<form method="POST" action="/login?/logout" class="ml-auto flex items-center gap-3">
