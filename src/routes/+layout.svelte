@@ -27,7 +27,7 @@
 <div class="min-h-dvh bg-bg text-fg">
 	{#if data.user && !focus}
 		<nav class="sticky top-0 z-20 border-b border-line bg-bg/80 backdrop-blur">
-			<div class="mx-auto flex h-14 max-w-6xl items-center gap-6 px-4">
+			<div class="mx-auto flex h-14 max-w-6xl items-center gap-3 px-4 sm:gap-6">
 				<a href={resolve('/cards')} aria-label="Remediate decks"><Logo /></a>
 				<!-- Phones drop this duplicate of the logo link to fit Log out and the theme toggle. -->
 				<a
