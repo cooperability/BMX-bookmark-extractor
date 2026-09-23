@@ -94,6 +94,18 @@ describe('auth hook when the session lookup throws', () => {
 		expect(resolve).not.toHaveBeenCalled();
 	});
 
+	// Uptime checkers send HEAD. Switching theme never touches the database.
+	it('renders HEAD requests and theme changes signed out', async () => {
+		for (const [path, method] of [
+			['/api/health', 'HEAD'],
+			['/theme', 'POST']
+		]) {
+			const resolve = vi.fn(async () => new Response('ok'));
+			const res = await handle({ event: event(path, method), resolve });
+			expect(await res.text(), `${method} ${path}`).toBe('ok');
+		}
+	});
+
 	it('rethrows on API routes', async () => {
 		const resolve = vi.fn(async () => new Response('page'));
 		await expect(handle({ event: event('/api/review/grade'), resolve })).rejects.toThrow(

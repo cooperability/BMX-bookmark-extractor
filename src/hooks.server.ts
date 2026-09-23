@@ -15,9 +15,10 @@ export const handle: Handle = async ({ event, resolve }) => {
 		} catch (error) {
 			// Off the public pages a failure stays a failure: signing everyone out would hide
 			// a broken query behind a login loop. A POST (logout) must not report success
-			// either, since it could not revoke the session.
+			// either, since it could not revoke the session. /theme only sets a cookie.
 			const readOnly = event.request.method === 'GET' || event.request.method === 'HEAD';
-			if (!PUBLIC.includes(event.url.pathname) || !readOnly) throw error;
+			const safe = readOnly || event.url.pathname === '/theme';
+			if (!PUBLIC.includes(event.url.pathname) || !safe) throw error;
 			// A database outage must not take down public pages. Signed out is fail-closed, and
 			// the cookie stays so the session works again once the database is back. The query
 			// error carries the SQL and the session id, so only the driver's cause is logged.
