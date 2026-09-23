@@ -34,7 +34,8 @@
 
 			<div class="mt-6 flex flex-col items-center gap-2">
 				<a href={resolve('/')} class="btn btn-primary w-full py-2.5">Go home</a>
-				<!-- Signed-out visitors never get here: hooks send them to /login first. -->
+				<!-- Hooks send signed-out visitors to /login, so a signed-out 404 is rare (a
+				     bad form action on /login), and Go home serves it. -->
 				{#if is404 && page.data.user}
 					<a href={resolve('/cards')} class="btn btn-ghost w-full py-2.5">Open decks</a>
 				{/if}

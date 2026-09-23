@@ -1,6 +1,6 @@
 // The branded error page. hooks.server.ts sends a signed-out visitor on any
-// non-public path to /login before routing, so only a signed-in visitor can reach
-// a 404. Signs in the way e2e/study.test.ts does: a session row plus its cookie.
+// non-public path to /login before routing, so a signed-in visitor is how a 404 is
+// normally reached. Signs in the way e2e/study.test.ts does: a session row plus its cookie.
 import { createHash, randomBytes } from 'node:crypto';
 import { existsSync } from 'node:fs';
 import { expect, test } from '@playwright/test';
