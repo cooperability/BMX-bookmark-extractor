@@ -28,6 +28,23 @@
 		name="description"
 		content="Remediate turns your Anki decks into spaced repetition rounds that aim at your weak areas."
 	/>
+	<!-- The apex redirects to www, so previews and search index the www URL. -->
+	<link rel="canonical" href="https://www.remediate.app/" />
+	<meta property="og:type" content="website" />
+	<meta property="og:url" content="https://www.remediate.app/" />
+	<meta property="og:title" content="Remediate" />
+	<meta
+		property="og:description"
+		content="Remediate turns your Anki decks into spaced repetition rounds that aim at your weak areas."
+	/>
+	<meta property="og:image" content="https://www.remediate.app/og.png" />
+	<meta property="og:image:width" content="1200" />
+	<meta property="og:image:height" content="630" />
+	<meta
+		property="og:image:alt"
+		content="Remediate. A flashcard asking which git command replays commits onto a new base."
+	/>
+	<meta name="twitter:card" content="summary_large_image" />
 </svelte:head>
 
 <div class="backdrop relative min-h-dvh overflow-hidden">
