@@ -75,11 +75,11 @@ BMX fetches arbitrary user-supplied URLs. That is SSRF by construction. The extr
 
 ### Boundary: app to Neon
 
-Every table carries `user_id` on the row so Phase 1 can attach RLS without a join. The schema is code only. No migration has been applied. `DATABASE_URL` is unset.
+Every table carries `user_id` on the row, so RLS attaches without a join. Migration `0003_rls` does that (see Local development).
 
 ## Run it locally
 
-Requires Node 22 and Corepack. No Docker, no database, and no API keys are needed to run the app. `isomorphic-dompurify` 4.2.0 refuses to install on Node 20.
+Requires Node 22 and Corepack. The server refuses to start without `DATABASE_URL`, so set up the database in Local development below. No API keys are needed. `isomorphic-dompurify` 4.2.0 refuses to install on Node 20.
 
 ```bash
 git clone https://github.com/cooperability/BMX-bookmark-extractor.git
@@ -111,7 +111,7 @@ Parser ground truth, Confirmed against `source_data/` by `yarn test:server` on N
 | --------------------------- | ---------------------------------------------- |
 | `yarn lint`                 | Prettier check plus ESLint                     |
 | `yarn check`                | `svelte-check` against `tsconfig.json`         |
-| `yarn test:server`          | Parser and sanitizer unit tests, 46 of 46      |
+| `yarn test:server`          | Unit tests, plus database tests with a DB      |
 | `yarn test:e2e`             | Playwright                                     |
 | `yarn test`                 | Both of the above                              |
 | `yarn db:push`              | Push the Drizzle schema (needs `DATABASE_URL`) |
@@ -128,7 +128,7 @@ Parser ground truth, Confirmed against `source_data/` by `yarn test:server` on N
 
 Keep one database on one path. `db:migrate` records what it applied, and `db:push` does not, so a later `db:migrate` against a pushed database fails on tables that already exist. Use `db:push` only on a throwaway database.
 
-With `DATABASE_URL` set, `yarn test:server` also runs the database tests (`*.db.test.ts` and `repo.test.ts`). They create and delete their own rows, and they need the schema from `db:migrate`. CI has no database and skips them.
+With `DATABASE_URL` set, `yarn test:server` also runs the database tests (`*.db.test.ts` and `repo.test.ts`). They create and delete their own rows, and they need the schema from `db:migrate`. CI runs them, and the Playwright study-round test, against a Postgres service built with `db:migrate`. On 2026-09-22 that was 157 of 157 server tests, or 125 without a database.
 
 Signed-in requests run under Postgres row-level security. `hooks.server.ts` wraps each one in `asTenant` (`src/lib/server/db/index.ts`): a transaction that sets `app.user_id` and switches to the `remediate_app` role, which migration `0003_rls` creates with a `tenant` policy on every table that has `user_id`. The role that runs `db:migrate` needs `CREATEROLE`, which Neon's owner role has. A database built with `db:push` has no policies, so the app still works there, without the second wall.
 
@@ -136,7 +136,7 @@ Days, streaks, and the daily new-card cap follow the browser's time zone, which 
 
 ## Deploy
 
-The Vercel Git integration owns every deploy. It builds production on `main` and a preview on each pull request. There is no second deploy path. GitHub Actions runs lint, typecheck, and `yarn test:server` on Node 22, and deploys nothing.
+The Vercel Git integration owns every deploy. It builds production on `main` and a preview on each pull request. There is no second deploy path. GitHub Actions runs lint, typecheck, `yarn test:server`, and `yarn test:e2e` on Node 22 against a Postgres service, and deploys nothing.
 
 Root Directory must be `.`. Confirmed 2026-09-16 against project `prj_RnBD1bE2cYV61qnpATWrMV0qUnJI`: Root Directory reads `frontend`, so the build aborts 0.6 seconds after clone with "The specified Root Directory frontend does not exist," before install. Nothing in this repository can fix that. Root Directory is a dashboard setting and `vercel.json` cannot override it.
 
