@@ -3,11 +3,13 @@ import { sql } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/postgres-js';
 import postgres from 'postgres';
 import * as schema from './schema';
-import { building } from '$app/environment';
 import { env } from '$env/dynamic/private';
 
-// `vite build` imports server routes to analyse them, and CI builds without a database.
-if (!env.DATABASE_URL && !building) throw new Error('DATABASE_URL is not set');
+// Checked on use, not at import: hooks.server.ts imports this module, so a throw
+// here fails every route, the public landing page included.
+function requireUrl() {
+	if (!env.DATABASE_URL) throw new Error('DATABASE_URL is not set');
+}
 
 const client = postgres(env.DATABASE_URL ?? '');
 const root = drizzle(client, { schema });
@@ -22,6 +24,7 @@ const tenant = new AsyncLocalStorage<Tx>();
  */
 export const db = new Proxy(root, {
 	get(target, prop) {
+		requireUrl();
 		const current = tenant.getStore() ?? target;
 		const value = Reflect.get(current, prop, current);
 		return typeof value === 'function' ? value.bind(current) : value;
@@ -73,6 +76,7 @@ function tenantRoleReady(): Promise<boolean> {
  * because a migration has not run yet would be an outage, not a safeguard.
  */
 export async function asTenant<T>(userId: string, fn: () => Promise<T>): Promise<T> {
+	requireUrl();
 	const role = await tenantRoleReady();
 	return root.transaction(async (tx) => {
 		await tx.execute(
