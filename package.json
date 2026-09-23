@@ -29,7 +29,7 @@
 		"@tailwindcss/forms": "^0.5.9",
 		"@tailwindcss/typography": "^0.5.15",
 		"@tailwindcss/vite": "^4.0.0",
-		"@types/node": "^25",
+		"@types/node": "^26",
 		"@types/nodemailer": "8.0.2",
 		"drizzle-kit": "^0.31.8",
 		"eslint": "^10.0.0",
