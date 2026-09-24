@@ -61,7 +61,9 @@ export async function queueUrls(userId: string, urls: string[]) {
 	return { queued, already: normalized.length - queued };
 }
 
-const clip = (s: string | undefined, max = 1000) => (s ? s.trim().slice(0, max) || null : null);
+// Postgres text and jsonb refuse U+0000, and one would fail the whole CSV import.
+const clip = (s: string | undefined, max = 1000) =>
+	s ? s.replaceAll('\u0000', '').trim().slice(0, max) || null : null;
 
 /**
  * Backfill from `source_data/articles.csv` (id, date, url, title, description,
@@ -174,7 +176,11 @@ export async function processQueue(
 		.from(h)
 		.where(and(eq(h.userId, userId), eq(h.status, 'queued')))
 		.orderBy(asc(h.id))
-		.limit(max);
+		.limit(max)
+		// A second tab, or an auto-continue that overlaps the last round, takes the
+		// rows after these rather than fetching the same pages again. The locks last
+		// as long as the request's transaction (asTenant).
+		.for('update', { skipLocked: true });
 	const lastHit = new Map<string, number>();
 	let done = 0;
 	for (const row of rows) {

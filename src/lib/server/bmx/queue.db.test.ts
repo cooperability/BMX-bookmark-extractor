@@ -75,6 +75,36 @@ describe.skipIf(!hasDb)('harvest queue against the database', () => {
 		expect(failed.items[0].failReason).toBe('HTTP 500');
 	});
 
+	// Two tabs, or an auto-continue overlapping the last round: each row is fetched once.
+	it('never fetches one row in two overlapping rounds', async () => {
+		await as(() =>
+			q.queueUrls(userId, ['https://a.test/1', 'https://b.test/2', 'https://c.test/3'])
+		);
+		const seen: string[] = [];
+		const harvest = async (url: string) => {
+			seen.push(url);
+			await new Promise((r) => setTimeout(r, 50));
+			return result({ title: `Story at ${url}` });
+		};
+		const [x, y] = await Promise.all([
+			as(() => q.processQueue(userId, { harvest })),
+			as(() => q.processQueue(userId, { harvest }))
+		]);
+		expect(x.done + y.done).toBe(3);
+		expect([...seen].sort()).toEqual(['https://a.test/1', 'https://b.test/2', 'https://c.test/3']);
+	});
+
+	it('imports a CSV row holding a NUL byte', async () => {
+		const csv = 'url,title,description\nhttps://a.test/n,Ti\u0000tle of a story,Gi\u0000st\n';
+		const r = await as(() => q.importArticlesCsv(userId, csv));
+		expect(r.added).toBe(1);
+		const list = await as(() => q.listHarvests(userId, 'ready'));
+		expect(list.items[0].proposal).toMatchObject({
+			title: 'Title of a story',
+			description: 'Gist'
+		});
+	});
+
 	it('stops at the time budget and reports what remains', async () => {
 		await as(() =>
 			q.queueUrls(userId, ['https://a.test/1', 'https://a.test/2', 'https://a.test/3'])
