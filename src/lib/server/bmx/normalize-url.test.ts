@@ -12,6 +12,10 @@ describe('normalizeUrl', () => {
 		['http://example.com:80/a', 'http://example.com/a'],
 		['https://example.com:443/a', 'https://example.com/a'],
 		['  https://example.com/a  ', 'https://example.com/a'],
+		// The query stays as written: re-encoding it can change what the server returns.
+		['https://example.com/s?q=a/b&path=%2Fx', 'https://example.com/s?path=%2Fx&q=a/b'],
+		['https://example.com/s?q=a%20b&flag', 'https://example.com/s?flag&q=a%20b'],
+		['https://example.com/s?utm_source=x', 'https://example.com/s'],
 		// The real corpus: Bloomberg via Apple News carries three utm parameters.
 		[
 			'https://www.bloomberg.com/news/articles/2023-01-10/is-green-hydrogen?utm_campaign=news&utm_medium=bd&utm_source=applenews',
@@ -48,6 +52,14 @@ describe('extractUrls', () => {
 			'https://c.test/three',
 			'https://d.test/four?x=1&y=2'
 		]);
+	});
+
+	it('keeps a parenthesis the link opened, and drops the one prose closed', () => {
+		expect(
+			extractUrls(
+				'Read (see https://en.wikipedia.org/wiki/Mercury_(planet)). Or https://a.test/x).'
+			)
+		).toEqual(['https://en.wikipedia.org/wiki/Mercury_(planet)', 'https://a.test/x']);
 	});
 
 	it('ignores non-http schemes', () => {

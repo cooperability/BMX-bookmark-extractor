@@ -33,8 +33,8 @@ for (const [net, bits] of [
 ] as const)
 	blocked.addSubnet(net, bits, 'ipv4');
 for (const [net, bits] of [
-	['::', 128],
-	['::1', 128],
+	['::', 96], // unspecified, loopback, and IPv4-compatible (::127.0.0.1)
+	['64:ff9b:1::', 48], // local-use NAT64 (RFC 8215)
 	['64:ff9b::', 96], // NAT64 maps onto IPv4, private space included
 	['100::', 64],
 	['2001:db8::', 32],
@@ -178,8 +178,14 @@ function once(
 	});
 }
 
-function charsetOf(contentType: string): string {
-	const m = /charset=["']?([\w-]+)/i.exec(contentType);
+/**
+ * The body's character set: the Content-Type header's, else a `<meta charset>`
+ * in the first 1 KB (the HTML sniffing window), else UTF-8.
+ */
+function charsetOf(contentType: string, body: Buffer): string {
+	const m =
+		/charset=["']?([\w-]+)/i.exec(contentType) ??
+		/<meta[^>]{0,200}?charset=["']?([\w-]+)/i.exec(body.subarray(0, 1024).toString('latin1'));
 	const label = m?.[1]?.toLowerCase() ?? 'utf-8';
 	try {
 		new TextDecoder(label);
@@ -219,7 +225,7 @@ export async function safeFetch(input: string, options: FetchOptions = {}): Prom
 			url: url.toString(),
 			status,
 			contentType,
-			body: new TextDecoder(charsetOf(contentType)).decode(body),
+			body: new TextDecoder(charsetOf(contentType, body)).decode(body),
 			truncated: truncated ?? false
 		};
 	}

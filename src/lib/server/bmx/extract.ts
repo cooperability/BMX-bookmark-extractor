@@ -57,7 +57,7 @@ export function decodeEntities(s: string): string {
 
 const clean = (s: string | null | undefined, max = MAX_FIELD) => {
 	if (!s) return null;
-	const t = decodeEntities(s).replace(/\s+/g, ' ').trim();
+	const t = decodeEntities(s).replaceAll('\u0000', '').replace(/\s+/g, ' ').trim();
 	return t ? t.slice(0, max) : null;
 };
 
@@ -93,8 +93,14 @@ interface Scan {
 
 /** One pass over the page: head fields and body paragraphs. */
 function scan(input: string): Scan {
-	const html = input.length > MAX_HTML ? input.slice(0, MAX_HTML) : input;
-	const lower = html.toLowerCase();
+	// NUL is dropped: Postgres text and jsonb cannot hold it, and one would fail the row's write.
+	const html = (input.length > MAX_HTML ? input.slice(0, MAX_HTML) : input).replaceAll(
+		'\u0000',
+		''
+	);
+	// ASCII only. Tag names are ASCII, and toLowerCase() can change a string's
+	// length ('İ' becomes two code units), which would shift every index below.
+	const lower = html.replace(/[A-Z]+/g, (c) => c.toLowerCase());
 	const out: Scan = { title: null, meta: new Map(), links: [], article: [], main: [], all: [] };
 	let chrome = 0;
 	let inArticle = 0;

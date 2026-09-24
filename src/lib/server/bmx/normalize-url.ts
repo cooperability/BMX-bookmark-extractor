@@ -21,6 +21,16 @@ const TRACKING = new Set([
 	'smid',
 	'smtyp'
 ]);
+/** A query pair's key, decoded. */
+function keyOf(pair: string): string {
+	const key = pair.split('=')[0].replaceAll('+', ' ');
+	try {
+		return decodeURIComponent(key);
+	} catch {
+		return key;
+	}
+}
+
 const isTracking = (key: string) => {
 	const k = key.toLowerCase();
 	return k.startsWith('utm_') || TRACKING.has(k);
@@ -50,12 +60,36 @@ export function normalizeUrl(input: string): string | null {
 	if (u.protocol !== 'http:' && u.protocol !== 'https:') return null;
 	if (u.username || u.password || !u.hostname) return null;
 	u.hash = '';
-	const kept = [...u.searchParams].filter(([k]) => !isTracking(k));
-	kept.sort(([a, x], [b, y]) => (a === b ? (x < y ? -1 : x > y ? 1 : 0) : a < b ? -1 : 1));
-	u.search = new URLSearchParams(kept).toString();
+	// Pairs are filtered and sorted as written. Re-serializing through
+	// URLSearchParams would re-encode them (`/` to `%2F`, `%20` to `+`, a bare
+	// `?flag` to `?flag=`), and some servers answer those differently.
+	const pairs = u.search.slice(1).split('&').filter(Boolean);
+	const kept = pairs.filter((pair) => !isTracking(keyOf(pair)));
+	kept.sort((a, b) => {
+		const [ka, kb] = [a.split('=')[0], b.split('=')[0]];
+		return ka === kb ? 0 : ka < kb ? -1 : 1;
+	});
+	u.search = kept.length ? `?${kept.join('&')}` : '';
 	if (u.pathname.length > 1 && u.pathname.endsWith('/'))
 		u.pathname = u.pathname.replace(/\/+$/, '');
 	return u.toString();
+}
+
+const count = (s: string, c: string) => s.split(c).length - 1;
+
+/**
+ * Drop punctuation that prose puts after a link. A closing parenthesis stays when
+ * the link opened one: `wiki/Mercury_(planet)` is the page, `(see https://a.test)`
+ * is prose.
+ */
+function trimTrailing(url: string): string {
+	let u = url;
+	for (;;) {
+		const last = u.at(-1);
+		if (last !== undefined && '.,;:!?]}'.includes(last)) u = u.slice(0, -1);
+		else if (last === ')' && count(u, '(') < count(u, ')')) u = u.slice(0, -1);
+		else return u;
+	}
 }
 
 const URL_IN_TEXT = /https?:\/\/[^\s"'<>`]+/gi;
@@ -69,7 +103,7 @@ export function extractUrls(text: string): string[] {
 	const out = new Set<string>();
 	for (const m of text.matchAll(URL_IN_TEXT)) {
 		// '&amp;' is how a bookmarks file writes '&' inside an href.
-		const candidate = m[0].replaceAll('&amp;', '&').replace(/[.,;:!?)\]}]+$/, '');
+		const candidate = trimTrailing(m[0].replaceAll('&amp;', '&'));
 		const n = normalizeUrl(candidate);
 		if (n) out.add(n);
 	}

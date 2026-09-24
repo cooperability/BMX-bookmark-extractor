@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { parseRobots, robotsAllow } from './robots';
+import { matches, parseRobots, robotsAllow } from './robots';
 
 const allow = (robots: string, url: string) => robotsAllow(parseRobots(robots), url);
 
@@ -37,5 +37,28 @@ describe('robots.txt', () => {
 	it('shares rules across consecutive User-agent lines', () => {
 		const r = 'User-agent: googlebot\nUser-agent: *\nDisallow: /x\n';
 		expect(allow(r, 'https://a.test/x')).toBe(false);
+	});
+
+	it('ignores groups for other agents whose name is part of ours', () => {
+		const r = 'User-agent: bot\nDisallow: /\n\nUser-agent: *\nDisallow: /x\n';
+		expect(allow(r, 'https://a.test/article')).toBe(true);
+		expect(allow(r, 'https://a.test/x')).toBe(false);
+	});
+
+	it('matches wildcards as prefixes, and exactly with $', () => {
+		expect(matches('/a*c', '/abc/more')).toBe(true);
+		expect(matches('/a*c$', '/abc/more')).toBe(false);
+		expect(matches('/a*c$', '/abxc')).toBe(true);
+		expect(matches('/*', '/')).toBe(true);
+		expect(matches('/x', '/')).toBe(false);
+		expect(matches('*.pdf$', '/a.pdf')).toBe(true);
+	});
+
+	// A RegExp built from this rule did not finish in a minute on a 40-character path.
+	it('matches a hostile wildcard rule in linear time', () => {
+		const rule = '/' + '*a'.repeat(200) + '*b';
+		const started = Date.now();
+		expect(matches(rule, '/' + 'a'.repeat(2000))).toBe(false);
+		expect(Date.now() - started).toBeLessThan(1000);
 	});
 });

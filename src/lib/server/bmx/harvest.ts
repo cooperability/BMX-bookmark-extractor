@@ -16,22 +16,37 @@ export interface HarvestResult extends Extracted {
 type Fetcher = (url: string, opts?: FetchOptions) => Promise<FetchResult>;
 
 const ROBOTS_TTL_MS = 60 * 60 * 1000;
-const robotsCache = new Map<string, { at: number; rules: ReturnType<typeof parseRobots> }>();
+/** A robots.txt that answered 5xx is asked again sooner: the outage is likely brief. */
+const ROBOTS_ERROR_TTL_MS = 10 * 60 * 1000;
 
-async function robotsFor(url: string, fetcher: Fetcher, now: number) {
+type Robots = { rules: ReturnType<typeof parseRobots>; unavailable?: number };
+const robotsCache = new Map<string, { at: number; ttl: number; robots: Robots }>();
+/** Origins remembered at once. A serverless instance is short-lived; this bounds a long one. */
+const ROBOTS_CACHE_MAX = 500;
+
+async function robotsFor(url: string, fetcher: Fetcher, now: number): Promise<Robots> {
 	const origin = new URL(url).origin;
 	const hit = robotsCache.get(origin);
-	if (hit && now - hit.at < ROBOTS_TTL_MS) return hit.rules;
-	let rules: ReturnType<typeof parseRobots> = [];
+	if (hit && now - hit.at < hit.ttl) return hit.robots;
+	let robots: Robots = { rules: [] };
 	try {
 		const res = await fetcher(`${origin}/robots.txt`, { maxBytes: 256 * 1024, timeoutMs: 5000 });
-		// A missing or broken robots.txt allows everything (RFC 9309 §2.3.1.3).
-		if (res.status >= 200 && res.status < 300) rules = parseRobots(res.body);
+		// A missing robots.txt (4xx) allows everything (RFC 9309 §2.3.1.3). A server
+		// error means the site is unreachable, and then a crawler assumes it may
+		// fetch nothing (§2.3.1.4).
+		if (res.status >= 200 && res.status < 300) robots = { rules: parseRobots(res.body) };
+		else if (res.status >= 500) robots = { rules: [], unavailable: res.status };
 	} catch {
 		// Unreachable robots.txt: the page fetch reports the real problem.
 	}
-	robotsCache.set(origin, { at: now, rules });
-	return rules;
+	robotsCache.delete(origin);
+	robotsCache.set(origin, {
+		at: now,
+		ttl: robots.unavailable ? ROBOTS_ERROR_TTL_MS : ROBOTS_TTL_MS,
+		robots
+	});
+	if (robotsCache.size > ROBOTS_CACHE_MAX) robotsCache.delete(robotsCache.keys().next().value!);
+	return robots;
 }
 
 const hash = (s: string) => encodeHexLowerCase(sha256(new TextEncoder().encode(s)));
@@ -66,9 +81,11 @@ export async function harvestUrl(
 	now = Date.now()
 ): Promise<HarvestResult> {
 	try {
-		if (!robotsAllow(await robotsFor(url, fetcher, now), url)) {
-			return fail('robots.txt disallows fetching this page');
+		const robots = await robotsFor(url, fetcher, now);
+		if (robots.unavailable) {
+			return fail(`the site's robots.txt answered HTTP ${robots.unavailable}; retry later`);
 		}
+		if (!robotsAllow(robots.rules, url)) return fail('robots.txt disallows fetching this page');
 		const res = await fetcher(url);
 		if (res.status === 401 || res.status === 402 || res.status === 403) {
 			return fail(`the site refused the request (HTTP ${res.status}), likely a paywall`, res.url);

@@ -23,6 +23,9 @@ describe('isPublicAddress', () => {
 		'::ffff:127.0.0.1',
 		'::ffff:169.254.169.254',
 		'64:ff9b::a9fe:a9fe',
+		'64:ff9b:1::a9fe:a9fe',
+		'::127.0.0.1',
+		'::a9fe:a9fe',
 		'not an ip'
 	])('blocks %s', (ip) => {
 		expect(isPublicAddress(ip)).toBe(false);
@@ -76,6 +79,24 @@ describe('safeFetch', () => {
 				return res.end();
 			}
 			if (path === '/slow') return; // never answers
+			// Headers and half a gzip stream, then silence: the timeout must still fire
+			// while the body is being decoded.
+			if (path === '/slow-gzip') {
+				const zipped = gzipSync('<title>'.padEnd(5000, 'x'));
+				res.writeHead(200, { 'content-type': 'text/html', 'content-encoding': 'gzip' });
+				return res.write(zipped.subarray(0, zipped.length / 2));
+			}
+			// No charset in the header: the page declares windows-1252 itself.
+			if (path === '/cp1252') {
+				res.writeHead(200, { 'content-type': 'text/html' });
+				return res.end(
+					Buffer.concat([
+						Buffer.from('<meta charset="windows-1252"><title>'),
+						Buffer.from([0x93, 0x51, 0x94]),
+						Buffer.from('</title>')
+					])
+				);
+			}
 			res.writeHead(404);
 			res.end();
 		});
@@ -114,6 +135,10 @@ describe('safeFetch', () => {
 		expect((await fetchTest(at('/gzip'))).body).toBe('<title>Zipped</title>');
 	});
 
+	it('decodes a body in the charset its <meta> declares', async () => {
+		expect((await fetchTest(at('/cp1252'))).body).toContain('<title>\u201cQ\u201d</title>');
+	});
+
 	it('follows a redirect and reports the final URL', async () => {
 		const res = await fetchTest(at('/to-page'));
 		expect(res.url).toBe(at('/page'));
@@ -139,5 +164,11 @@ describe('safeFetch', () => {
 		await expect(fetchTest(at('/slow'), { timeoutMs: 300 })).rejects.toMatchObject({
 			name: expect.stringMatching(/TimeoutError|AbortError/)
 		});
+	});
+
+	it('gives up at the timeout mid-body', async () => {
+		const started = Date.now();
+		await expect(fetchTest(at('/slow-gzip'), { timeoutMs: 300 })).rejects.toBeDefined();
+		expect(Date.now() - started).toBeLessThan(2000);
 	});
 });
