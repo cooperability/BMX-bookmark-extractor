@@ -3,7 +3,7 @@ import type { Grade } from 'ts-fsrs';
 import { db } from '$lib/server/db';
 import * as table from '$lib/server/db/schema';
 import { parseAnkiExport } from '$lib/server/ingest/anki-tsv';
-import { syncImportGraph } from '$lib/server/quest/repo';
+import { questLock, syncImportGraphIn } from '$lib/server/quest/repo';
 import { introducedToday } from './budget';
 import { classify, gradeRound, mergeStanding, standingOf } from './grading';
 import { writeReview } from './review';
@@ -24,23 +24,32 @@ export async function importDeck(userId: string, raw: string) {
 	}
 	const notes = [...byId.values()];
 	const excluded = (col: string) => sql.raw(`excluded.${col}`);
-	for (let i = 0; i < notes.length; i += 500) {
-		await db
-			.insert(table.node)
-			.values(notes.slice(i, i + 500).map((n) => ({ ...n, userId })))
-			.onConflictDoUpdate({
-				target: table.node.id,
-				set: {
-					front: excluded('front'),
-					back: excluded('back'),
-					deck: excluded('deck'),
-					tags: excluded('tags'),
-					notetype: excluded('notetype')
-				}
-			});
-	}
-	// Keep the Quest map in step with the cards' decks and tags.
-	await syncImportGraph(userId);
+	// One transaction: the cards and the Quest graph derived from them land together.
+	await db.transaction(async (tx) => {
+		// Quest's lock first, as every Quest writer takes it: the upserts lock card
+		// rows, and the graph sync can reach the run row, so any other order can
+		// deadlock against a Quest grade (which holds the run, then the card).
+		await tx.execute(questLock(userId));
+		for (let i = 0; i < notes.length; i += 500) {
+			await tx
+				.insert(table.node)
+				.values(notes.slice(i, i + 500).map((n) => ({ ...n, userId })))
+				.onConflictDoUpdate({
+					target: table.node.id,
+					set: {
+						front: excluded('front'),
+						back: excluded('back'),
+						deck: excluded('deck'),
+						tags: excluded('tags'),
+						notetype: excluded('notetype')
+					},
+					// Never let a card overwrite a concept or a document with the same id.
+					setWhere: eq(table.node.kind, 'card')
+				});
+		}
+		// Keep the Quest map in step with the cards' decks and tags.
+		await syncImportGraphIn(tx, userId);
+	});
 	return { imported: notes.length, warnings };
 }
 
