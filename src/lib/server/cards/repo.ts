@@ -355,7 +355,9 @@ export async function deleteDeck(userId: string, deck: string): Promise<number> 
 			await tx
 				.select({ id: n.id })
 				.from(n)
-				.where(and(eq(n.userId, userId), eq(n.deck, deck)))
+				// Cards only, as the deck page counts them. Other kinds that carry a deck
+				// name (a Quest deck hall) belong to their own writers.
+				.where(and(eq(n.userId, userId), eq(n.deck, deck), eq(n.kind, 'card')))
 		).map((r) => r.id);
 		const rounds = (
 			await tx

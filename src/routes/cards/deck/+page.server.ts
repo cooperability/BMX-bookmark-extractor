@@ -27,6 +27,7 @@ export const actions: Actions = {
 			return fail(400, { message: 'Tick the box to confirm.' });
 		}
 		await deleteDeck(locals.user!.id, deck);
-		redirect(303, '/cards');
+		// The dashboard says what went, so the deck's absence reads as done, not lost.
+		redirect(303, `/cards?deleted=${encodeURIComponent(deck)}`);
 	}
 };

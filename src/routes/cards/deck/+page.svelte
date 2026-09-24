@@ -8,6 +8,8 @@
 
 	let { data, form } = $props();
 
+	const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`;
+
 	type Row = (typeof data.mastery)[number];
 	type Key = 'tag' | 'cards' | 'reviewed' | 'stability' | 'score';
 
@@ -222,8 +224,10 @@
 			<input type="hidden" name="deck" value={data.deck} />
 			<label class="flex items-center gap-2 text-sm text-muted">
 				<input type="checkbox" name="confirm" value="yes" required />
-				Delete {data.total} cards, their review history and {data.history.length} rounds. This cannot
-				be undone.
+				Delete {plural(data.total, 'card')}, their review history and {plural(
+					data.history.length,
+					'round'
+				)}. This cannot be undone.
 			</label>
 			<button class="btn border-again/40 text-again hover:bg-again/10">Delete deck</button>
 			{#if form?.message}<p class="text-sm text-again" role="alert">{form.message}</p>{/if}

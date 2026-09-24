@@ -76,6 +76,14 @@ describe.skipIf(!hasDb)('deleteDeck', () => {
 		expect(mine).toHaveLength(3);
 	});
 
+	it('leaves nodes of other kinds that carry the deck name', async () => {
+		const hall = { ...card(userId, 9), kind: 'concept', notetype: 'deck' };
+		await db.insert(table.node).values(hall);
+		expect(await asTenant(userId, () => repo.deleteDeck(userId, deck))).toBe(2);
+		const [left] = await db.select().from(table.node).where(eq(table.node.id, hall.id));
+		expect(left?.kind).toBe('concept');
+	});
+
 	it('returns 0 for a deck that does not exist', async () => {
 		expect(await asTenant(userId, () => repo.deleteDeck(userId, 'nope'))).toBe(0);
 	});

@@ -98,7 +98,8 @@ test.describe('study round', () => {
 		await page.waitForURL(/\/cards\/deck/);
 		await page.getByRole('checkbox', { name: /Delete \d+ cards/ }).check();
 		await page.getByRole('button', { name: 'Delete deck' }).click();
-		await page.waitForURL(/\/cards$/);
+		await page.waitForURL(/\/cards\?deleted=/);
+		await expect(page.getByRole('status')).toContainText('Deleted');
 		await expect(page.getByText('No decks yet')).toBeVisible();
 	});
 
