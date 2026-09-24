@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
+	import { resolve } from '$app/paths';
 	import Heatmap from '$lib/components/charts/Heatmap.svelte';
 	import DeckCard from '$lib/components/deck/DeckCard.svelte';
 	import StatTile from '$lib/components/deck/StatTile.svelte';
@@ -54,7 +55,10 @@
 
 	<div class="mt-10 flex items-baseline justify-between">
 		<h1 class="text-2xl font-bold tracking-tight">Decks</h1>
-		<span class="font-mono text-xs text-muted">{data.decks.length} decks</span>
+		<div class="flex items-baseline gap-4">
+			<span class="font-mono text-xs text-muted">{data.decks.length} decks</span>
+			<a href={resolve('/harvest')} class="text-sm text-muted hover:text-fg">Harvest links →</a>
+		</div>
 	</div>
 
 	{#if data.decks.length}
