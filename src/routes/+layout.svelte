@@ -28,17 +28,22 @@
 	{#if data.user && !focus}
 		<nav class="sticky top-0 z-20 border-b border-line bg-bg/80 backdrop-blur">
 			<div class="mx-auto flex h-14 max-w-6xl items-center gap-3 px-4 sm:gap-6">
-				<!-- Below 360px the wordmark gives way so Log out stays on one line. -->
+				<!-- Below 420px the wordmark gives way so Quest and Log out stay on one line. -->
 				<a
 					href={resolve('/cards')}
 					aria-label="Remediate decks"
-					class="max-[359px]:[&_span_span]:hidden"><Logo /></a
+					class="max-[419px]:[&_span_span]:hidden"><Logo /></a
 				>
 				<!-- Phones drop this duplicate of the logo link to fit Log out and the theme toggle. -->
 				<a
 					href={resolve('/cards')}
 					class="hidden text-sm text-muted hover:text-fg sm:inline"
 					aria-current={page.url.pathname === '/cards' ? 'page' : undefined}>Decks</a
+				>
+				<a
+					href={resolve('/quest')}
+					class="text-sm text-muted hover:text-fg aria-[current=page]:text-fg"
+					aria-current={page.url.pathname === '/quest' ? 'page' : undefined}>Quest</a
 				>
 				<form method="POST" action="/login?/logout" class="ml-auto flex items-center gap-3">
 					<span class="hidden font-mono text-xs text-muted sm:inline">{data.user.email}</span>
