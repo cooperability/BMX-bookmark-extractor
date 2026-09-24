@@ -79,6 +79,18 @@ describe('harvestUrl', () => {
 		expect(calls.filter((c) => c.endsWith('/robots.txt'))).toHaveLength(1);
 		expect(calls).not.toContain('https://r.test/private/1');
 	});
+
+	// RFC 9309 §2.3.1.4: a robots.txt that errors means the site is unreachable.
+	it('fetches nothing while robots.txt answers a server error', async () => {
+		const { fetcher, calls } = web({
+			'https://s.test/robots.txt': { ...ok('https://s.test/robots.txt', ''), status: 503 },
+			'https://s.test/a': ok('https://s.test/a', ARTICLE)
+		});
+		const r = await harvestUrl('https://s.test/a', fetcher);
+		expect(r).toMatchObject({ tier: 'failed' });
+		expect(r.failReason).toMatch(/robots\.txt answered HTTP 503/);
+		expect(calls).not.toContain('https://s.test/a');
+	});
 });
 
 describe('contentHashOf', () => {

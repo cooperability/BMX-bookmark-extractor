@@ -69,6 +69,30 @@ describe('extractFromHtml', () => {
 	});
 });
 
+describe('text a database write can hold', () => {
+	// Postgres refuses U+0000 in text and jsonb, and one would fail the queue's update.
+	it('drops NUL from fields and body text', () => {
+		const e = extractFromHtml(
+			page(
+				'<title>Ti\u0000tle</title>',
+				`<article>${para(40).replace('Sentence 0', 'Sen\u0000tence 0')}</article>`
+			),
+			'https://a.test'
+		);
+		expect(e.title).toBe('Title');
+		expect(e.text).not.toContain('\u0000');
+		expect(e.tier).toBe('full');
+	});
+
+	// 'İ'.toLowerCase() is two code units: a lowercased copy drifts from the original.
+	it('reads a page whose text changes length when lowercased', () => {
+		const head = `<meta name="keywords" content="${'İstanbul '.repeat(20)}"><title>Türkiye</title>`;
+		const e = extractFromHtml(page(head, `<article>${para(40)}</article>`), 'https://a.test');
+		expect(e.title).toBe('Türkiye');
+		expect(e.text.startsWith('Sentence 0 of the article body')).toBe(true);
+	});
+});
+
 describe('readableText on hostile input', () => {
 	it.each([
 		['unclosed paragraphs', '<p>'.repeat(200_000)],

@@ -35,20 +35,44 @@ export function parseRobots(text: string): Rule[] {
 			if (value) current.rules.push({ allow: key === 'allow', path: value });
 		}
 	}
-	const own = groups.filter((g) => g.agents.some((a) => a !== '*' && AGENT.includes(a)));
+	// RFC 9309 §2.2.1: a group applies when its user-agent is our product token,
+	// compared case-insensitively. Not a substring: `User-agent: bot` is not us.
+	const own = groups.filter((g) => g.agents.includes(AGENT));
 	const chosen = own.length ? own : groups.filter((g) => g.agents.includes('*'));
 	return chosen.flatMap((g) => g.rules);
 }
 
-/** Whether a rule path (with `*` and a trailing `$`) matches the start of `path`. */
-function matches(rule: string, path: string): boolean {
+/**
+ * Whether a rule path (with `*` and a trailing `$`) matches the start of `path`.
+ * A greedy wildcard match that backtracks only to the last `*`, so it runs in
+ * O(rule × path). The rule comes from a stranger's robots.txt: a RegExp built
+ * from `/*a*a*a…*b` backtracks exponentially and blocks the event loop, which
+ * no fetch timeout can interrupt.
+ */
+export function matches(rule: string, path: string): boolean {
 	const anchored = rule.endsWith('$');
-	const body = anchored ? rule.slice(0, -1) : rule;
-	const pattern = body
-		.split('*')
-		.map((s) => s.replace(/[.+?^${}()|[\]\\]/g, '\\$&'))
-		.join('.*');
-	return new RegExp(`^${pattern}${anchored ? '$' : ''}`).test(path);
+	const pat = anchored ? rule.slice(0, -1) : rule;
+	let p = 0;
+	let s = 0;
+	let star = -1;
+	let mark = 0;
+	while (s < path.length) {
+		if (p < pat.length && pat[p] === '*') {
+			star = p++;
+			mark = s;
+		} else if (p < pat.length && pat[p] === path[s]) {
+			p++;
+			s++;
+		} else if (p === pat.length && !anchored) {
+			// The whole rule matched a prefix: robots rules are prefixes unless `$` ends them.
+			return true;
+		} else if (star !== -1) {
+			p = star + 1;
+			s = ++mark;
+		} else return false;
+	}
+	while (p < pat.length && pat[p] === '*') p++;
+	return p === pat.length;
 }
 
 /** Longest matching rule wins, and Allow wins a tie (RFC 9309). No rule means allowed. */
