@@ -56,13 +56,13 @@
 					<li>
 						<div class="flex items-baseline justify-between gap-3 text-sm">
 							<span class="truncate font-medium">{a.tag}</span>
-							<span class="shrink-0 font-mono text-xs text-muted">
+							<span class="text-muted shrink-0 font-mono text-xs">
 								{a.cards} card{a.cards === 1 ? '' : 's'}
 								{#if a.again}· <span class="text-again">{a.again} again</span>{/if}
 								· <span class="text-fg">{pct(a.score)}</span>
 							</span>
 						</div>
-						<div class="mt-1.5 h-2 overflow-hidden rounded-full bg-surface-2">
+						<div class="bg-surface-2 mt-1.5 h-2 overflow-hidden rounded-full">
 							<div
 								class="h-full rounded-full {barColor(a.score)}"
 								style="width: {Math.max(a.score * 100, 2)}%"
@@ -74,7 +74,7 @@
 			{#if shown.length < areas.length || showAll}
 				<button
 					type="button"
-					class="btn btn-ghost mt-4 w-full text-muted"
+					class="btn btn-ghost text-muted mt-4 w-full"
 					aria-expanded={showAll}
 					onclick={() => (showAll = !showAll)}
 				>

@@ -75,7 +75,7 @@
 </svelte:head>
 
 <main class="mx-auto max-w-6xl px-4 py-8 sm:py-10">
-	<a href={resolve('/cards')} class="text-sm text-muted hover:text-fg">← Decks</a>
+	<a href={resolve('/cards')} class="text-muted hover:text-fg text-sm">← Decks</a>
 	<header class="mt-3 flex flex-wrap items-end justify-between gap-4">
 		<div class="min-w-0">
 			<p class="eyebrow">Deck</p>
@@ -99,9 +99,9 @@
 		<section class="panel p-5">
 			<div class="flex items-baseline justify-between">
 				<h2 class="eyebrow">Due, next 14 days</h2>
-				<span class="font-mono text-xs text-muted">{forecastTotal} cards</span>
+				<span class="text-muted font-mono text-xs">{forecastTotal} cards</span>
 			</div>
-			<div class="mt-4 text-accent">
+			<div class="text-accent mt-4">
 				<BarChart
 					{bars}
 					label="Cards coming due per day for the next 14 days, {forecastTotal} in total"
@@ -112,17 +112,17 @@
 		<section class="panel p-5">
 			<div class="flex items-baseline justify-between">
 				<h2 class="eyebrow">Round score over time</h2>
-				<span class="font-mono text-xs text-muted">{scored.length} rounds</span>
+				<span class="text-muted font-mono text-xs">{scored.length} rounds</span>
 			</div>
 			{#if scored.length}
-				<div class="mt-4 text-accent">
+				<div class="text-accent mt-4">
 					<LineChart
 						points={scored.map((a) => ({ label: date(a.finishedAt, 'numeric'), y: a.score! }))}
 						label="Round scores, oldest to newest: {scored.map((a) => pct(a.score)).join(', ')}"
 					/>
 				</div>
 			{:else}
-				<p class="mt-10 text-center text-sm text-muted">Finish a round to see a trend.</p>
+				<p class="text-muted mt-10 text-center text-sm">Finish a round to see a trend.</p>
 			{/if}
 		</section>
 	</div>
@@ -130,27 +130,27 @@
 	<section class="panel mt-4 overflow-hidden">
 		<div class="flex flex-wrap items-baseline justify-between gap-3 p-5 pb-3">
 			<h2 class="eyebrow">Tag mastery</h2>
-			<div class="flex gap-3 text-xs text-muted">
-				<span class="flex items-center gap-1"><i class="size-2 rounded-full bg-good"></i>≥ 85%</span
+			<div class="text-muted flex gap-3 text-xs">
+				<span class="flex items-center gap-1"><i class="bg-good size-2 rounded-full"></i>≥ 85%</span
 				>
 				<span class="flex items-center gap-1"
-					><i class="size-2 rounded-full bg-hard"></i>60–84%</span
+					><i class="bg-hard size-2 rounded-full"></i>60–84%</span
 				>
 				<span class="flex items-center gap-1"
-					><i class="size-2 rounded-full bg-again"></i>&lt; 60%</span
+					><i class="bg-again size-2 rounded-full"></i>&lt; 60%</span
 				>
 			</div>
 		</div>
 		<div class="overflow-x-auto">
 			<table class="w-full text-sm">
-				<thead class="border-y border-line bg-surface-2 text-left">
+				<thead class="border-line bg-surface-2 border-y text-left">
 					<tr>
 						{#each COLUMNS as c (c.key)}
 							<th
 								class="px-5 py-2 font-medium {c.num ? 'text-right' : ''}"
 								aria-sort={sortKey === c.key ? (desc ? 'descending' : 'ascending') : 'none'}
 							>
-								<button class="eyebrow text-[10px] hover:text-fg" onclick={() => sortBy(c.key)}>
+								<button class="eyebrow hover:text-fg text-[10px]" onclick={() => sortBy(c.key)}>
 									{c.label}{sortKey === c.key ? (desc ? ' ↓' : ' ↑') : ''}
 								</button>
 							</th>
@@ -159,7 +159,7 @@
 				</thead>
 				<tbody>
 					{#each shownRows as r (r.tag)}
-						<tr class="border-b border-line last:border-0 hover:bg-surface-2">
+						<tr class="border-line hover:bg-surface-2 border-b last:border-0">
 							<td class="px-5 py-2">
 								<span class="flex items-center gap-2">
 									<i class="size-2 shrink-0 rounded-full {r.band ? BAND[r.band] : 'bg-line'}"></i>
@@ -182,8 +182,8 @@
 			</table>
 		</div>
 		{#if rows.length > TAG_ROWS}
-			<div class="border-t border-line px-5 py-3">
-				<button class="btn btn-ghost px-2 py-1 text-muted" onclick={() => (allTags = !allTags)}>
+			<div class="border-line border-t px-5 py-3">
+				<button class="btn btn-ghost text-muted px-2 py-1" onclick={() => (allTags = !allTags)}>
 					{allTags ? 'Show fewer' : `Show all ${rows.length} tags`}
 				</button>
 			</div>
@@ -198,9 +198,9 @@
 			<ol class="mt-3 space-y-2">
 				{#each newestFirst as a (a.id)}
 					<li class="panel flex flex-wrap items-center gap-x-5 gap-y-2 px-5 py-3">
-						<span class="w-20 font-mono text-sm text-muted">{date(a.finishedAt)}</span>
+						<span class="text-muted w-20 font-mono text-sm">{date(a.finishedAt)}</span>
 						<span class="w-14 font-mono text-lg font-semibold">{pct(a.score)}</span>
-						<span class="w-20 font-mono text-xs text-muted">{a.cardCount} cards</span>
+						<span class="text-muted w-20 font-mono text-xs">{a.cardCount} cards</span>
 						<span class="flex flex-1 flex-wrap gap-1.5">
 							{#each a.weak as tag (tag)}
 								<span class="chip border-again/40 text-again">{tag}</span>
@@ -213,7 +213,7 @@
 				{/each}
 			</ol>
 		{:else}
-			<p class="mt-3 text-sm text-muted">No finished rounds yet.</p>
+			<p class="text-muted mt-3 text-sm">No finished rounds yet.</p>
 		{/if}
 	</section>
 

@@ -93,7 +93,7 @@
 <!-- Focusable so its shortcuts work without claiming keys for the whole page. The buttons stay the primary controls. -->
 <!-- svelte-ignore a11y_no_noninteractive_tabindex, a11y_no_noninteractive_element_interactions -->
 <div
-	class="flex flex-col gap-4 rounded-2xl outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-8 focus-visible:ring-offset-bg"
+	class="focus-visible:ring-accent focus-visible:ring-offset-bg flex flex-col gap-4 rounded-2xl outline-none focus-visible:ring-2 focus-visible:ring-offset-8"
 	tabindex="0"
 	role="group"
 	aria-label="Demo study round"
@@ -105,10 +105,10 @@
 		{#if current && current.repeats > 0 && !grades}
 			<span class="chip border-again/30 bg-again/10 text-again">relearning</span>
 		{/if}
-		<span class="font-mono text-xs text-muted tabular-nums">{done} / {CARDS.length}</span>
+		<span class="text-muted font-mono text-xs tabular-nums">{done} / {CARDS.length}</span>
 	</div>
 	<div
-		class="h-1.5 overflow-hidden rounded-full bg-surface-2"
+		class="bg-surface-2 h-1.5 overflow-hidden rounded-full"
 		role="progressbar"
 		aria-label="Demo round progress"
 		aria-valuemin={0}
@@ -116,7 +116,7 @@
 		aria-valuenow={done}
 	>
 		<div
-			class="h-full rounded-full bg-accent transition-[width] duration-300"
+			class="bg-accent h-full rounded-full transition-[width] duration-300"
 			style="width: {(done / CARDS.length) * 100}%"
 		></div>
 	</div>

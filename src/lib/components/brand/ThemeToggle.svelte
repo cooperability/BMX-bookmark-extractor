@@ -24,14 +24,14 @@
 </script>
 
 <div
-	class="inline-flex items-center gap-0.5 rounded-full border border-line bg-surface p-0.5"
+	class="border-line bg-surface inline-flex items-center gap-0.5 rounded-full border p-0.5"
 	role="group"
 	aria-label="Theme"
 >
 	{#each OPTIONS as o (o.value)}
 		<button
 			type="button"
-			class="grid size-7 place-items-center rounded-full text-muted transition hover:text-fg aria-pressed:bg-surface-2 aria-pressed:text-fg"
+			class="text-muted hover:text-fg aria-pressed:bg-surface-2 aria-pressed:text-fg grid size-7 place-items-center rounded-full transition"
 			aria-pressed={current === o.value}
 			aria-label={o.label}
 			title={o.label}

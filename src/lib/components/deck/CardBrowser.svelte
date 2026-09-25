@@ -50,7 +50,7 @@
 <section class="panel mt-4 overflow-hidden" id="cards">
 	<div class="flex flex-wrap items-baseline justify-between gap-3 p-5 pb-3">
 		<h2 class="eyebrow">Cards</h2>
-		<span class="font-mono text-xs text-muted">
+		<span class="text-muted font-mono text-xs">
 			{browse.total ? `${first}–${last} of ${browse.total}` : filtered ? 'No matches' : 'No cards'}
 		</span>
 	</div>
@@ -115,7 +115,7 @@
 
 	{#if browse.cards.length}
 		<div
-			class="hidden grid-cols-[1fr_6rem_6rem_5rem_4rem] gap-4 border-y border-line bg-surface-2 px-5 py-2 sm:grid"
+			class="border-line bg-surface-2 hidden grid-cols-[1fr_6rem_6rem_5rem_4rem] gap-4 border-y px-5 py-2 sm:grid"
 		>
 			<span class="eyebrow text-[10px]">Front</span>
 			<span class="eyebrow text-[10px]">State</span>
@@ -125,14 +125,14 @@
 		</div>
 		<ul>
 			{#each browse.cards as c (c.id)}
-				<li class="border-b border-line last:border-0">
+				<li class="border-line border-b last:border-0">
 					<details class="group">
 						<summary
-							class="grid cursor-pointer list-none grid-cols-[1fr_auto] gap-x-4 gap-y-2 px-5 py-3 hover:bg-surface-2 sm:grid-cols-[1fr_6rem_6rem_5rem_4rem] sm:items-center [&::-webkit-details-marker]:hidden"
+							class="hover:bg-surface-2 grid cursor-pointer list-none grid-cols-[1fr_auto] gap-x-4 gap-y-2 px-5 py-3 sm:grid-cols-[1fr_6rem_6rem_5rem_4rem] sm:items-center [&::-webkit-details-marker]:hidden"
 						>
 							<div class="col-span-2 min-w-0 sm:col-span-1">
 								<p class="text-sm break-words">
-									<span class="mr-1 inline-block text-muted transition group-open:rotate-90">›</span
+									<span class="text-muted mr-1 inline-block transition group-open:rotate-90">›</span
 									>{c.front || '(empty front)'}
 								</p>
 								{#if c.tags.length}
@@ -158,7 +158,7 @@
 								title="Lapses">{c.lapses}</span
 							>
 						</summary>
-						<div class="space-y-3 bg-surface-2 px-5 py-4 text-sm">
+						<div class="bg-surface-2 space-y-3 px-5 py-4 text-sm">
 							<div>
 								<p class="eyebrow text-[10px]">Back</p>
 								<p class="mt-1 break-words">{c.back || '(empty back)'}</p>
@@ -193,7 +193,7 @@
 			{/each}
 		</ul>
 	{:else}
-		<p class="border-t border-line px-5 py-10 text-center text-sm text-muted">
+		<p class="border-line text-muted border-t px-5 py-10 text-center text-sm">
 			{#if filtered}
 				No cards match these filters.
 				<a
@@ -209,7 +209,7 @@
 
 	{#if browse.pages > 1}
 		<nav
-			class="flex items-center justify-between gap-3 border-t border-line px-5 py-3"
+			class="border-line flex items-center justify-between gap-3 border-t px-5 py-3"
 			aria-label="Card pages"
 		>
 			{#if p.page > 1}
@@ -222,7 +222,7 @@
 				<span class="btn pointer-events-none px-3 py-1.5 opacity-50" aria-hidden="true">← Prev</span
 				>
 			{/if}
-			<span class="font-mono text-xs text-muted">Page {p.page} of {browse.pages}</span>
+			<span class="text-muted font-mono text-xs">Page {p.page} of {browse.pages}</span>
 			{#if p.page < browse.pages}
 				<a
 					class="btn px-3 py-1.5"

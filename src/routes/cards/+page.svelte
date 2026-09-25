@@ -42,7 +42,7 @@
 	<section class="panel mt-4 p-5">
 		<div class="flex items-baseline justify-between gap-3">
 			<h2 class="eyebrow">Reviews, last 12 weeks</h2>
-			<span class="font-mono text-xs text-muted">{reviews12w} total</span>
+			<span class="text-muted font-mono text-xs">{reviews12w} total</span>
 		</div>
 		<div class="mt-4 max-w-2xl">
 			<Heatmap
@@ -60,7 +60,7 @@
 
 	<div class="mt-10 flex items-baseline justify-between">
 		<h1 class="text-2xl font-bold tracking-tight">Decks</h1>
-		<span class="font-mono text-xs text-muted">{data.decks.length} decks</span>
+		<span class="text-muted font-mono text-xs">{data.decks.length} decks</span>
 	</div>
 
 	{#if data.decks.length}
@@ -72,7 +72,7 @@
 	{:else}
 		<section class="panel mt-4 p-10 text-center">
 			<p class="text-lg font-semibold">No decks yet</p>
-			<p class="mt-1 text-sm text-muted">
+			<p class="text-muted mt-1 text-sm">
 				Export a deck from Anki as <span class="font-mono">Notes in Plain Text</span> and drop it below.
 			</p>
 		</section>
@@ -93,11 +93,11 @@
 		class="mt-8"
 	>
 		<label
-			class="panel flex cursor-pointer flex-col items-center gap-2 border-2 border-dashed p-8 text-center transition hover:border-accent focus-within:border-accent"
+			class="panel hover:border-accent focus-within:border-accent flex cursor-pointer flex-col items-center gap-2 border-2 border-dashed p-8 text-center transition"
 		>
 			<span class="eyebrow">Import</span>
 			<span class="font-semibold">{fileName || 'Choose an Anki export'}</span>
-			<span class="text-xs text-muted"
+			<span class="text-muted text-xs"
 				>.txt, .tsv or .csv. Re-importing updates cards in place.</span
 			>
 			<input
