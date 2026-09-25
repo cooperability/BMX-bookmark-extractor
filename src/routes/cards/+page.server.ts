@@ -1,15 +1,20 @@
 import { fail } from '@sveltejs/kit';
 import { importDeck, listDecks } from '$lib/server/cards/repo';
+import { overview } from '$lib/server/cards/stats';
+import { TZ_COOKIE, toTimeZone } from '$lib/timezone';
 import type { Actions, PageServerLoad } from './$types';
 
 // Vercel rejects request bodies over 4.5 MB before the function runs. The two
 // source decks are 0.4 MB and 0.5 MB.
 const MAX_IMPORT_BYTES = 4 * 1024 * 1024;
 
-export const load: PageServerLoad = async ({ locals }) => ({
-	email: locals.user!.email,
-	decks: await listDecks(locals.user!.id)
-});
+export const load: PageServerLoad = async ({ cookies, locals }) => {
+	const [decks, stats] = await Promise.all([
+		listDecks(locals.user!.id),
+		overview(locals.user!.id, new Date(), toTimeZone(cookies.get(TZ_COOKIE)))
+	]);
+	return { decks, stats };
+};
 
 export const actions: Actions = {
 	import: async ({ request, locals }) => {

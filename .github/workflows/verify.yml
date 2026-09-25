@@ -51,12 +51,16 @@ jobs:
       - name: Typecheck
         run: yarn run check
 
+      # Migrations, not push: this also proves drizzle/ builds the schema from empty.
       - name: Database schema
         env:
           DATABASE_URL: postgres://postgres:dev@localhost:5432/remediate
         run: |
           node --input-type=module -e "import postgres from 'postgres'; const sql = postgres(process.env.DATABASE_URL); await sql\`create extension if not exists vector\`; await sql.end();"
-          yarn drizzle-kit push --force
+          yarn db:migrate
+          # A schema.ts change without its migration leaves generate something to write.
+          yarn db:generate
+          test -z "$(git status --porcelain drizzle)" || { git status --porcelain drizzle; exit 1; }
 
       - name: Unit and database tests
         env:
@@ -68,3 +72,13 @@ jobs:
       # fault and a genuine build break were indistinguishable from here.
       - name: Build
         run: yarn run build
+
+      # The study loop in Chromium against the service database. Catches what unit
+      # tests cannot, such as a Svelte effect that loops (see e2e/study.test.ts).
+      - name: Install Chromium
+        run: yarn playwright install --with-deps chromium
+
+      - name: End-to-end tests
+        env:
+          DATABASE_URL: postgres://postgres:dev@localhost:5432/remediate
+        run: yarn run test:e2e

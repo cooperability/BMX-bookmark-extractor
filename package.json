@@ -15,9 +15,13 @@
 		"test:server": "vitest --config vitest.server.config.ts --run",
 		"test:e2e": "playwright test",
 		"test": "npm run test:server && npm run test:e2e",
+		"db:up": "docker compose up -d db",
+		"db:down": "docker compose down",
+		"db:generate": "drizzle-kit generate",
 		"db:push": "drizzle-kit push",
 		"db:migrate": "drizzle-kit migrate",
-		"db:studio": "drizzle-kit studio"
+		"db:studio": "drizzle-kit studio",
+		"db:seed": "node --env-file-if-exists=.env --experimental-strip-types scripts/db-seed.ts"
 	},
 	"devDependencies": {
 		"@eslint/compat": "^2.0.0",
@@ -39,7 +43,7 @@
 		"playwright": "^1.52.0",
 		"prettier": "^3.4.2",
 		"prettier-plugin-svelte": "^4.1.1",
-		"prettier-plugin-tailwindcss": "^0.7.2",
+		"prettier-plugin-tailwindcss": "^0.8.1",
 		"svelte": "^5.0.0",
 		"svelte-check": "^4.0.0",
 		"tailwindcss": "^4.0.0",

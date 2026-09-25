@@ -64,9 +64,9 @@ describe.skipIf(!hasDb)('study rounds against the database', () => {
 	it('returns the ratings logged so far, per card, in attempt order', async () => {
 		const r = (await repo.startRound(userId, deck, at(0)))!;
 		const [a, b] = r.cards;
-		await repo.recordGrade(userId, r.assessmentId, a.id, 1, at(0.1));
-		await repo.recordGrade(userId, r.assessmentId, b.id, 3, at(0.2));
-		await repo.recordGrade(userId, r.assessmentId, a.id, 3, at(0.3));
+		await repo.recordGrade(userId, r.assessmentId, a.id, 1, 0, at(0.1));
+		await repo.recordGrade(userId, r.assessmentId, b.id, 3, 0, at(0.2));
+		await repo.recordGrade(userId, r.assessmentId, a.id, 3, 1, at(0.3));
 		const resumed = (await repo.startRound(userId, deck, at(0.5)))!;
 		expect(resumed.progress).toEqual({ [a.id]: [1, 3], [b.id]: [3] });
 	});
@@ -77,13 +77,13 @@ describe.skipIf(!hasDb)('study rounds against the database', () => {
 			.update(table.assessment)
 			.set({ cardIds: [r.cards[0].id] })
 			.where(eq(table.assessment.id, r.assessmentId));
-		expect(await repo.recordGrade(userId, r.assessmentId, r.cards[1].id, 3, at(0.1))).toBe(false);
-		expect(await repo.recordGrade(userId, r.assessmentId, r.cards[0].id, 3, at(0.1))).toBe(true);
+		expect(await repo.recordGrade(userId, r.assessmentId, r.cards[1].id, 3, 0, at(0.1))).toBeNull();
+		expect(await repo.recordGrade(userId, r.assessmentId, r.cards[0].id, 3, 0, at(0.1))).toBe(3);
 	});
 
 	it('opens a new round once the last one is finished', async () => {
 		const r = (await repo.startRound(userId, deck, at(0)))!;
-		for (const c of r.cards) await repo.recordGrade(userId, r.assessmentId, c.id, 3, at(0.1));
+		for (const c of r.cards) await repo.recordGrade(userId, r.assessmentId, c.id, 3, 0, at(0.1));
 		expect(await repo.finishRound(userId, r.assessmentId, at(0.2))).not.toBeNull();
 		const next = (await repo.startRound(userId, deck, at(0.3)))!;
 		expect(next.assessmentId).not.toBe(r.assessmentId);
@@ -92,7 +92,7 @@ describe.skipIf(!hasDb)('study rounds against the database', () => {
 
 	it('grades a stale round that has grades and deletes one that has none', async () => {
 		const graded = (await repo.startRound(userId, deck, at(0)))!;
-		await repo.recordGrade(userId, graded.assessmentId, graded.cards[0].id, 1, at(0.1));
+		await repo.recordGrade(userId, graded.assessmentId, graded.cards[0].id, 1, 0, at(0.1));
 		const fresh = (await repo.startRound(userId, deck, at(13)))!;
 		expect(fresh.assessmentId).not.toBe(graded.assessmentId);
 		const [closed] = await db
@@ -119,7 +119,7 @@ describe.skipIf(!hasDb)('study rounds against the database', () => {
 				startedAt: at(h),
 				cardIds: [card]
 			});
-			await repo.recordGrade(userId, id, card, rating as 1 | 3, at(h + 0.1));
+			await repo.recordGrade(userId, id, card, rating as 1 | 3, 0, at(h + 0.1));
 		};
 		await open(`${run}-old`, 0, `${run}-n0`, 1); // even: missed
 		await open(`${run}-new`, 1, `${run}-n2`, 3); // even: recalled
@@ -141,11 +141,11 @@ describe.skipIf(!hasDb)('study rounds against the database', () => {
 			return r.assessmentId;
 		};
 		const r1 = await pick(0, [`${run}-n0`]);
-		await repo.recordGrade(userId, r1, `${run}-n0`, 1, at(0.1));
+		await repo.recordGrade(userId, r1, `${run}-n0`, 1, 0, at(0.1));
 		expect((await repo.finishRound(userId, r1, at(0.2)))!.weak).toEqual(['even']);
 
 		const r2 = await pick(1, [`${run}-n1`]);
-		await repo.recordGrade(userId, r2, `${run}-n1`, 3, at(1.1));
+		await repo.recordGrade(userId, r2, `${run}-n1`, 3, 0, at(1.1));
 		const g = (await repo.finishRound(userId, r2, at(1.2)))!;
 		expect(g.areas.map((a) => a.tag)).toEqual(['odd']);
 		expect(g.weak).toEqual(['even']);
@@ -154,8 +154,8 @@ describe.skipIf(!hasDb)('study rounds against the database', () => {
 	it('logs the state each card was in before it was graded', async () => {
 		const r = (await repo.startRound(userId, deck, at(0)))!;
 		const id = r.cards[0].id;
-		await repo.recordGrade(userId, r.assessmentId, id, 3, at(0.1));
-		await repo.recordGrade(userId, r.assessmentId, id, 3, at(0.2));
+		await repo.recordGrade(userId, r.assessmentId, id, 1, 0, at(0.1));
+		await repo.recordGrade(userId, r.assessmentId, id, 3, 1, at(0.2));
 		const logs = await db
 			.select({ state: table.reviewLog.state })
 			.from(table.reviewLog)
@@ -178,7 +178,7 @@ describe.skipIf(!hasDb)('study rounds against the database', () => {
 		const first = (await repo.startRound(userId, deck, at(0)))!;
 		expect(first.cards).toHaveLength(NEW_PER_DAY);
 		for (const c of first.cards)
-			await repo.recordGrade(userId, first.assessmentId, c.id, 3, at(0.1));
+			await repo.recordGrade(userId, first.assessmentId, c.id, 3, 0, at(0.1));
 		await repo.finishRound(userId, first.assessmentId, at(0.2));
 
 		// Same UTC day: only cards already introduced come back.
@@ -186,7 +186,7 @@ describe.skipIf(!hasDb)('study rounds against the database', () => {
 		const introduced = new Set(first.cards.map((c) => c.id));
 		expect(second.cards.every((c) => introduced.has(c.id))).toBe(true);
 		for (const c of second.cards)
-			await repo.recordGrade(userId, second.assessmentId, c.id, 3, at(0.6));
+			await repo.recordGrade(userId, second.assessmentId, c.id, 3, 0, at(0.6));
 		await repo.finishRound(userId, second.assessmentId, at(0.7));
 
 		// Next UTC day: new cards again.

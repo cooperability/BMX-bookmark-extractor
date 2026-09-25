@@ -2,20 +2,20 @@
 	import { untrack } from 'svelte';
 	import { invalidate } from '$app/navigation';
 	import { resolve } from '$app/paths';
+	import { fly } from 'svelte/transition';
+	import { prefersReducedMotion } from 'svelte/motion';
+	import Flashcard from '$lib/components/study/Flashcard.svelte';
+	import RatingBar from '$lib/components/study/RatingBar.svelte';
+	import RoundIntro from '$lib/components/study/RoundIntro.svelte';
+	import RoundResults from '$lib/components/study/RoundResults.svelte';
+	import { studyKey } from '$lib/components/study/keys';
+	import type { Grades } from '$lib/components/study/ratings';
 	import { MAX_REPEATS, resumeQueue } from '$lib/cards/round';
 
 	let { data } = $props();
 
 	type Card = (typeof data.cards)[number];
-	type AreaScore = { tag: string; cards: number; again: number; score: number };
-	type Grades = { score: number | null; areas: AreaScore[]; strong: string[]; weak: string[] };
 
-	const RATINGS = [
-		{ value: 1, label: 'Again', key: '1', class: 'bg-red-700' },
-		{ value: 2, label: 'Hard', key: '2', class: 'bg-amber-600' },
-		{ value: 3, label: 'Good', key: '3', class: 'bg-green-700' },
-		{ value: 4, label: 'Easy', key: '4', class: 'bg-sky-700' }
-	];
 	let queue = $state<{ card: Card; repeats: number }[]>([]);
 	let done = $state(0);
 	let flipped = $state(false);
@@ -34,22 +34,12 @@
 		// Every card was graded but the round never closed, e.g. the finish request failed.
 		// Test the local result: reading `queue` here would make this effect depend on
 		// the state it just wrote, and Svelte aborts the loop.
-		if (resumed.queue.length === 0) untrack(finish);
+		if (resumed.queue.length === 0) untrack(retry);
 	});
 
-	async function finish() {
-		busy = true;
-		try {
-			grades = await post('/api/review/finish', { assessmentId: data.assessmentId });
-		} catch (e) {
-			failed = String(e);
-		} finally {
-			busy = false;
-		}
-	}
-
 	const current = $derived(queue[0]);
-	const pct = (n: number | null) => (n === null ? '–' : `${Math.round(n * 100)}%`);
+	const total = $derived(data.cards.length);
+	const still = $derived(prefersReducedMotion.current);
 
 	async function post(path: string, body: unknown) {
 		const res = await fetch(path, {
@@ -62,38 +52,57 @@
 		return res.json();
 	}
 
+	async function finish() {
+		grades = await post('/api/review/finish', { assessmentId: data.assessmentId });
+	}
+
 	async function rate(rating: number) {
 		if (!current || !flipped || busy) return;
 		busy = true;
 		try {
-			await post('/api/review/grade', {
+			const stored: { rating: number } = await post('/api/review/grade', {
 				assessmentId: data.assessmentId,
 				nodeId: current.card.id,
-				rating
+				rating,
+				attempt: current.repeats
 			});
 			const [head, ...rest] = queue;
 			if (head.repeats === 0) done += 1;
 			queue =
-				rating === 1 && head.repeats < MAX_REPEATS
+				stored.rating === 1 && head.repeats < MAX_REPEATS
 					? [...rest, { ...head, repeats: head.repeats + 1 }]
 					: rest;
 			flipped = false;
+			if (queue.length === 0) await finish();
 		} catch (e) {
 			failed = String(e);
 		} finally {
 			busy = false;
 		}
-		if (queue.length === 0) await finish();
+	}
+
+	// A failed grade leaves the queue untouched, so dismissing lets the same card be
+	// rated again. A failed finish has an empty queue, so it retries the finish.
+	async function retry() {
+		failed = null;
+		if (queue.length > 0 || grades) return;
+		busy = true;
+		try {
+			await finish();
+		} catch (e) {
+			failed = String(e);
+		} finally {
+			busy = false;
+		}
 	}
 
 	function onkeydown(e: KeyboardEvent) {
-		if (grades || failed || !current || e.ctrlKey || e.metaKey || e.altKey) return;
-		if (e.key === ' ' || e.key === 'Enter') {
+		if (grades || failed || !current) return;
+		const k = studyKey(e);
+		if (k === 'flip') {
 			e.preventDefault();
 			flipped = true;
-		}
-		const r = RATINGS.find((x) => x.key === e.key);
-		if (r) rate(r.value);
+		} else if (k !== null) rate(k);
 	}
 </script>
 
@@ -103,92 +112,69 @@
 	<title>{data.deck} · Remediate</title>
 </svelte:head>
 
-<main class="mx-auto max-w-3xl px-4 py-8">
-	<header class="flex items-baseline justify-between gap-4 text-sm text-gray-600">
-		<a href={resolve('/cards')} class="underline">Decks</a>
-		<span class="truncate">{data.deck}</span>
-		<span>{done} / {data.cards.length}</span>
+<div class="mx-auto flex min-h-dvh max-w-3xl flex-col px-4 pb-10">
+	<header class="sticky top-0 z-10 -mx-4 bg-bg/85 px-4 pt-4 pb-3 backdrop-blur">
+		<div class="flex items-center gap-3 text-sm">
+			<a href={resolve('/cards')} class="btn btn-ghost -ml-2 px-2 py-1 text-muted">
+				<span aria-hidden="true">←</span> Decks
+			</a>
+			<span class="min-w-0 flex-1 truncate text-center font-medium">{data.deck}</span>
+			{#if current && current.repeats > 0 && !grades}
+				<span class="chip border-again/30 bg-again/10 text-again">relearning</span>
+			{/if}
+			<span class="font-mono text-xs text-muted tabular-nums">{done} / {total}</span>
+		</div>
+		<div
+			class="mt-3 h-1.5 overflow-hidden rounded-full bg-surface-2"
+			role="progressbar"
+			aria-label="Round progress"
+			aria-valuemin={0}
+			aria-valuemax={total}
+			aria-valuenow={done}
+		>
+			<div
+				class="h-full rounded-full bg-accent transition-[width] duration-300"
+				style="width: {total ? (done / total) * 100 : 0}%"
+			></div>
+		</div>
 	</header>
-	<div class="mt-2 h-1 rounded bg-gray-200">
-		<div class="h-1 rounded bg-gray-900" style="width: {(done / data.cards.length) * 100}%"></div>
-	</div>
-
-	{#if data.prior && !grades && done === 0}
-		<p class="mt-4 text-sm text-gray-600">
-			Last round {pct(data.prior.score)}.
-			{#if data.prior.weak.length}This round leans on weak areas: {data.prior.weak.join(', ')}.{/if}
-		</p>
-	{/if}
 
 	{#if failed}
-		<p class="mt-6 text-red-700" role="alert">Something failed: {failed}. Reload to retry.</p>
-	{:else if grades}
-		<section class="mt-8">
-			<h1 class="text-2xl font-bold text-gray-900">Round score {pct(grades.score)}</h1>
-			<p class="mt-2 text-sm text-gray-700">
-				{#if grades.weak.length}Weak: <span class="text-red-700">{grades.weak.join(', ')}</span
-					>.{/if}
-				{#if grades.strong.length}
-					Strong: <span class="text-green-700">{grades.strong.join(', ')}</span>.{/if}
-			</p>
-			<table class="mt-4 w-full text-left text-sm">
-				<thead class="text-gray-600">
-					<tr><th class="py-1">Area</th><th>Cards</th><th>Again</th><th>Score</th></tr>
-				</thead>
-				<tbody>
-					{#each grades.areas as a (a.tag)}
-						<tr class="border-t border-gray-200">
-							<td class="py-1">{a.tag}</td><td>{a.cards}</td><td>{a.again}</td><td
-								>{pct(a.score)}</td
-							>
-						</tr>
-					{/each}
-				</tbody>
-			</table>
-			<div class="mt-6 flex gap-3">
-				<button
-					class="rounded bg-gray-900 px-4 py-2 text-white"
-					onclick={() => invalidate('cards:round')}>Next round</button
-				>
-				<a href={resolve('/cards')} class="rounded border border-gray-400 px-4 py-2"
-					>Back to decks</a
-				>
-			</div>
-		</section>
-	{:else if current}
-		<!-- Card HTML is DOMPurify-sanitized at import (ingest/sanitize.ts) before it is stored. -->
-		<article class="mt-8 rounded border border-gray-200 p-6">
-			<!-- eslint-disable-next-line svelte/no-at-html-tags -->
-			<div class="prose max-w-none">{@html current.card.front}</div>
-			{#if flipped}
-				<hr class="my-6 border-gray-200" />
-				<!-- eslint-disable-next-line svelte/no-at-html-tags -->
-				<div class="prose max-w-none">{@html current.card.back}</div>
-			{/if}
-			{#if current.card.tags.length}
-				<p class="mt-6 text-xs text-gray-500">{current.card.tags.join(' · ')}</p>
-			{/if}
-		</article>
-
-		<div class="mt-6">
-			{#if !flipped}
-				<button
-					class="w-full rounded bg-gray-900 px-4 py-3 text-white"
-					onclick={() => (flipped = true)}
-					>Show answer <span class="text-gray-400">(space)</span></button
-				>
-			{:else}
-				<div class="grid grid-cols-4 gap-2">
-					{#each RATINGS as r (r.value)}
-						<button
-							class="rounded px-2 py-3 text-white {r.class} disabled:opacity-50"
-							disabled={busy}
-							onclick={() => rate(r.value)}
-							>{r.label} <span class="opacity-70">({r.key})</span></button
-						>
-					{/each}
-				</div>
-			{/if}
+		<div
+			class="panel mt-6 flex flex-wrap items-center gap-3 border-again/40 bg-again/10 px-4 py-3 text-sm"
+			role="alert"
+			in:fly={{ y: still ? 0 : -8, duration: 200 }}
+		>
+			<span class="font-medium text-again">Could not save.</span>
+			<span class="min-w-0 flex-1 truncate font-mono text-xs text-muted">{failed}</span>
+			<button class="btn px-3 py-1" onclick={retry}>Retry</button>
+			<button class="btn btn-ghost px-3 py-1" onclick={() => location.reload()}>Reload</button>
 		</div>
 	{/if}
-</main>
+
+	<main class="mt-6 flex flex-1 flex-col gap-6">
+		{#if grades}
+			<RoundResults
+				{grades}
+				priorScore={data.prior?.score ?? null}
+				onnext={() => invalidate('cards:round')}
+			/>
+		{:else if current}
+			{#if data.prior && done === 0 && current.repeats === 0}
+				<RoundIntro prior={data.prior} />
+			{/if}
+
+			{#key `${current.card.id}:${current.repeats}`}
+				<div in:fly={{ x: still ? 0 : 24, duration: still ? 0 : 220 }}>
+					<Flashcard card={current.card} {flipped} />
+				</div>
+			{/key}
+
+			<div class="sticky bottom-0 -mx-4 mt-auto bg-bg/85 px-4 py-3 backdrop-blur">
+				<RatingBar {flipped} {busy} onflip={() => (flipped = true)} onrate={rate} />
+			</div>
+		{:else if busy}
+			<p class="mt-16 text-center text-sm text-muted">Scoring the round…</p>
+		{/if}
+	</main>
+</div>

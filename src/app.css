@@ -1,3 +1,165 @@
 @import 'tailwindcss';
 @plugin '@tailwindcss/forms';
 @plugin '@tailwindcss/typography';
+
+/* Self-hosted (OFL) so the CSP can stay 'self' for fonts and styles. Variable
+   files: one covers every weight. Latin subset only. */
+@font-face {
+	font-family: 'Space Grotesk';
+	font-style: normal;
+	font-weight: 300 700;
+	font-display: swap;
+	src: url('/fonts/space-grotesk-latin.woff2') format('woff2');
+}
+@font-face {
+	font-family: 'JetBrains Mono';
+	font-style: normal;
+	font-weight: 100 800;
+	font-display: swap;
+	src: url('/fonts/jetbrains-mono-latin.woff2') format('woff2');
+}
+
+/* Design tokens. Components use the Tailwind names (bg-bg, text-fg, border-line,
+   bg-accent...) so light and dark swap in one place. */
+:root {
+	--bg: #f6f5f1;
+	--surface: #ffffff;
+	--surface-2: #efede6;
+	--line: #dcd8cc;
+	--fg: #17161a;
+	--muted: #6b6860;
+	--accent: #5b3df5;
+	--accent-fg: #ffffff;
+	--accent-soft: #e9e4ff;
+	--again: #d64545;
+	--hard: #d9861c;
+	--good: #1f9d63;
+	--easy: #2f7fd8;
+	--glow: 0 0 0 transparent;
+	color-scheme: light;
+}
+
+/* data-theme on <html> is set server-side from the theme cookie (no inline
+   script under the CSP). light/dark force a palette, system defers to the OS.
+   The dark block is duplicated because a media query cannot share a selector list. */
+@media (prefers-color-scheme: dark) {
+	:root:not([data-theme='light']) {
+		--bg: #0c0b10;
+		--surface: #15141c;
+		--surface-2: #1e1c27;
+		--line: #2c2a38;
+		--fg: #efedf6;
+		--muted: #9a96a8;
+		--accent: #b4ff39;
+		--accent-fg: #0c0b10;
+		--accent-soft: #1f2a10;
+		--again: #ff5d5d;
+		--hard: #ffb347;
+		--good: #3ddc97;
+		--easy: #5aa9ff;
+		--glow: 0 0 40px -12px rgb(180 255 57 / 0.45);
+		color-scheme: dark;
+	}
+}
+
+:root[data-theme='dark'] {
+	--bg: #0c0b10;
+	--surface: #15141c;
+	--surface-2: #1e1c27;
+	--line: #2c2a38;
+	--fg: #efedf6;
+	--muted: #9a96a8;
+	--accent: #b4ff39;
+	--accent-fg: #0c0b10;
+	--accent-soft: #1f2a10;
+	--again: #ff5d5d;
+	--hard: #ffb347;
+	--good: #3ddc97;
+	--easy: #5aa9ff;
+	--glow: 0 0 40px -12px rgb(180 255 57 / 0.45);
+	color-scheme: dark;
+}
+
+/* dark: follows the same rule as the tokens: explicit dark, or system on a dark OS. */
+@custom-variant dark {
+	&:where([data-theme='dark'], [data-theme='dark'] *) {
+		@slot;
+	}
+	@media (prefers-color-scheme: dark) {
+		&:where(:root:not([data-theme='light']), :root:not([data-theme='light']) *) {
+			@slot;
+		}
+	}
+}
+
+@theme {
+	--font-sans: 'Space Grotesk', ui-sans-serif, system-ui, sans-serif;
+	--font-mono: 'JetBrains Mono', ui-monospace, monospace;
+	--color-bg: var(--bg);
+	--color-surface: var(--surface);
+	--color-surface-2: var(--surface-2);
+	--color-line: var(--line);
+	--color-fg: var(--fg);
+	--color-muted: var(--muted);
+	--color-accent: var(--accent);
+	--color-accent-fg: var(--accent-fg);
+	--color-accent-soft: var(--accent-soft);
+	--color-again: var(--again);
+	--color-hard: var(--hard);
+	--color-good: var(--good);
+	--color-easy: var(--easy);
+}
+
+@layer base {
+	html {
+		background: var(--bg);
+		color: var(--fg);
+		font-family: var(--font-sans);
+		-webkit-font-smoothing: antialiased;
+	}
+	::selection {
+		background: var(--accent);
+		color: var(--accent-fg);
+	}
+	:focus-visible {
+		outline: 2px solid var(--accent);
+		outline-offset: 2px;
+	}
+}
+
+@layer components {
+	.btn {
+		@apply border-line bg-surface text-fg hover:bg-surface-2 inline-flex items-center justify-center gap-2 rounded-xl border px-4 py-2 text-sm font-medium transition active:scale-[0.98] disabled:pointer-events-none disabled:opacity-50;
+	}
+	.btn-primary {
+		@apply bg-accent text-accent-fg hover:bg-accent border-transparent hover:brightness-110;
+		box-shadow: var(--glow);
+	}
+	.btn-ghost {
+		@apply hover:bg-surface-2 border-transparent bg-transparent;
+	}
+	.panel {
+		@apply border-line bg-surface rounded-2xl border;
+	}
+	.chip {
+		@apply border-line bg-surface-2 text-muted inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-xs;
+	}
+	.kbd {
+		@apply border-line bg-surface-2 text-muted inline-flex min-w-5 items-center justify-center rounded-md border px-1.5 font-mono text-[11px];
+	}
+	.eyebrow {
+		@apply text-muted font-mono text-xs tracking-widest uppercase;
+	}
+	.input {
+		@apply border-line bg-surface text-fg placeholder:text-muted focus:border-accent focus:ring-accent w-full rounded-xl;
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	*,
+	*::before,
+	*::after {
+		animation-duration: 0.01ms !important;
+		transition-duration: 0.01ms !important;
+	}
+}

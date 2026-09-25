@@ -1,13 +1,35 @@
 import { json, redirect, type Handle } from '@sveltejs/kit';
 import * as auth from '$lib/server/auth';
+import { asTenant } from '$lib/server/db';
 import { isAllowed } from '$lib/server/otp';
+import { toTheme } from '$lib/theme';
 
-const PUBLIC = ['/', '/login', '/api/health'];
+const PUBLIC = ['/', '/login', '/api/health', '/theme'];
 
 export const handle: Handle = async ({ event, resolve }) => {
 	const token = event.cookies.get(auth.sessionCookieName);
+	let lookup: Awaited<ReturnType<typeof auth.validateSessionToken>> | undefined;
 	if (token) {
-		let { session, user } = await auth.validateSessionToken(token);
+		try {
+			lookup = await auth.validateSessionToken(token);
+		} catch (error) {
+			// Off the public pages a failure stays a failure: signing everyone out would hide
+			// a broken query behind a login loop. A POST (logout) must not report success
+			// either, since it could not revoke the session. /theme only sets a cookie.
+			const readOnly = event.request.method === 'GET' || event.request.method === 'HEAD';
+			const safe = readOnly || event.url.pathname === '/theme';
+			if (!PUBLIC.includes(event.url.pathname) || !safe) throw error;
+			// A database outage must not take down public pages. Signed out is fail-closed, and
+			// the cookie stays so the session works again once the database is back. The query
+			// error carries the SQL and the session id, so only the driver's cause is logged.
+			const cause = error instanceof Error && error.cause instanceof Error ? error.cause : null;
+			// A localhost host gives an AggregateError with an empty message and the code alone.
+			const reason = cause?.message || (cause as { code?: string } | null)?.code || 'unknown';
+			console.error(`[auth] session lookup failed, rendering signed out: ${reason}`);
+		}
+	}
+	if (token && lookup) {
+		let { session, user } = lookup;
 		// Dropping an address from ALLOWED_EMAILS ends its sessions on the next request.
 		if (session && user && !isAllowed(user.email)) {
 			await auth.invalidateSession(session.id);
@@ -32,5 +54,11 @@ export const handle: Handle = async ({ event, resolve }) => {
 		redirect(303, '/login');
 	}
 
-	return resolve(event);
+	// Rendered server-side so the first paint is right: the CSP forbids an inline script.
+	const theme = toTheme(event.cookies.get('theme'));
+	const render = async () =>
+		resolve(event, { transformPageChunk: ({ html }) => html.replace('%theme%', theme) });
+	// Signed-in work runs under row-level security for that user (db/index.ts).
+	const user = event.locals.user;
+	return user ? asTenant(user.id, render) : render();
 };
