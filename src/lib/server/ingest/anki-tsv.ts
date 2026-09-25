@@ -48,7 +48,8 @@ function resolveDelimiter(declared: string | undefined): string {
  */
 export function parseAnkiExport(raw: string, userId: string): ParseResult {
 	const warnings: string[] = [];
-	const text = raw.replace(/^\uFEFF/, '');
+	// Postgres text cannot store U+0000, and one NUL would fail the whole import.
+	const text = raw.replace(/^\uFEFF/, '').replaceAll('\u0000', '');
 	const lines = text.split('\n');
 
 	const header: Record<string, string> = {};

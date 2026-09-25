@@ -22,21 +22,26 @@ export async function importDeck(userId: string, raw: string) {
 	}
 	const notes = [...byId.values()];
 	const excluded = (col: string) => sql.raw(`excluded.${col}`);
-	for (let i = 0; i < notes.length; i += 500) {
-		await db
-			.insert(table.node)
-			.values(notes.slice(i, i + 500).map((n) => ({ ...n, userId })))
-			.onConflictDoUpdate({
-				target: table.node.id,
-				set: {
-					front: excluded('front'),
-					back: excluded('back'),
-					deck: excluded('deck'),
-					tags: excluded('tags'),
-					notetype: excluded('notetype')
-				}
-			});
-	}
+	// A savepoint inside the request's transaction (asTenant). A failed batch rolls
+	// back the whole import, not a prefix of it, and leaves the request's transaction
+	// usable, so the page load after the action's error still renders.
+	await db.transaction(async (tx) => {
+		for (let i = 0; i < notes.length; i += 500) {
+			await tx
+				.insert(table.node)
+				.values(notes.slice(i, i + 500).map((n) => ({ ...n, userId })))
+				.onConflictDoUpdate({
+					target: table.node.id,
+					set: {
+						front: excluded('front'),
+						back: excluded('back'),
+						deck: excluded('deck'),
+						tags: excluded('tags'),
+						notetype: excluded('notetype')
+					}
+				});
+		}
+	});
 	return { imported: notes.length, warnings };
 }
 
