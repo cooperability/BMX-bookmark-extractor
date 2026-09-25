@@ -15,7 +15,7 @@
 			<p class="eyebrow">Question</p>
 			<div class="mt-4 max-h-[60vh] overflow-y-auto">
 				<!-- eslint-disable-next-line svelte/no-at-html-tags -->
-				<div class="card-html prose max-w-none text-lg dark:prose-invert">{@html card.front}</div>
+				<div class="card-html prose dark:prose-invert max-w-none text-lg">{@html card.front}</div>
 			</div>
 			{#if card.tags.length}
 				<div class="mt-6 flex flex-wrap gap-1.5">
@@ -29,14 +29,14 @@
 			aria-hidden={!flipped}
 			inert={!flipped}
 		>
-			<div class="max-h-32 overflow-y-auto border-b border-line pb-4 text-sm text-muted">
+			<div class="border-line text-muted max-h-32 overflow-y-auto border-b pb-4 text-sm">
 				<!-- eslint-disable-next-line svelte/no-at-html-tags -->
-				<div class="card-html prose prose-sm max-w-none dark:prose-invert">{@html card.front}</div>
+				<div class="card-html prose prose-sm dark:prose-invert max-w-none">{@html card.front}</div>
 			</div>
-			<p class="mt-4 eyebrow">Answer</p>
+			<p class="eyebrow mt-4">Answer</p>
 			<div class="mt-3 max-h-[min(60vh,40rem)] overflow-y-auto overscroll-contain pr-1">
 				<!-- eslint-disable-next-line svelte/no-at-html-tags -->
-				<div class="card-html prose max-w-none dark:prose-invert">{@html card.back}</div>
+				<div class="card-html prose dark:prose-invert max-w-none">{@html card.back}</div>
 			</div>
 			{#if card.tags.length}
 				<div class="mt-6 flex flex-wrap gap-1.5">

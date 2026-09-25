@@ -12,5 +12,5 @@
 	<p class="mt-2 font-mono text-3xl font-semibold tracking-tight {accent ? 'text-accent' : ''}">
 		{value}
 	</p>
-	{#if hint}<p class="mt-1 text-xs text-muted">{hint}</p>{/if}
+	{#if hint}<p class="text-muted mt-1 text-xs">{hint}</p>{/if}
 </div>
