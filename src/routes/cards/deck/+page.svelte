@@ -218,11 +218,11 @@
 	</section>
 
 	<!-- Plain form with a required checkbox: works without JavaScript, and one click cannot delete. -->
-	<section class="mt-12 border-t border-line pt-6">
+	<section class="border-line mt-12 border-t pt-6">
 		<h2 class="eyebrow text-again">Delete deck</h2>
 		<form method="POST" action="?/delete" class="mt-3 flex flex-wrap items-center gap-4">
 			<input type="hidden" name="deck" value={data.deck} />
-			<label class="flex items-center gap-2 text-sm text-muted">
+			<label class="text-muted flex items-center gap-2 text-sm">
 				<input type="checkbox" name="confirm" value="yes" required />
 				Delete {plural(data.total, 'card')}, their review history and {plural(
 					data.history.length,
@@ -230,7 +230,7 @@
 				)}. This cannot be undone.
 			</label>
 			<button class="btn border-again/40 text-again hover:bg-again/10">Delete deck</button>
-			{#if form?.message}<p class="text-sm text-again" role="alert">{form.message}</p>{/if}
+			{#if form?.message}<p class="text-again text-sm" role="alert">{form.message}</p>{/if}
 		</form>
 	</section>
 </main>
