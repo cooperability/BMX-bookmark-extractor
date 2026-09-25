@@ -67,6 +67,19 @@ test.describe('study round', () => {
 		const counter = page.locator('header .font-mono').first();
 		await expect(counter).toHaveText('0 / 20');
 
+		// Anki cards use <code> for literal code. The typography plugin's decorative
+		// backticks around it read as part of the answer.
+		const tick = await page
+			.locator('.card-html')
+			.first()
+			.evaluate((el) => {
+				const code = el.appendChild(document.createElement('code'));
+				const content = getComputedStyle(code, '::before').content;
+				code.remove();
+				return content;
+			});
+		expect(tick).toBe('none');
+
 		// Each rating shows the interval it would schedule. A new card: minutes for
 		// Again, days for Easy.
 		await page.keyboard.press('Space');
@@ -83,8 +96,18 @@ test.describe('study round', () => {
 		await page.reload();
 		await expect(counter).toHaveText('2 / 20');
 
-		// 18 untried cards, then the missed one comes back marked as relearning.
-		for (let i = 0; i < 18; i++) await grade(page, '3');
+		// A keyboard user who tabs to a rating and presses Enter gets that rating: the
+		// window shortcut must not swallow Enter as a flip.
+		await page.keyboard.press('Space');
+		await page.getByRole('button', { name: /Good/ }).focus();
+		await Promise.all([
+			page.waitForResponse((r) => r.url().endsWith('/api/review/grade') && r.ok()),
+			page.keyboard.press('Enter')
+		]);
+		await expect(counter).toHaveText('3 / 20');
+
+		// 17 more untried cards, then the missed one comes back marked as relearning.
+		for (let i = 0; i < 17; i++) await grade(page, '3');
 		await expect(counter).toHaveText('20 / 20');
 		await expect(page.getByText('relearning')).toBeVisible();
 		await grade(page, '3');
@@ -96,6 +119,31 @@ test.describe('study round', () => {
 		await page.getByRole('button', { name: 'Next round' }).click();
 		await expect(counter).toHaveText('0 / 20');
 		expect(errors).toEqual([]);
+	});
+
+	// Runs after the round above, so the dashboard has a deck to show.
+	test('signed-in pages fit a phone screen', async ({ page, context, baseURL }) => {
+		await context.addCookies([{ name: 'auth-session', value: token, url: baseURL! }]);
+		const overflow = () => page.evaluate(() => document.documentElement.scrollWidth - innerWidth);
+
+		// 320 is the WCAG reflow width.
+		for (const width of [375, 320]) {
+			await page.setViewportSize({ width, height: 800 });
+			await page.goto('/cards');
+			await expect(page.getByRole('button', { name: 'Log out' })).toBeVisible();
+			expect(await overflow(), `/cards at ${width}px`).toBe(0);
+			// A squeezed row wraps Log out instead of overflowing, so check the items too.
+			const button = (await page.getByRole('button', { name: 'Log out' }).boundingBox())!;
+			const toggle = (await page.getByRole('group', { name: 'Theme' }).boundingBox())!;
+			expect(button.height, `Log out on one line at ${width}px`).toBeLessThan(48);
+			expect(toggle.x + toggle.width, `toggle inside the gutter at ${width}px`).toBeLessThanOrEqual(
+				width - 16
+			);
+
+			await page.getByRole('link', { name: 'Details' }).first().click();
+			await page.waitForURL(/\/cards\/deck/);
+			expect(await overflow(), `deck page at ${width}px`).toBe(0);
+		}
 	});
 
 	// Also covers a file chosen before hydration: the server-rendered form must submit.

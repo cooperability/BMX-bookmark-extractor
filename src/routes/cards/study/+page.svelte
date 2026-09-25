@@ -8,7 +8,8 @@
 	import RatingBar from '$lib/components/study/RatingBar.svelte';
 	import RoundIntro from '$lib/components/study/RoundIntro.svelte';
 	import RoundResults from '$lib/components/study/RoundResults.svelte';
-	import { RATINGS, type Grades } from '$lib/components/study/ratings';
+	import { studyKey } from '$lib/components/study/keys';
+	import type { Grades } from '$lib/components/study/ratings';
 	import { MAX_REPEATS, resumeQueue } from '$lib/cards/round';
 
 	let { data } = $props();
@@ -102,13 +103,12 @@
 	}
 
 	function onkeydown(e: KeyboardEvent) {
-		if (grades || failed || !current || e.ctrlKey || e.metaKey || e.altKey) return;
-		if (e.key === ' ' || e.key === 'Enter') {
+		if (grades || failed || !current) return;
+		const k = studyKey(e);
+		if (k === 'flip') {
 			e.preventDefault();
 			flipped = true;
-		}
-		const r = RATINGS.find((x) => x.key === e.key);
-		if (r) rate(r.value);
+		} else if (k !== null) rate(k);
 	}
 </script>
 
