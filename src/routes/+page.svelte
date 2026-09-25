@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
 	import Logo from '$lib/components/brand/Logo.svelte';
+	import DemoRound from '$lib/components/study/DemoRound.svelte';
 
 	let { data } = $props();
 
@@ -28,6 +29,23 @@
 		name="description"
 		content="Remediate turns your Anki decks into spaced repetition rounds that aim at your weak areas."
 	/>
+	<!-- The apex redirects to www, so previews and search index the www URL. -->
+	<link rel="canonical" href="https://www.remediate.app/" />
+	<meta property="og:type" content="website" />
+	<meta property="og:url" content="https://www.remediate.app/" />
+	<meta property="og:title" content="Remediate" />
+	<meta
+		property="og:description"
+		content="Remediate turns your Anki decks into spaced repetition rounds that aim at your weak areas."
+	/>
+	<meta property="og:image" content="https://www.remediate.app/og.png" />
+	<meta property="og:image:width" content="1200" />
+	<meta property="og:image:height" content="630" />
+	<meta
+		property="og:image:alt"
+		content="Remediate. A flashcard asking which git command replays commits onto a new base."
+	/>
+	<meta name="twitter:card" content="summary_large_image" />
 </svelte:head>
 
 <div class="backdrop relative min-h-dvh overflow-hidden">
@@ -96,6 +114,20 @@
 						</div>
 					</div>
 				</div>
+			</div>
+		</section>
+
+		<section class="mt-24" aria-labelledby="try-heading">
+			<p class="eyebrow">Try it</p>
+			<h2 id="try-heading" class="mt-2 text-3xl font-bold tracking-tight">
+				Study a five-card round.
+			</h2>
+			<p class="mt-2 max-w-xl text-muted">
+				The same study screen signed-in decks use. Flip with Space, grade with 1 to 4. Answer Again
+				and the card comes back before the round ends. Nothing is saved.
+			</p>
+			<div class="mt-8 max-w-3xl">
+				<DemoRound />
 			</div>
 		</section>
 

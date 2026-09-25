@@ -80,6 +80,11 @@
 		display: block;
 		overflow-x: auto;
 	}
+	/* The typography plugin draws backticks around inline code, which read as part of the answer. */
+	.card-html :global(code::before),
+	.card-html :global(code::after) {
+		content: none;
+	}
 	.card-html {
 		color: var(--fg);
 		overflow-wrap: anywhere;
