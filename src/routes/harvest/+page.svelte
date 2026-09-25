@@ -68,11 +68,11 @@
 </svelte:head>
 
 <main class="mx-auto max-w-6xl px-4 py-8 sm:py-10">
-	<a href={resolve('/cards')} class="text-sm text-muted hover:text-fg">← Decks</a>
+	<a href={resolve('/cards')} class="text-muted hover:text-fg text-sm">← Decks</a>
 	<header class="mt-3">
 		<p class="eyebrow">BMX</p>
 		<h1 class="mt-1 text-3xl font-bold tracking-tight">Harvest links</h1>
-		<p class="mt-2 max-w-2xl text-sm text-muted">
+		<p class="text-muted mt-2 max-w-2xl text-sm">
 			Paste links or a bookmarks export. Each page is fetched, read and held here for you to turn
 			into cards. Paywalled pages still land with their title and description.
 		</p>
@@ -97,7 +97,7 @@
 				<button class="btn btn-primary whitespace-nowrap" disabled={busy !== null}>
 					{busy === 'queue' ? 'Queueing…' : 'Queue links'}
 				</button>
-				<span class="text-xs text-muted">Up to 500 at a time. Duplicates are skipped.</span>
+				<span class="text-muted text-xs">Up to 500 at a time. Duplicates are skipped.</span>
 			</div>
 		</form>
 
@@ -109,7 +109,7 @@
 			class="panel flex flex-col gap-3 p-5"
 		>
 			<label for="csv" class="eyebrow">Saved bookmarks</label>
-			<p class="text-xs text-muted">
+			<p class="text-muted text-xs">
 				A CSV with <span class="font-mono">url</span>, <span class="font-mono">title</span> and
 				<span class="font-mono">description</span> columns, such as
 				<span class="font-mono">articles.csv</span>. Rows land for review without a fetch.
@@ -120,7 +120,7 @@
 				name="file"
 				accept=".csv,text/csv"
 				required
-				class="text-sm text-muted file:mr-3 file:rounded-lg file:border file:border-line file:bg-surface-2 file:px-3 file:py-1.5 file:text-fg"
+				class="text-muted file:border-line file:bg-surface-2 file:text-fg text-sm file:mr-3 file:rounded-lg file:border file:px-3 file:py-1.5"
 			/>
 			<button class="btn w-fit" disabled={busy !== null}>
 				{busy === 'csv' ? 'Importing…' : 'Import CSV'}
@@ -132,7 +132,7 @@
 		<p class="mt-4 text-sm" role="status">{form.message}</p>
 	{/if}
 
-	<nav class="mt-8 flex gap-1 overflow-x-auto border-b border-line" aria-label="Harvest status">
+	<nav class="border-line mt-8 flex gap-1 overflow-x-auto border-b" aria-label="Harvest status">
 		{#each TABS as t (t.status)}
 			<a
 				href="{resolve('/harvest')}?{query(t.status)}"
@@ -140,11 +140,11 @@
 				aria-current={data.status === t.status ? 'page' : undefined}
 				class="-mb-px flex shrink-0 items-center gap-2 border-b-2 px-3 py-2 text-sm {data.status ===
 				t.status
-					? 'border-accent font-semibold text-fg'
-					: 'border-transparent text-muted hover:text-fg'}"
+					? 'border-accent text-fg font-semibold'
+					: 'text-muted hover:text-fg border-transparent'}"
 			>
 				{t.label}
-				<span class="font-mono text-xs text-muted">{data.count[t.status]}</span>
+				<span class="text-muted font-mono text-xs">{data.count[t.status]}</span>
 			</a>
 		{/each}
 	</nav>
@@ -165,7 +165,7 @@
 				{stop ? 'Stopping…' : 'Stop'}
 			</button>
 		{/if}
-		<span class="text-xs text-muted">One request a second per site, robots.txt respected.</span>
+		<span class="text-muted text-xs">One request a second per site, robots.txt respected.</span>
 	</form>
 
 	{#if data.items.length}
@@ -182,21 +182,21 @@
 							onchange={(e) => (selected = e.currentTarget.checked ? [...allIds] : [])}
 							aria-label="Select all on this page"
 						/>
-						<span class="font-mono text-xs text-muted">{selected.length} selected</span>
+						<span class="text-muted font-mono text-xs">{selected.length} selected</span>
 					</label>
 					{#if data.status === 'ready' || data.status === 'duplicate'}
-						<label class="flex flex-col gap-1 text-xs text-muted">
+						<label class="text-muted flex flex-col gap-1 text-xs">
 							Deck
 							<select name="deck" class="input py-1.5 text-sm sm:w-56">
 								{#each data.decks as d (d)}<option value={d}>{d}</option>{/each}
 								{#if !data.decks.length}<option value="">No decks yet</option>{/if}
 							</select>
 						</label>
-						<label class="flex flex-col gap-1 text-xs text-muted">
+						<label class="text-muted flex flex-col gap-1 text-xs">
 							or a new deck
 							<input name="newDeck" class="input py-1.5 text-sm sm:w-44" placeholder="Reading" />
 						</label>
-						<label class="flex flex-col gap-1 text-xs text-muted">
+						<label class="text-muted flex flex-col gap-1 text-xs">
 							Tags
 							<input name="tags" class="input py-1.5 text-sm sm:w-40" placeholder="web infosec" />
 						</label>
@@ -230,7 +230,7 @@
 							/>
 						{/if}
 						<div class="min-w-0 flex-1">
-							<div class="flex flex-wrap items-center gap-2 text-xs text-muted">
+							<div class="text-muted flex flex-wrap items-center gap-2 text-xs">
 								<span class="font-mono">{item.domain}</span>
 								{#if item.tier}
 									<span class="chip py-0 text-[11px] {TIER_CHIP[item.tier] ?? ''}">{item.tier}</span
@@ -246,10 +246,10 @@
 								>{p?.title ?? item.url}</a
 							>
 							{#if p?.description ?? p?.excerpt}
-								<p class="mt-1 line-clamp-2 text-sm text-muted">{p?.description ?? p?.excerpt}</p>
+								<p class="text-muted mt-1 line-clamp-2 text-sm">{p?.description ?? p?.excerpt}</p>
 							{/if}
 							{#if item.failReason}
-								<p class="mt-1 text-sm text-again">{item.failReason}</p>
+								<p class="text-again mt-1 text-sm">{item.failReason}</p>
 							{/if}
 						</div>
 					</li>
@@ -267,7 +267,7 @@
 				{:else}
 					<span></span>
 				{/if}
-				<span class="font-mono text-xs text-muted">Page {data.page} of {data.pages}</span>
+				<span class="text-muted font-mono text-xs">Page {data.page} of {data.pages}</span>
 				{#if data.page < data.pages}
 					<a
 						class="btn px-3 py-1.5"
@@ -279,7 +279,7 @@
 			</nav>
 		{/if}
 	{:else}
-		<p class="panel mt-4 p-10 text-center text-sm text-muted">
+		<p class="panel text-muted mt-4 p-10 text-center text-sm">
 			{data.status === 'ready' ? 'Nothing to review. Paste some links above.' : 'Nothing here.'}
 		</p>
 	{/if}
