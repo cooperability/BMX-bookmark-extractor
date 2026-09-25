@@ -130,6 +130,9 @@ describe.skipIf(!hasDb)('harvest queue against the database', () => {
 		expect(dup.items.map((i) => i.domain)).toEqual(['apple.news']);
 	});
 
+	// The real 3,861-row file: past vitest's 5 s default on a cold database (seen once in
+	// a full run straight after a migrate), so these two get room. The accept test below
+	// starts by cleaning those rows up.
 	it('imports the real articles.csv', async () => {
 		const out = await as(() =>
 			q.importArticlesCsv(userId, readFileSync('source_data/articles.csv', 'utf8'))
@@ -139,7 +142,7 @@ describe.skipIf(!hasDb)('harvest queue against the database', () => {
 		const list = await as(() => q.listHarvests(userId, 'ready'));
 		expect(list.count.ready + list.count.duplicate).toBe(out.added);
 		expect(list.items).toHaveLength(q.PAGE_SIZE);
-	});
+	}, 30_000);
 
 	it('accepts ready rows as cards once, and discards and retries', async () => {
 		await as(() =>
@@ -178,5 +181,5 @@ describe.skipIf(!hasDb)('harvest queue against the database', () => {
 		expect(after.count).toMatchObject({ queued: 1, accepted: 1, discarded: 1, failed: 0 });
 		// Junk ids are ignored, not an error.
 		expect(await as(() => q.setStatus(userId, ['x', '-1', ''], 'discarded', ['ready']))).toBe(0);
-	});
+	}, 30_000);
 });
