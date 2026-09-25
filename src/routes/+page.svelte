@@ -65,7 +65,7 @@
 				<h1 class="mt-4 text-5xl leading-[0.95] font-bold tracking-tight text-balance sm:text-7xl">
 					Remediate<span class="text-accent">.</span>
 				</h1>
-				<p class="mt-6 max-w-xl text-lg text-muted sm:text-xl">
+				<p class="text-muted mt-6 max-w-xl text-lg sm:text-xl">
 					Find what you do not know, then fix it. Your Anki decks become spaced repetition rounds
 					that grade themselves by tag and aim the next round at your weak spots.
 				</p>
@@ -75,7 +75,7 @@
 					{:else}
 						<a href={resolve('/login')} class="btn btn-primary px-6 py-3 text-base">Log in</a>
 					{/if}
-					<span class="font-mono text-xs text-muted">Invite only. Passwordless email code.</span>
+					<span class="text-muted font-mono text-xs">Invite only. Passwordless email code.</span>
 				</div>
 			</div>
 
@@ -96,7 +96,7 @@
 						<p class="mt-10 text-2xl leading-snug font-semibold">
 							Which command replays your commits onto a new base?
 						</p>
-						<p class="mt-auto flex items-center gap-2 pt-8 text-xs text-muted">
+						<p class="text-muted mt-auto flex items-center gap-2 pt-8 text-xs">
 							Recall it, then flip
 						</p>
 					</div>
@@ -105,12 +105,12 @@
 							<span class="chip">git</span>
 							<span class="eyebrow">Answer</span>
 						</div>
-						<p class="mt-10 font-mono text-3xl font-semibold text-accent">git rebase</p>
+						<p class="text-accent mt-10 font-mono text-3xl font-semibold">git rebase</p>
 						<div class="mt-auto grid grid-cols-4 gap-1.5 pt-8 text-center text-xs font-medium">
-							<span class="rounded-lg bg-again/15 py-1.5 text-again">Again</span>
-							<span class="rounded-lg bg-hard/15 py-1.5 text-hard">Hard</span>
-							<span class="rounded-lg bg-good/15 py-1.5 text-good">Good</span>
-							<span class="rounded-lg bg-easy/15 py-1.5 text-easy">Easy</span>
+							<span class="bg-again/15 text-again rounded-lg py-1.5">Again</span>
+							<span class="bg-hard/15 text-hard rounded-lg py-1.5">Hard</span>
+							<span class="bg-good/15 text-good rounded-lg py-1.5">Good</span>
+							<span class="bg-easy/15 text-easy rounded-lg py-1.5">Easy</span>
 						</div>
 					</div>
 				</div>
@@ -122,7 +122,7 @@
 			<h2 id="try-heading" class="mt-2 text-3xl font-bold tracking-tight">
 				Study a five-card round.
 			</h2>
-			<p class="mt-2 max-w-xl text-muted">
+			<p class="text-muted mt-2 max-w-xl">
 				The same study screen signed-in decks use. Flip with Space, grade with 1 to 4. Answer Again
 				and the card comes back before the round ends. Nothing is saved.
 			</p>
@@ -138,9 +138,9 @@
 			</h2>
 			<ol class="mt-8 grid gap-4 md:grid-cols-3">
 				<li class="panel flex flex-col p-5">
-					<span class="font-mono text-xs text-accent">01</span>
+					<span class="text-accent font-mono text-xs">01</span>
 					<h3 class="mt-2 text-lg font-semibold">Study</h3>
-					<p class="mt-1 text-sm text-muted">
+					<p class="text-muted mt-1 text-sm">
 						Pick a deck. FSRS puts due cards first, then spreads new cards across tags and
 						interleaves them.
 					</p>
@@ -149,22 +149,22 @@
 							<span
 								class="h-8 flex-1 rounded-md {kind === 'due'
 									? 'bg-accent'
-									: 'border border-dashed border-line bg-surface-2'}"
+									: 'border-line bg-surface-2 border border-dashed'}"
 							></span>
 						{/each}
 					</div>
 				</li>
 				<li class="panel flex flex-col p-5">
-					<span class="font-mono text-xs text-accent">02</span>
+					<span class="text-accent font-mono text-xs">02</span>
 					<h3 class="mt-2 text-lg font-semibold">Grade</h3>
-					<p class="mt-1 text-sm text-muted">
+					<p class="text-muted mt-1 text-sm">
 						Your answers roll up into a grading artifact: each tag marked strong or weak.
 					</p>
 					<div class="mt-auto space-y-1.5 pt-6" aria-hidden="true">
 						{#each tags as t (t.tag)}
 							<div class="flex items-center gap-2">
-								<span class="w-10 font-mono text-[11px] text-muted">{t.tag}</span>
-								<span class="h-2 flex-1 overflow-hidden rounded-full bg-surface-2">
+								<span class="text-muted w-10 font-mono text-[11px]">{t.tag}</span>
+								<span class="bg-surface-2 h-2 flex-1 overflow-hidden rounded-full">
 									<span
 										class="block h-full rounded-full {t.score >= 0.5 ? 'bg-good' : 'bg-again'}"
 										style="width: {t.score * 100}%"
@@ -175,9 +175,9 @@
 					</div>
 				</li>
 				<li class="panel flex flex-col p-5">
-					<span class="font-mono text-xs text-accent">03</span>
+					<span class="text-accent font-mono text-xs">03</span>
 					<h3 class="mt-2 text-lg font-semibold">Next round targets weak areas</h3>
-					<p class="mt-1 text-sm text-muted">
+					<p class="text-muted mt-1 text-sm">
 						Weak tags get boosted. Strong tags get a few probes to confirm they stay strong.
 					</p>
 					<div class="mt-auto flex h-14 items-end gap-1.5 pt-6" aria-hidden="true">
@@ -200,21 +200,21 @@
 						<h3 class="font-semibold">Quest</h3>
 						<span class="chip">coming</span>
 					</div>
-					<p class="mt-1 text-sm text-muted">A second surface on the same knowledge graph.</p>
+					<p class="text-muted mt-1 text-sm">A second surface on the same knowledge graph.</p>
 				</div>
 				<div class="panel border-dashed p-5">
 					<div class="flex items-center gap-2">
 						<h3 class="font-semibold">BMX harvest</h3>
 						<span class="chip">coming</span>
 					</div>
-					<p class="mt-1 text-sm text-muted">Bookmarks pulled into the graph beside your cards.</p>
+					<p class="text-muted mt-1 text-sm">Bookmarks pulled into the graph beside your cards.</p>
 				</div>
 			</div>
 		</section>
 	</main>
 
 	<footer
-		class="mx-auto flex max-w-6xl items-center justify-between border-t border-line px-4 py-6 text-xs text-muted"
+		class="border-line text-muted mx-auto flex max-w-6xl items-center justify-between border-t px-4 py-6 text-xs"
 	>
 		<Logo size={18} />
 		<span class="font-mono">FSRS scheduling</span>
