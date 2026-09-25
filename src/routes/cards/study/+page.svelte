@@ -119,19 +119,19 @@
 </svelte:head>
 
 <div class="mx-auto flex min-h-dvh max-w-3xl flex-col px-4 pb-10">
-	<header class="sticky top-0 z-10 -mx-4 bg-bg/85 px-4 pt-4 pb-3 backdrop-blur">
+	<header class="bg-bg/85 sticky top-0 z-10 -mx-4 px-4 pt-4 pb-3 backdrop-blur">
 		<div class="flex items-center gap-3 text-sm">
-			<a href={resolve('/cards')} class="btn btn-ghost -ml-2 px-2 py-1 text-muted">
+			<a href={resolve('/cards')} class="btn btn-ghost text-muted -ml-2 px-2 py-1">
 				<span aria-hidden="true">←</span> Decks
 			</a>
 			<span class="min-w-0 flex-1 truncate text-center font-medium">{data.deck}</span>
 			{#if current && current.repeats > 0 && !grades}
 				<span class="chip border-again/30 bg-again/10 text-again">relearning</span>
 			{/if}
-			<span class="font-mono text-xs text-muted tabular-nums">{done} / {total}</span>
+			<span class="text-muted font-mono text-xs tabular-nums">{done} / {total}</span>
 		</div>
 		<div
-			class="mt-3 h-1.5 overflow-hidden rounded-full bg-surface-2"
+			class="bg-surface-2 mt-3 h-1.5 overflow-hidden rounded-full"
 			role="progressbar"
 			aria-label="Round progress"
 			aria-valuemin={0}
@@ -139,7 +139,7 @@
 			aria-valuenow={done}
 		>
 			<div
-				class="h-full rounded-full bg-accent transition-[width] duration-300"
+				class="bg-accent h-full rounded-full transition-[width] duration-300"
 				style="width: {total ? (done / total) * 100 : 0}%"
 			></div>
 		</div>
@@ -147,12 +147,12 @@
 
 	{#if failed}
 		<div
-			class="panel mt-6 flex flex-wrap items-center gap-3 border-again/40 bg-again/10 px-4 py-3 text-sm"
+			class="panel border-again/40 bg-again/10 mt-6 flex flex-wrap items-center gap-3 px-4 py-3 text-sm"
 			role="alert"
 			in:fly={{ y: still ? 0 : -8, duration: 200 }}
 		>
-			<span class="font-medium text-again">Could not save.</span>
-			<span class="min-w-0 flex-1 truncate font-mono text-xs text-muted">{failed}</span>
+			<span class="text-again font-medium">Could not save.</span>
+			<span class="text-muted min-w-0 flex-1 truncate font-mono text-xs">{failed}</span>
 			<button class="btn px-3 py-1" onclick={retry}>Retry</button>
 			<button class="btn btn-ghost px-3 py-1" onclick={() => location.reload()}>Reload</button>
 		</div>
@@ -176,7 +176,7 @@
 				</div>
 			{/key}
 
-			<div class="sticky bottom-0 -mx-4 mt-auto bg-bg/85 px-4 py-3 backdrop-blur">
+			<div class="bg-bg/85 sticky bottom-0 -mx-4 mt-auto px-4 py-3 backdrop-blur">
 				<RatingBar
 					{flipped}
 					{busy}
@@ -186,7 +186,7 @@
 				/>
 			</div>
 		{:else if busy}
-			<p class="mt-16 text-center text-sm text-muted">Scoring the round…</p>
+			<p class="text-muted mt-16 text-center text-sm">Scoring the round…</p>
 		{/if}
 	</main>
 </div>
