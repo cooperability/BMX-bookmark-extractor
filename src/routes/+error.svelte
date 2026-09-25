@@ -29,8 +29,8 @@
 
 		<div class="panel p-6 sm:p-8">
 			<p class="eyebrow">Error</p>
-			<h1 class="mt-2 font-mono text-6xl font-semibold text-accent">{page.status}</h1>
-			<p class="mt-3 text-sm text-muted">{message}</p>
+			<h1 class="text-accent mt-2 font-mono text-6xl font-semibold">{page.status}</h1>
+			<p class="text-muted mt-3 text-sm">{message}</p>
 
 			<div class="mt-6 flex flex-col items-center gap-2">
 				<a href={resolve('/')} class="btn btn-primary w-full py-2.5">Go home</a>

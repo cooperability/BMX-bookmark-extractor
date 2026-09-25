@@ -24,9 +24,9 @@
 	const focus = $derived(page.url.pathname.startsWith('/cards/study'));
 </script>
 
-<div class="min-h-dvh bg-bg text-fg">
+<div class="bg-bg text-fg min-h-dvh">
 	{#if data.user && !focus}
-		<nav class="sticky top-0 z-20 border-b border-line bg-bg/80 backdrop-blur">
+		<nav class="border-line bg-bg/80 sticky top-0 z-20 border-b backdrop-blur">
 			<div class="mx-auto flex h-14 max-w-6xl items-center gap-3 px-4 sm:gap-6">
 				<!-- Below 360px the wordmark gives way so Log out stays on one line. -->
 				<a
@@ -37,11 +37,11 @@
 				<!-- Phones drop this duplicate of the logo link to fit Log out and the theme toggle. -->
 				<a
 					href={resolve('/cards')}
-					class="hidden text-sm text-muted hover:text-fg sm:inline"
+					class="text-muted hover:text-fg hidden text-sm sm:inline"
 					aria-current={page.url.pathname === '/cards' ? 'page' : undefined}>Decks</a
 				>
 				<form method="POST" action="/login?/logout" class="ml-auto flex items-center gap-3">
-					<span class="hidden font-mono text-xs text-muted sm:inline">{data.user.email}</span>
+					<span class="text-muted hidden font-mono text-xs sm:inline">{data.user.email}</span>
 					<button class="btn btn-ghost whitespace-nowrap">Log out</button>
 				</form>
 				<ThemeToggle theme={data.theme} />

@@ -45,8 +45,8 @@
 			</h1>
 
 			{#if form?.sent}
-				<p class="mt-3 text-sm text-muted">
-					If <span class="font-medium text-fg">{form.email}</span> is allowed, a 6-digit code is on its
+				<p class="text-muted mt-3 text-sm">
+					If <span class="text-fg font-medium">{form.email}</span> is allowed, a 6-digit code is on its
 					way. It expires in 10 minutes.
 				</p>
 				<form
@@ -62,8 +62,8 @@
 							{#each [0, 1, 2, 3, 4, 5] as i (i)}
 								{@const active = focused && i === Math.min(code.length, 5)}
 								<span
-									class="grid aspect-[4/5] place-items-center rounded-xl border bg-surface-2 font-mono text-2xl font-semibold transition {active
-										? 'border-accent ring-2 ring-accent/40'
+									class="bg-surface-2 grid aspect-[4/5] place-items-center rounded-xl border font-mono text-2xl font-semibold transition {active
+										? 'border-accent ring-accent/40 ring-2'
 										: code[i]
 											? 'border-fg/30'
 											: 'border-line'}"
@@ -94,12 +94,12 @@
 				</form>
 				<form method="POST" action="?/send" use:enhance class="mt-3 text-center">
 					<input type="hidden" name="email" value={form.email} />
-					<button class="text-sm text-muted underline-offset-4 hover:text-fg hover:underline">
+					<button class="text-muted hover:text-fg text-sm underline-offset-4 hover:underline">
 						Send a new code
 					</button>
 				</form>
 			{:else}
-				<p class="mt-3 text-sm text-muted">No password. We email you a 6-digit code.</p>
+				<p class="text-muted mt-3 text-sm">No password. We email you a 6-digit code.</p>
 				<form method="POST" action="?/send" use:enhance class="mt-6 space-y-4">
 					<input
 						name="email"
@@ -117,7 +117,7 @@
 
 			{#if form?.message}
 				<p
-					class="mt-4 rounded-xl border border-again/30 bg-again/10 px-3 py-2 text-sm text-again"
+					class="border-again/30 bg-again/10 text-again mt-4 rounded-xl border px-3 py-2 text-sm"
 					role="alert"
 				>
 					{form.message}
