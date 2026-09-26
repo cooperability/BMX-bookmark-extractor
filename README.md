@@ -2,7 +2,7 @@
 
 Remediate turns a personal knowledge corpus into one connected graph and exposes it through surfaces that share a single backend.
 
-- **BMX** (BookMark eXtractor) harvests URLs. Paste links, and their content is fetched, extracted, triaged by Claude, and slotted into the graph with a deck and tags. This is the project's original vision and the reason the repo is named what it is.
+- **BMX** (BookMark eXtractor) harvests URLs. Paste links, and their content is fetched, extracted, triaged by Claude, and slotted into the graph with a deck and tags. This is the project's original vision.
 - **Cards** is an Anki-compatible spaced-repetition surface fed by your existing decks.
 - **Quest** is an exploratory game played over the same graph, where rooms are concepts and doors are relationships.
 
@@ -82,8 +82,8 @@ Every table carries `user_id` on the row, so RLS attaches without a join. Migrat
 Requires Node 22 and Corepack. The server refuses to start without `DATABASE_URL`, so set up the database in Local development below. No API keys are needed. `isomorphic-dompurify` 4.2.0 refuses to install on Node 20.
 
 ```bash
-git clone https://github.com/cooperability/BMX-bookmark-extractor.git
-cd BMX-bookmark-extractor
+git clone https://github.com/cooperability/remediate.app.git
+cd remediate.app
 corepack enable
 yarn install --frozen-lockfile
 yarn dev          # http://localhost:3000
