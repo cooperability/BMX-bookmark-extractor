@@ -19,7 +19,7 @@ import {
 
 export const user = pgTable('user', {
 	id: text('id').primaryKey(),
-	// Login is an emailed one-time code to an allowlisted address. No passwords.
+	// Login is an allowlisted address plus the shared DEV_PASSWORD.
 	email: text('email').notNull().unique(),
 	createdAt: timestamp('created_at', { withTimezone: true, mode: 'date' }).notNull().defaultNow()
 });

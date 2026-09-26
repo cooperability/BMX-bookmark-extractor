@@ -2,7 +2,7 @@
 
 Remediate turns a personal knowledge corpus into one connected graph and exposes it through surfaces that share a single backend.
 
-- **BMX** (BookMark eXtractor) harvests URLs. Paste links, and their content is fetched, extracted, triaged by Claude, and slotted into the graph with a deck and tags. This is the project's original vision and the reason the repo is named what it is.
+- **BMX** (BookMark eXtractor) harvests URLs. Paste links, and their content is fetched, extracted, triaged by Claude, and slotted into the graph with a deck and tags. This is the project's original vision.
 - **Cards** is an Anki-compatible spaced-repetition surface fed by your existing decks.
 - **Quest** is an exploratory game played over the same graph, where rooms are concepts and doors are relationships.
 
@@ -82,8 +82,8 @@ Every table carries `user_id` on the row, so RLS attaches without a join. Migrat
 Requires Node 22 and Corepack. The server refuses to start without `DATABASE_URL`, so set up the database in Local development below. No API keys are needed. `isomorphic-dompurify` 4.2.0 refuses to install on Node 20.
 
 ```bash
-git clone https://github.com/cooperability/BMX-bookmark-extractor.git
-cd BMX-bookmark-extractor
+git clone https://github.com/cooperability/remediate.app.git
+cd remediate.app
 corepack enable
 yarn install --frozen-lockfile
 yarn dev          # http://localhost:3000
@@ -120,10 +120,10 @@ Parser ground truth, Confirmed against `source_data/` by `yarn test:server` on N
 ## Local development
 
 1. `yarn db:up` starts Postgres 17 with pgvector on port 5433 (`docker-compose.yml`).
-2. `cp .env.example .env`, then set `DATABASE_URL="postgres://postgres:dev@localhost:5433/remediate"` and add your address to `ALLOWED_EMAILS`.
+2. `cp .env.example .env`, then set `DATABASE_URL="postgres://postgres:dev@localhost:5433/remediate"` and add your address to `ALLOWED_EMAILS` and set `DEV_PASSWORD`.
 3. `yarn db:migrate` applies `drizzle/`. After a schema change, `yarn db:generate` writes the next migration.
 4. `yarn db:seed you@example.com` creates that user and imports both `source_data/` decks, 457 cards. Rerunning it updates in place.
-5. `yarn dev`, then request a login code. With `GMAIL_USER` unset, the dev server terminal prints `[auth] login code for <email>: <code>`.
+5. `yarn dev`, then log in with your address and `DEV_PASSWORD`.
 6. `yarn db:down` stops the container and keeps the data volume.
 
 Keep one database on one path. `db:migrate` records what it applied, and `db:push` does not, so a later `db:migrate` against a pushed database fails on tables that already exist. Use `db:push` only on a throwaway database.
