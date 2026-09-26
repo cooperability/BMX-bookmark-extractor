@@ -34,7 +34,6 @@
 		"@tailwindcss/typography": "^0.5.15",
 		"@tailwindcss/vite": "^4.0.0",
 		"@types/node": "^25",
-		"@types/nodemailer": "8.0.2",
 		"drizzle-kit": "^0.31.8",
 		"eslint": "^10.0.0",
 		"eslint-config-prettier": "^10.0.1",
@@ -58,7 +57,6 @@
 		"csv-parse": "7.0.2",
 		"drizzle-orm": "^0.45.1",
 		"isomorphic-dompurify": "4.2.0",
-		"nodemailer": "10.0.10",
 		"postgres": "^3.4.5",
 		"ts-fsrs": "5.4.2"
 	},
