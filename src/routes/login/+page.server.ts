@@ -4,8 +4,7 @@ import { encodeBase32LowerCase } from '@oslojs/encoding';
 import * as auth from '$lib/server/auth';
 import { db } from '$lib/server/db';
 import * as table from '$lib/server/db/schema';
-import { sendLoginCode } from '$lib/server/mail';
-import { isAllowed, issueCode, normalizeEmail, verifyCode } from '$lib/server/otp';
+import { checkDevPassword, isAllowed, normalizeEmail } from '$lib/server/otp';
 import type { Actions, PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async ({ locals }) => {
@@ -13,24 +12,13 @@ export const load: PageServerLoad = async ({ locals }) => {
 };
 
 export const actions: Actions = {
-	send: async ({ request }) => {
-		const email = normalizeEmail(String((await request.formData()).get('email') ?? ''));
-		if (!email) return fail(400, { email, message: 'Enter an email.' });
-		// Same answer for allowed and unknown addresses, so the form does not reveal the allowlist.
-		if (isAllowed(email)) {
-			const code = await issueCode(email);
-			// Awaited so serverless does not kill the send. Errors are logged, not returned,
-			// so an SMTP failure does not single out an allowed address.
-			if (code) await sendLoginCode(email, code).catch((e) => console.error('[auth] send', e));
-		}
-		return { email, sent: true };
-	},
-	verify: async (event) => {
+	login: async (event) => {
 		const form = await event.request.formData();
 		const email = normalizeEmail(String(form.get('email') ?? ''));
-		const code = String(form.get('code') ?? '');
-		if (!isAllowed(email) || !(await verifyCode(email, code))) {
-			return fail(400, { email, sent: true, message: 'Wrong or expired code.' });
+		const password = String(form.get('password') ?? '');
+		// One answer for every failure, so the form does not reveal the allowlist.
+		if (!isAllowed(email) || !checkDevPassword(password)) {
+			return fail(400, { email, message: "Sorry, you don't have the dev password." });
 		}
 
 		let [user] = await db.select().from(table.user).where(eq(table.user.email, email));
