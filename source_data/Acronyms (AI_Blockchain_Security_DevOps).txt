@@ -318,3 +318,4 @@ OJM66rNV2h	Basic	Acronyms (AI/Blockchain/Security/DevOps)	SBT	Soulbound Token, a
 y99mcIrKu5	Basic	Acronyms (AI/Blockchain/Security/DevOps)	KYC	Know Your Customer, the identity verification regulated financial services and exchanges must perform on users.	blockchain security
 zHKHwzKS88	Basic	Acronyms (AI/Blockchain/Security/DevOps)	AML	Anti-Money Laundering, the laws and monitoring that detect and report illicit fund flows, applied to exchanges and stablecoin issuers.	blockchain security
 Keu38bpsjZ	Basic	Acronyms (AI/Blockchain/Security/DevOps)	OFAC	Office of Foreign Assets Control, the US Treasury office that maintains sanctions lists, including crypto addresses, as in the 2022 Tornado Cash designation.	blockchain security
+iXtHhyedBq	Basic	Acronyms (AI/Blockchain/Security/DevOps)	WHATWG	Web Hypertext Application Technology Working Group, the browser-vendor body that maintains the HTML, DOM, Fetch and URL living standards that browsers implement.	web

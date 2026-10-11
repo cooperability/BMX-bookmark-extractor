@@ -55,10 +55,16 @@ export function decodeEntities(s: string): string {
 	});
 }
 
+/**
+ * The first `max` code units, never half a surrogate pair. JSON.stringify writes a
+ * lone surrogate as \ud800, and Postgres refuses that in jsonb.
+ */
+export const truncate = (s: string, max: number) => s.slice(0, max).toWellFormed();
+
 const clean = (s: string | null | undefined, max = MAX_FIELD) => {
 	if (!s) return null;
 	const t = decodeEntities(s).replaceAll('\u0000', '').replace(/\s+/g, ' ').trim();
-	return t ? t.slice(0, max) : null;
+	return t ? truncate(t, max) : null;
 };
 
 /** Input past this is ignored: an article's head and body fit well inside it. */

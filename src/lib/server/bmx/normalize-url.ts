@@ -92,7 +92,9 @@ function trimTrailing(url: string): string {
 	}
 }
 
-const URL_IN_TEXT = /https?:\/\/[^\s"'<>`]+/gi;
+// An apostrophe followed by a letter is part of a path (wiki/Ender's_Game). One
+// followed by anything else closes a quoted link ('https://a.test','https://b.test').
+const URL_IN_TEXT = /https?:\/\/(?:[^\s"'<>`]|'(?=\w))+/gi;
 
 /**
  * Every distinct http(s) URL in pasted text: one per line, prose, or a browser's

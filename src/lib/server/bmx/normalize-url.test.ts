@@ -62,6 +62,20 @@ describe('extractUrls', () => {
 		).toEqual(['https://en.wikipedia.org/wiki/Mercury_(planet)', 'https://a.test/x']);
 	});
 
+	it('keeps an apostrophe inside a path, and drops the quote around a link', () => {
+		expect(
+			extractUrls(
+				`<A HREF="https://en.wikipedia.org/wiki/Ender's_Game">\nsee 'https://a.test/x' or <a href='https://b.test/y'>\n['https://c.test/1','https://c.test/2']`
+			)
+		).toEqual([
+			"https://en.wikipedia.org/wiki/Ender's_Game",
+			'https://a.test/x',
+			'https://b.test/y',
+			'https://c.test/1',
+			'https://c.test/2'
+		]);
+	});
+
 	it('ignores non-http schemes', () => {
 		expect(extractUrls('mailto:a@b.test javascript:alert(1)')).toEqual([]);
 	});

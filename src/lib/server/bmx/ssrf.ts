@@ -3,7 +3,7 @@ import http from 'node:http';
 import https from 'node:https';
 import { BlockList, isIP, type LookupFunction } from 'node:net';
 import { createBrotliDecompress, createGunzip, createInflate } from 'node:zlib';
-import type { Readable } from 'node:stream';
+import { pipeline, type Readable, type Transform } from 'node:stream';
 
 // SSRF guard (TDD §7.4). The harvest fetches URLs strangers wrote, so a link must
 // not reach the function's own network: loopback, private ranges, link-local
@@ -114,18 +114,24 @@ function checkUrl(url: URL, allow: AddressCheck, anyPort: boolean) {
 	if (isIP(host) && !allow(host)) throw new BlockedError(`${host} is not a public address`);
 }
 
-function decode(res: http.IncomingMessage): Readable {
-	switch ((res.headers['content-encoding'] ?? '').toLowerCase()) {
+function decoder(encoding: string): Transform | null {
+	switch (encoding.toLowerCase()) {
 		case 'gzip':
 		case 'x-gzip':
-			return res.pipe(createGunzip());
+			return createGunzip();
 		case 'deflate':
-			return res.pipe(createInflate());
+			return createInflate();
 		case 'br':
-			return res.pipe(createBrotliDecompress());
+			return createBrotliDecompress();
 		default:
-			return res;
+			return null;
 	}
+}
+
+function decode(res: http.IncomingMessage): Readable {
+	const d = decoder(res.headers['content-encoding'] ?? '');
+	// pipeline, not pipe: pipe drops a connection reset, and the decoder would wait forever.
+	return d ? pipeline(res, d, () => {}) : res;
 }
 
 function once(

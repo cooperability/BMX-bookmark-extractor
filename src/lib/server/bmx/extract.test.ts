@@ -84,6 +84,17 @@ describe('text a database write can hold', () => {
 		expect(e.tier).toBe('full');
 	});
 
+	// JSON.stringify writes a lone surrogate as \ud800, and Postgres refuses it in jsonb.
+	it('never leaves half a surrogate pair in a field', () => {
+		const entity = extractFromHtml(page('<title>A &#xD800; b</title>', ''), 'https://a.test');
+		expect(entity.title?.isWellFormed()).toBe(true);
+		const cut = extractFromHtml(
+			page(`<title>${'a'.repeat(999)}\u{1F600}</title>`, ''),
+			'https://a.test'
+		);
+		expect(cut.title?.isWellFormed()).toBe(true);
+	});
+
 	// 'İ'.toLowerCase() is two code units: a lowercased copy drifts from the original.
 	it('reads a page whose text changes length when lowercased', () => {
 		const head = `<meta name="keywords" content="${'İstanbul '.repeat(20)}"><title>Türkiye</title>`;
