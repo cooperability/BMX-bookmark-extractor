@@ -102,8 +102,8 @@ Parser ground truth for `source_data/`. `anki-tsv.test.ts` asserts the Anthro an
 | -------- | --------: | ------: | -----------: | --------------: |
 | Anthro   |      4053 |     320 |          320 |             123 |
 | CompSci  |       576 |     137 |          137 |              23 |
-| Acronyms |       322 |     315 |          315 |               0 |
-| Total    |      4951 | **772** |      **772** |                 |
+| Acronyms |       326 |     319 |          319 |               0 |
+| Total    |      4955 | **776** |      **776** |                 |
 
 | Command                     | Does                                           |
 | --------------------------- | ---------------------------------------------- |
@@ -122,7 +122,7 @@ Type `yarn run check` in full. Plain `yarn check` runs Yarn 1's built-in integri
 1. `yarn db:up` starts Postgres 17 with pgvector on port 5433 (`docker-compose.yml`).
 2. `cp .env.example .env`, then set `DATABASE_URL="postgres://postgres:dev@localhost:5433/remediate"` and add your address to `ALLOWED_EMAILS` and set `DEV_PASSWORD`.
 3. `yarn db:migrate` applies `drizzle/`. After a schema change, `yarn db:generate` writes the next migration.
-4. `yarn db:seed you@example.com` creates that user and imports every `.txt` deck in `source_data/`, 772 cards across 3 decks. Rerunning it updates in place.
+4. `yarn db:seed you@example.com` creates that user and imports every `.txt` deck in `source_data/`, 776 cards across 3 decks. Rerunning it updates in place.
 5. `yarn dev`, then log in with your address and `DEV_PASSWORD`.
 6. `yarn db:down` stops the container and keeps the data volume.
 

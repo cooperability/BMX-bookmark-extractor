@@ -3,19 +3,19 @@ import { sql } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/postgres-js';
 import postgres from 'postgres';
 import * as schema from './schema';
-import { env } from '$env/dynamic/private';
+import { DATABASE_URL } from '$app/env/private';
 
 // Checked on use, not at import: hooks.server.ts imports this module, so a throw
 // here fails every route, the public landing page included.
 function requireUrl() {
-	if (!env.DATABASE_URL) throw new Error('DATABASE_URL is not set');
+	if (!DATABASE_URL) throw new Error('DATABASE_URL is not set');
 }
 
 // Serverless defaults. postgres.js waits 30 s on a connect and keeps idle
 // connections forever. On Vercel that meant a request hung for 30 s while the
 // database was unreachable, and a frozen instance held connections Neon had
 // already dropped. Fail a connect in 10 s, and let idle ones go after 20 s.
-const client = postgres(env.DATABASE_URL ?? '', {
+const client = postgres(DATABASE_URL ?? '', {
 	connect_timeout: 10,
 	idle_timeout: 20,
 	max_lifetime: 60 * 30

@@ -1,4 +1,5 @@
-import { json, redirect, type Handle } from '@sveltejs/kit';
+import { json, redirect } from '@sveltejs/kit';
+import type { Handle } from '@sveltejs/kit/hooks';
 import * as auth from '$lib/server/auth';
 import { asTenant } from '$lib/server/db';
 import { isAllowed } from '$lib/server/otp';
