@@ -1,7 +1,9 @@
 # Remediate — Technical Design Document
 
 **Status:** Draft v2 · **Date:** 2026-07-15
-**Companion docs:** [PRD.md](./PRD.md) (what & why) · [PIPELINE.md](./PIPELINE.md) (build order)
+**Companion docs:** [PRD.md](./PRD.md) (what & why) · [ROADMAP.md](./ROADMAP.md) (what is built, and what to build next)
+
+> **Read with ROADMAP.md.** This design predates the build, and the build replaced three parts of it. Extraction shipped in TypeScript, so there is no Python (§3.1, §7.4). The harvest queue is request-driven, so there is no cron worker or `jobs` queue (§1, §6). Login is an allowlist plus a shared password (§2). Section 9.1 was written from the code. Corrections in place are marked _As built_.
 
 > **v2 changes:** renamed to Remediate · **Python retained** as a narrow cold-path extractor (§3.1 rewritten) · BMX harvest pipeline designed (§6) · TSV parser section added with ground truth (§5) · GUID identity + safety (§5.2) · Cards precedes Quest.
 
@@ -125,7 +127,7 @@ flowchart LR
 
 ```
 remediate.app/
-├── docs/{PRD,TDD,PIPELINE}.md · docs/adr/
+├── docs/{ROADMAP,PRD,TDD,PIPELINE}.md
 ├── api/
 │   └── extract.py                          # the ONLY Python. Cold path. §3.1
 ├── src/
@@ -160,7 +162,7 @@ remediate.app/
 
 Frontend is promoted to the repo root. There is no second service to be a peer of.
 
-Built on disk today: `src/lib/server/ingest/{anki-tsv,sanitize,identity}.ts`, `src/lib/server/db/schema.ts`, the auth scaffold, the landing page, Cards (`src/lib/server/cards/`, `/cards`) and the Quest groundwork (`src/lib/server/quest/`, `/quest`, §9.1). `api/extract.py`, `src/lib/server/bmx/`, anonymous `/play`, cron, and `docs/adr/` are still the target layout.
+_As built:_ the real layout is flat routes (`/cards`, `/quest`, `/harvest`, `/login`, `/api/review/*`, `/api/quest/*`) and server modules `src/lib/server/{auth,otp,health}.ts`, `db/`, `ingest/`, `cards/`, `bmx/{extract,harvest,normalize-url,queue,robots,ssrf}.ts` and `quest/`. There is no `api/extract.py`, `ai/`, `jobs/`, anonymous `/play`, or `docs/adr/`.
 
 ---
 
@@ -172,27 +174,27 @@ Built on disk today: `src/lib/server/ingest/{anki-tsv,sanitize,identity}.ts`, `s
 | Postgres **or** MongoDB?            | **Postgres** (Neon)                          | Three reasons converge: FSRS state is a fixed schema with range queries on `due` (a B-tree's whole purpose); the graph is recursive CTEs; and **pgvector** puts embeddings in the same database as the rows they describe, so "similar cards in this deck, for this user" is one query with one `where` instead of a fan-out plus an app-side join. Drizzle + `postgres` already installed. |
 | FastAPI **or** Express **or** Hono? | **None — SvelteKit `+server.ts` is the API** | See [§3.1](#31-python-the-honest-answer). Adding any of the three buys a second deployable, a second auth boundary, CORS, duplicated types, and a network hop inside your own app.                                                                                                                                                                                                          |
 | SvelteKit **or** TypeScript?        | **Both — the question is a category error**  | SvelteKit is a framework; TypeScript is the language. Svelte 5 runes + `strict` + end-to-end inference from Drizzle schema → API → component props. That inference chain is the thing worth showing off.                                                                                                                                                                                    |
-| Reintroduce Next.js / React?        | **No**                                       | The app at the repo root is already SvelteKit 2 + Svelte 5. The Next.js migration is done. Remaining work is Cards, Quest, and BMX triage on that scaffold. Do not restore Next.js to satisfy a Dependabot alert.                                                                                                                                                                           |
+| Reintroduce Next.js / React?        | **No**                                       | The app at the repo root is already SvelteKit 2 + Svelte 5. The Next.js migration is done. Cards, Quest and BMX harvest are built on that scaffold. [ROADMAP.md](./ROADMAP.md) ranks what remains. Do not restore Next.js to satisfy a Dependabot alert.                                                                                                                                    |
 | Keep Python?                        | **Yes, narrowly**                            | One function. `api/extract.py`. See below.                                                                                                                                                                                                                                                                                                                                                  |
 
 ### Resulting stack
 
-| Layer          | Choice                                      | In repo?                  |
-| -------------- | ------------------------------------------- | ------------------------- |
-| Framework      | SvelteKit 2 + Svelte 5 (runes)              | ✅                        |
-| Language       | TypeScript `strict`, zero server-side `any` | ✅                        |
-| Styling        | Tailwind 4                                  | ✅                        |
-| DB / ORM       | Neon Postgres + pgvector / Drizzle          | partial                   |
-| Auth           | oslo + Argon2id                             | ✅                        |
-| SRS            | `ts-fsrs` (FSRS-6)                          | ❌ add                    |
-| TSV parse      | `csv-parse` (RFC4180, tab-configured)       | ✅                        |
-| Sanitize       | `isomorphic-dompurify`                      | ✅                        |
-| Validation     | `zod`                                       | ❌ add                    |
-| AI             | `@anthropic-ai/sdk` · `claude-opus-4-8`     | ❌ add                    |
-| **Extraction** | **Python: `trafilatura`**                   | ❌ add (`api/extract.py`) |
-| Tests          | Vitest + Playwright                         | ✅                        |
-| i18n           | none yet                                    | ❌ deferred               |
-| CI             | Actions + Dependabot                        | ✅                        |
+| Layer          | Choice                                            | In repo?    |
+| -------------- | ------------------------------------------------- | ----------- |
+| Framework      | SvelteKit 2 + Svelte 5 (runes)                    | ✅          |
+| Language       | TypeScript `strict`, zero server-side `any`       | ✅          |
+| Styling        | Tailwind 4                                        | ✅          |
+| DB / ORM       | Neon Postgres + pgvector / Drizzle                | partial     |
+| Auth           | allowlist + shared password (Argon2id deferred)   | ✅          |
+| SRS            | `ts-fsrs` (FSRS-6)                                | ✅          |
+| TSV parse      | `csv-parse` (RFC4180, tab-configured)             | ✅          |
+| Sanitize       | `isomorphic-dompurify`                            | ✅          |
+| Validation     | `zod`                                             | ❌ add      |
+| AI             | `@anthropic-ai/sdk`, model chosen at ROADMAP AI-A | ❌ add      |
+| **Extraction** | TypeScript `bmx/extract.ts` (Python cut)          | ✅          |
+| Tests          | Vitest + Playwright                               | ✅          |
+| i18n           | none yet                                          | ❌ deferred |
+| CI             | Actions + Dependabot                              | ✅          |
 
 The existing scaffold is ~70% of this. The overhaul is mostly deletion.
 
@@ -201,6 +203,8 @@ The existing scaffold is ~70% of this. The overhaul is mostly deletion.
 ## 3. The Roads Not Taken
 
 ### 3.1 Python: the honest answer
+
+> _As built:_ no Python shipped. The harvest needed only metadata and readable paragraphs, which a linear-scan TypeScript extractor (`src/lib/server/bmx/extract.ts`) provides. The argument below is kept as the record of the decision at the time.
 
 You asked directly: _does keeping Python hurt the security/modernity goals?_ Three separate questions live inside that one, and they have different answers.
 
@@ -734,7 +738,7 @@ kit: {
 }
 ```
 
-**Delete `X-XSS-Protection` from `vercel.json` (SEC-8).** Currently `1; mode=block`. Deprecated, ignored by modern browsers, and its filter was itself an XSS vector in older ones. Shipping it beside a real CSP is a tell that headers were copied rather than reasoned about.
+**Delete `X-XSS-Protection` from `vercel.json` (SEC-8).** _As built:_ removed. Deprecated, ignored by modern browsers, and its filter was itself an XSS vector in older ones. Shipping it beside a real CSP is a tell that headers were copied rather than reasoned about.
 
 ### 7.3 Identifier XSS — the subtle one
 
@@ -751,6 +755,8 @@ That `<` in `tNcJ[p<DNp` means `<div data-guid=${guid}>` is an injection point _
 **Control:** the raw GUID lives in exactly one place — the `anki_guid` column. Routes and DOM use the derived `internalId()` ([§5.2](#52-identity)). Nothing else ever touches it.
 
 ### 7.4 SSRF guard (SEC-2) — the highest-severity new surface
+
+> _As built:_ the guard is TypeScript, in `src/lib/server/bmx/ssrf.ts`, and runs inside the main SvelteKit function, which does hold database credentials. Property 3 below therefore does not hold. The address check runs inside the socket’s own DNS lookup, so the address checked is the one connected to, which closes the DNS-rebinding residual described below. The Python sketch is the original design.
 
 ```python
 # api/extract.py
@@ -937,6 +943,8 @@ The sketch above became four modules in `src/lib/server/quest/`, three of them p
 
 ## 10. AI Integration
 
+> _As built:_ not started. This section is the pre-build sketch. The model id is superseded, and the cron is cut: ROADMAP AI-A drives batches from a page action and keeps every API call outside a database transaction. Rewrite this section as AI-A’s design note.
+
 `claude-opus-4-8`, adaptive thinking, off the hot path via cron + Batch.
 
 ```ts
@@ -1014,7 +1022,7 @@ Coverage targets are deliberately uneven — chase risk, not percentage.
 | ------------------- | ----------------------- | --------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **Anki TSV parser** | Vitest                  | **100%**                                                  | Fixtures: **both real `.txt` files**. Assert exactly **320** and **137** records — the test that catches the 4,629-line trap. Plus the legacy CSV, plus adversarial input. |
 | **Sanitizer**       | Vitest                  | **100%**                                                  | Security boundary. Test against XSS payload corpora, not hand-written cases. Assert `javascript:` hrefs stripped, `rel="noopener"` added.                                  |
-| **SSRF guard**      | pytest                  | **100%**                                                  | Assert `169.254.169.254`, `localhost`, `10.0.0.1`, and a redirect-to-private chain all rejected.                                                                           |
+| **SSRF guard**      | Vitest                  | **100%**                                                  | Assert `169.254.169.254`, `localhost`, `10.0.0.1`, and a redirect-to-private chain all rejected.                                                                           |
 | **Scheduler**       | Vitest + property tests | **100%**                                                  | Pure, high-consequence, silent when wrong.                                                                                                                                 |
 | **Quest engine**    | Vitest                  | High                                                      | Pure. Table-driven over graph shapes.                                                                                                                                      |
 | BMX triage          | Vitest (mocked AI)      | Happy + low-confidence + tier-2 cap                       | Assert tier-2 never auto-slots.                                                                                                                                            |
@@ -1156,13 +1164,13 @@ Dependabot alerts on `backend/poetry.lock` (nltk, starlette, python-multipart, a
 
 ## 13. Risks
 
-| #   | Risk                                                                                                                                                                             | Likelihood  | Impact   | Mitigation                                                                                                                                                                                                                                                     |
-| --- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------- | -------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| R1  | **Graph isn't meaningful.** Density is now fine (~4,300 nodes, growing), but 8 nearest neighbours at 0.82 cosine may all be "these are both about the brain" — true but useless. | Medium      | **High** | Downgraded from v1's High/High: the corpus is 20× bigger than the 212 first assumed. But _density ≠ meaningfulness_, so the **B3** human gate stays: read 20 edges before building Quest. Lever if bad: lean on `prereq_of` over `similar_to`.                 |
-| R2  | **~45% of bookmarks unreachable.** WSJ/Bloomberg/Atlantic paywalled, apple.news opaque.                                                                                          | **Certain** | Medium   | Designed for, not mitigated: tiered extraction ([§6.1](#61-why-tiering-is-the-whole-design)). `articles.csv` already carries title+description, so Tier 2 is pre-populated. Marked via `extraction_tier`; confidence-capped.                                   |
-| R3  | **Triage taxonomy drift** — model invents `web-dev` next to `webdev`.                                                                                                            | Medium      | Medium   | Constrained enum from the user's actual vocabulary + `__new__` escape ([§6.2](#62-constrained-triage)).                                                                                                                                                        |
-| R4  | **Recall-gated doors feel punishing.** Everything starts at `stability = 0`.                                                                                                     | Medium      | Medium   | Seed the starting room's neighbours unlocked; θ tunable; first encounter always winnable. Playtest before polish.                                                                                                                                              |
-| R5  | **Deadline.** 4 days.                                                                                                                                                            | High        | Medium   | Phases are dependency-ordered in [PIPELINE.md](./PIPELINE.md). **Cards (Phase 3) is a shippable product alone.** BMX (Phase 4) is the second-most valuable. Quest (Phase 6) is the first thing to cut.                                                         |
-| R6  | **DNS rebinding** defeats the SSRF check (TOCTOU between resolve and connect).                                                                                                   | Low         | High     | Accepted for P0 and documented ([§7.4](#74-ssrf-guard-sec-2--the-highest-severity-new-surface)). Real fix is pinning the resolved IP into the connection; `trafilatura` doesn't expose it. Blast radius already limited: the function holds no DB credentials. |
-| R7  | **FSRS param tuning** needs review history nobody has.                                                                                                                           | High        | Low      | Ship `ts-fsrs` defaults (fit on ~1.7B reviews — better than anything fit on 457 cards). Revisit at 1k+ reviews.                                                                                                                                                |
-| R8  | Vercel timeout on large imports/harvests.                                                                                                                                        | Low         | Low      | Mitigated by design: `202` + job queue. Import parses and upserts only; harvest is entirely cold-path.                                                                                                                                                         |
+| #   | Risk                                                                                                                                                                             | Likelihood  | Impact   | Mitigation                                                                                                                                                                                                                                     |
+| --- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------- | -------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| R1  | **Graph isn't meaningful.** Density is now fine (~4,300 nodes, growing), but 8 nearest neighbours at 0.82 cosine may all be "these are both about the brain" — true but useless. | Medium      | **High** | Downgraded from v1's High/High: the corpus is 20× bigger than the 212 first assumed. But _density ≠ meaningfulness_, so the **B3** human gate stays: read 20 edges before building Quest. Lever if bad: lean on `prereq_of` over `similar_to`. |
+| R2  | **~45% of bookmarks unreachable.** WSJ/Bloomberg/Atlantic paywalled, apple.news opaque.                                                                                          | **Certain** | Medium   | Designed for, not mitigated: tiered extraction ([§6.1](#61-why-tiering-is-the-whole-design)). `articles.csv` already carries title+description, so Tier 2 is pre-populated. Marked via `extraction_tier`; confidence-capped.                   |
+| R3  | **Triage taxonomy drift** — model invents `web-dev` next to `webdev`.                                                                                                            | Medium      | Medium   | Constrained enum from the user's actual vocabulary + `__new__` escape ([§6.2](#62-constrained-triage)).                                                                                                                                        |
+| R4  | **Recall-gated doors feel punishing.** Everything starts at `stability = 0`.                                                                                                     | Medium      | Medium   | Seed the starting room's neighbours unlocked; θ tunable; first encounter always winnable. Playtest before polish.                                                                                                                              |
+| R5  | **Deadline.** 4 days. _As built:_ passed. Superseded by ROADMAP.md ranking.                                                                                                      | High        | Medium   | Phases are dependency-ordered in [PIPELINE.md](./PIPELINE.md). **Cards (Phase 3) is a shippable product alone.** BMX (Phase 4) is the second-most valuable. Quest (Phase 6) is the first thing to cut.                                         |
+| R6  | **DNS rebinding** defeats the SSRF check (TOCTOU between resolve and connect).                                                                                                   | Low         | High     | _As built:_ fixed by checking inside the socket’s DNS lookup ([§7.4](#74-ssrf-guard-sec-2--the-highest-severity-new-surface)). The fetch runs in the main function, which holds database credentials, so the guard is the only wall.           |
+| R7  | **FSRS param tuning** needs review history nobody has.                                                                                                                           | High        | Low      | Ship `ts-fsrs` defaults (fit on ~1.7B reviews — better than anything fit on 457 cards). Revisit at 1k+ reviews.                                                                                                                                |
+| R8  | Vercel timeout on large imports/harvests.                                                                                                                                        | Low         | Low      | _As built:_ no job queue. Import is synchronous under a 4 MB cap. Harvest rounds run in the request with an 8 s budget (ROADMAP DATA-C).                                                                                                       |

@@ -1,6 +1,6 @@
 import http from 'node:http';
 import type { AddressInfo } from 'node:net';
-import { gzipSync } from 'node:zlib';
+import { brotliCompressSync, deflateSync, gzipSync } from 'node:zlib';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { BlockedError, isPublicAddress, safeFetch } from './ssrf';
 
@@ -86,6 +86,21 @@ describe('safeFetch', () => {
 				res.writeHead(200, { 'content-type': 'text/html', 'content-encoding': 'gzip' });
 				return res.write(zipped.subarray(0, zipped.length / 2));
 			}
+			// Half a compressed body, then the connection drops. The fetch must fail, not hang.
+			const reset = {
+				'/reset-gzip': gzipSync,
+				'/reset-deflate': deflateSync,
+				'/reset-br': brotliCompressSync
+			};
+			if (path in reset) {
+				const encoding = path.slice('/reset-'.length);
+				const zipped = reset[path as keyof typeof reset](
+					Buffer.from('<title>'.padEnd(200_000, 'x'))
+				);
+				res.writeHead(200, { 'content-type': 'text/html', 'content-encoding': encoding });
+				res.write(zipped.subarray(0, zipped.length / 2));
+				return setTimeout(() => req.socket.destroy(), 20);
+			}
 			// No charset in the header: the page declares windows-1252 itself.
 			if (path === '/cp1252') {
 				res.writeHead(200, { 'content-type': 'text/html' });
@@ -169,6 +184,12 @@ describe('safeFetch', () => {
 	it('gives up at the timeout mid-body', async () => {
 		const started = Date.now();
 		await expect(fetchTest(at('/slow-gzip'), { timeoutMs: 300 })).rejects.toBeDefined();
+		expect(Date.now() - started).toBeLessThan(2000);
+	});
+
+	it.each(['gzip', 'deflate', 'br'])('fails when a %s body is cut off mid-stream', async (enc) => {
+		const started = Date.now();
+		await expect(fetchTest(at(`/reset-${enc}`), { timeoutMs: 5000 })).rejects.toBeDefined();
 		expect(Date.now() - started).toBeLessThan(2000);
 	});
 });

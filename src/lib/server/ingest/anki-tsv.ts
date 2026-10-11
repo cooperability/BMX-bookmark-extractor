@@ -94,7 +94,14 @@ export function parseAnkiExport(raw: string, userId: string): ParseResult {
 
 		const ankiGuid = guidCol >= 0 ? (row[guidCol] ?? null) : null;
 		// Deck names contain `/`. Anki's hierarchy separator is `::`, so do not split.
-		const deck = deckCol >= 0 ? (row[deckCol] ?? '') : (header['deck'] ?? 'Default');
+		let deck = (deckCol >= 0 ? row[deckCol] : header['deck']) ?? '';
+		if (!deck.trim()) {
+			// No page can open, study or delete a deck named "".
+			if (deckCol >= 0 || header['deck'] !== undefined) {
+				warnings.push(`Row ${i + 1}: no deck name, filed under Default.`);
+			}
+			deck = 'Default';
+		}
 		const front = sanitizeCardHtml(row[fieldCols[0]] ?? '');
 		const back = sanitizeCardHtml(row[fieldCols[1]] ?? '');
 

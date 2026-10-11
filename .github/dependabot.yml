@@ -6,6 +6,11 @@ updates:
     schedule:
       interval: 'weekly'
     open-pull-requests-limit: 10
+    # Later releases pull jsdom 27+, which needs require(esm), and Vercel's runtime
+    # refuses it (#345). The e2e guard in playwright.config.ts fails those bumps anyway.
+    ignore:
+      - dependency-name: 'isomorphic-dompurify'
+        versions: ['>2.26.0']
     groups:
       svelte:
         patterns:

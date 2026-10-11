@@ -1,7 +1,9 @@
 # Remediate — Product Requirements Document
 
-**Status:** Draft v2 · **Date:** 2026-07-15 · **Target prototype:** 2026-07-19
-**Companion docs:** [TDD.md](./TDD.md) (how it's built) · [PIPELINE.md](./PIPELINE.md) (who builds what, in what order)
+**Status:** Draft v2 · **Date:** 2026-07-15 · **Target prototype:** 2026-07-19 (passed)
+**Companion docs:** [TDD.md](./TDD.md) (how it's built) · [ROADMAP.md](./ROADMAP.md) (what is built, and what to build next, in priority order)
+
+> **Read with ROADMAP.md.** These requirements are the target, written before the build. Cards, Quest's core loop and BMX harvest have shipped. Where the build departed from a requirement on purpose (auth, the Python extractor, the import job queue), ROADMAP's "Deferred and cut" table records the decision. Corrections in place are marked _As built_.
 
 > **v2 changes:** renamed to Remediate (BMX survives as the harvest subsystem) · corpus ground-truthed (457 cards, not 212) · bookmark harvesting restored to P0 as the original vision · Cards explicitly precedes Quest · Anki GUID replaces content-hash as primary identity.
 
@@ -46,7 +48,7 @@ The name is the thesis. To **remediate** is to fix a gap — which is what space
 | Thing             | Name                            | Notes                                                                                                                                                         |
 | ----------------- | ------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Product / domain  | **Remediate** — `remediate.app` | Owned. The deleted FastAPI service was titled `"Remediate.app Backend"`. That was intent, not leftover. v1 of this doc read it as cruft and was wrong.        |
-| Repo              | `remediate.app`                 | Matches the domain exactly. See [PIPELINE §4 Phase 0](./PIPELINE.md#phase-0--rename--clear-the-ground) for the safe rename order.                             |
+| Repo              | `remediate.app`                 | Matches the domain exactly. See [TDD §12.1](./TDD.md#121-the-rename-safest-order) for the safe rename order.                                                  |
 | Harvest subsystem | **BMX** (BookMark eXtractor)    | Kept deliberately. It's an accurate name for exactly one subsystem, and it preserves the project's origin story instead of erasing it. `src/lib/server/bmx/`. |
 | SRS surface       | **Cards**                       |                                                                                                                                                               |
 | Game surface      | **Quest**                       |                                                                                                                                                               |
@@ -272,7 +274,7 @@ Measured, not estimated. Every number below came from parsing the actual files i
 
 ### 7.1 In scope for the prototype (P0)
 
-Ordered by build sequence. **Cards ships before Quest** — see [PIPELINE.md](./PIPELINE.md).
+Ordered by build sequence. **Cards ships before Quest.** _As built:_ every row below except P0-8 has shipped, in part or whole. P0-11 is deployed with a CSP, and whether the `remediate.app` domain is attached is unverified. [ROADMAP.md](./ROADMAP.md) has the detail.
 
 | #     | Requirement                                                                     | Phase |
 | ----- | ------------------------------------------------------------------------------- | ----- |
@@ -315,17 +317,17 @@ Ordered by build sequence. **Cards ships before Quest** — see [PIPELINE.md](./
 
 ### 8.1 Ingest — Anki
 
-| ID        | Requirement                                                                                                                                                                                                                                  |
-| --------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **ING-1** | Accept real Anki exports (`.txt`/`.tsv`) and the legacy `.csv`. Honour the `#separator:`, `#html:`, `#guid column:`, `#notetype column:`, `#deck column:`, `#tags column:` preamble; use it to map columns rather than assuming positions.   |
-| **ING-2** | **Parse with a real RFC4180 parser** configured `delimiter=\t, quote=", escape=""`, multi-line fields enabled. Never `split('\n')`. Ground truth: 4,629 lines → 457 records.                                                                 |
-| **ING-3** | **Identity = Anki GUID** when the export declares `#guid column:`. Fall back to `sha256(deck‖front‖back)[:16]` only for the legacy CSV. Re-import is idempotent: same GUID ⇒ update, never duplicate.                                        |
-| **ING-4** | GUIDs are base91 and contain HTML- and URL-hostile characters. Store the GUID as a unique column; derive a URL-safe internal ID (`base64url(sha256(guid))[:16]`) for routes and DOM ids. Never interpolate a raw GUID into markup or a path. |
-| **ING-5** | Tags are **space-separated within one column** (`dataflow fullstack webdev`). Split on whitespace, not commas.                                                                                                                               |
-| **ING-6** | Sanitize every HTML field with an allowlist. Store sanitized only.                                                                                                                                                                           |
-| **ING-7** | Reject > 25 MB / > 100k records at the edge. Stream-parse.                                                                                                                                                                                   |
-| **ING-8** | Return `202` + job ID. Enrichment is out of the request path.                                                                                                                                                                                |
-| **ING-9** | Preserve `notetype` per note. Today all 457 are `Basic`; the column exists so P1 cloze support doesn't need a migration.                                                                                                                     |
+| ID        | Requirement                                                                                                                                                                                                                                                                                                                                                   |
+| --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **ING-1** | Accept real Anki exports (`.txt`/`.tsv`) and the legacy `.csv`. Honour the `#separator:`, `#html:`, `#guid column:`, `#notetype column:`, `#deck column:`, `#tags column:` preamble; use it to map columns rather than assuming positions.                                                                                                                    |
+| **ING-2** | **Parse with a real RFC4180 parser** configured `delimiter=\t, quote=", escape=""`, multi-line fields enabled. Never `split('\n')`. Ground truth: 4,629 lines → 457 records.                                                                                                                                                                                  |
+| **ING-3** | **Identity = Anki GUID** when the export declares `#guid column:`. Fall back to `sha256(deck‖front‖back)[:16]` only for the legacy CSV. Re-import is idempotent: same GUID ⇒ update, never duplicate. _As built:_ the content-id fallback is `contentId(userId, deck, front, back)` and applies to any export without a GUID column, not only the legacy CSV. |
+| **ING-4** | GUIDs are base91 and contain HTML- and URL-hostile characters. Store the GUID as a unique column; derive a URL-safe internal ID (_As built:_ `digest(userId‖guid)` in `identity.ts`, owner-scoped so two importers of one shared deck do not collide) for routes and DOM ids. Never interpolate a raw GUID into markup or a path.                             |
+| **ING-5** | Tags are **space-separated within one column** (`dataflow fullstack webdev`). Split on whitespace, not commas.                                                                                                                                                                                                                                                |
+| **ING-6** | Sanitize every HTML field with an allowlist. Store sanitized only.                                                                                                                                                                                                                                                                                            |
+| **ING-7** | Reject > 25 MB / > 100k records at the edge. Stream-parse. _As built:_ a 4 MB cap, under Vercel’s 4.5 MB request limit, read whole.                                                                                                                                                                                                                           |
+| **ING-8** | Return `202` + job ID. Enrichment is out of the request path. _As built:_ import is a synchronous form action, and the real corpus fits in one request.                                                                                                                                                                                                       |
+| **ING-9** | Preserve `notetype` per note. Today all 457 are `Basic`; the column exists so P1 cloze support doesn't need a migration.                                                                                                                                                                                                                                      |
 
 ### 8.2 Harvest — BMX bookmark pipeline
 
@@ -373,15 +375,15 @@ Ordered by build sequence. **Cards ships before Quest** — see [PIPELINE.md](./
 
 ### 8.5 AI enrichment
 
-| ID       | Requirement                                                                                                                                            |
-| -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| **AI-1** | `claude-opus-4-8`, adaptive thinking. Bulk work via Batch API (−50%) with prompt caching on the frozen system prefix (~0.1× on cached tokens).         |
-| **AI-2** | **Chunk before embedding.** Fields reach 48k chars (~12k tokens). Embed the first ~2k tokens plus the AI summary; do not embed raw 48k blobs.          |
-| **AI-3** | Per node: 1-sentence summary, 3–7 concepts, difficulty 1–5. Structured outputs only — never free-text parsing.                                         |
-| **AI-4** | `similar_to` edges at cosine ≥ 0.82, capped at 8/node. A cap is what keeps the map traversable rather than a hairball.                                 |
-| **AI-5** | `prereq_of` edges between concepts. These give Quest's map a _gradient_ — without direction it's a flat mesh and every room looks alike.               |
-| **AI-6** | **All corpus content is untrusted.** Passed as delimited data in the user turn, never in the system prompt, never with side-effecting tools available. |
-| **AI-7** | Hard per-user token budget checked before dispatch. An AI endpoint without a budget is a billing DoS.                                                  |
+| ID       | Requirement                                                                                                                                                                                                              |
+| -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **AI-1** | A current Claude model, chosen when ROADMAP AI-A starts (this draft named `claude-opus-4-8`, since superseded). Bulk work via Batch API (−50%) with prompt caching on the frozen system prefix (~0.1× on cached tokens). |
+| **AI-2** | **Chunk before embedding.** Fields reach 48k chars (~12k tokens). Embed the first ~2k tokens plus the AI summary; do not embed raw 48k blobs.                                                                            |
+| **AI-3** | Per node: 1-sentence summary, 3–7 concepts, difficulty 1–5. Structured outputs only — never free-text parsing.                                                                                                           |
+| **AI-4** | `similar_to` edges at cosine ≥ 0.82, capped at 8/node. A cap is what keeps the map traversable rather than a hairball.                                                                                                   |
+| **AI-5** | `prereq_of` edges between concepts. These give Quest's map a _gradient_ — without direction it's a flat mesh and every room looks alike.                                                                                 |
+| **AI-6** | **All corpus content is untrusted.** Passed as delimited data in the user turn, never in the system prompt, never with side-effecting tools available.                                                                   |
+| **AI-7** | Hard per-user token budget checked before dispatch. An AI endpoint without a budget is a billing DoS.                                                                                                                    |
 
 ---
 
@@ -413,7 +415,7 @@ Ordered by build sequence. **Cards ships before Quest** — see [PIPELINE.md](./
 | **SEC-5** | Tenant isolation at the database (RLS), not only app code.                                                                                                                         | One forgotten `where` from a full breach.                                                                           |
 | **SEC-6** | Rate limits + per-user token budgets on every AI endpoint; per-domain politeness on fetch.                                                                                         | Cost DoS; and 759 rapid requests to WSJ is abuse.                                                                   |
 | **SEC-7** | Argon2id passwords; passkeys preferred. Cookies `HttpOnly; Secure; SameSite=Lax`. Origin-checked mutations.                                                                        | Baseline.                                                                                                           |
-| **SEC-8** | Remove `X-XSS-Protection` from `vercel.json`.                                                                                                                                      | Deprecated; its filter has itself been an XSS vector. Shipping it beside a real CSP signals cargo-culting.          |
+| **SEC-8** | Remove `X-XSS-Protection` from `vercel.json`. _As built:_ done.                                                                                                                    | Deprecated; its filter has itself been an XSS vector. Shipping it beside a real CSP signals cargo-culting.          |
 | **SEC-9** | Zip-bomb / decompression limits when `.apkg` lands (P1).                                                                                                                           | Deferred with the feature.                                                                                          |
 
 ---
@@ -422,16 +424,16 @@ Ordered by build sequence. **Cards ships before Quest** — see [PIPELINE.md](./
 
 Target: **under $5/month** at personal scale.
 
-| Line item            | Choice                           | Cost                           | Notes                                                                                                                                                      |
-| -------------------- | -------------------------------- | ------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Hosting              | Vercel Hobby → Pro               | $0 → $20                       | Fluid compute bills active CPU, not I/O wait — AI calls and fetches are nearly free.                                                                       |
-| Database             | Neon Postgres                    | $0                             | Free tier 0.5 GB, scales to zero. Corpus is ~15 MB of text.                                                                                                |
-| Vector               | pgvector (in Neon)               | $0                             | No separate store. [TDD §3.3](./TDD.md#33-why-not-a-dedicated-vector-db).                                                                                  |
-| **Anki enrichment**  | `claude-opus-4-8`, Batch         | **~$0.05 one-time**            | 457 cards, chunked to ~2k tok in / 200 tok out ≈ 914k in / 91k out. At $5/$25 per MTok, halved by Batch: ≈ $2.29 + $1.14…                                  |
-|                      |                                  |                                | …**≈ $3.43, actually.** Worth stating honestly rather than rounding to zero. Chunking (AI-2) is what keeps it here instead of ~$15 on raw 48k-char fields. |
-| **BMX triage**       | `claude-opus-4-8`, Batch, tiered | **~$8 one-time** for all 3,861 | Tier-2 (metadata-only, ~45%) costs ~⅕ of Tier-1 — the paywall constraint is accidentally a cost saving. Harvest incrementally, not all at once.            |
-| Quest narration (P1) | cached prefix                    | ~$0.50/mo                      |                                                                                                                                                            |
-| **Steady state**     |                                  | **≈ $0–1/mo**                  | One-time backfill ≈ $12.                                                                                                                                   |
+| Line item            | Choice                           | Cost                           | Notes                                                                                                                                           |
+| -------------------- | -------------------------------- | ------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------- |
+| Hosting              | Vercel Hobby → Pro               | $0 → $20                       | Fluid compute bills active CPU, not I/O wait — AI calls and fetches are nearly free.                                                            |
+| Database             | Neon Postgres                    | $0                             | Free tier 0.5 GB, scales to zero. Corpus is ~15 MB of text.                                                                                     |
+| Vector               | pgvector (in Neon)               | $0                             | No separate store. [TDD §3.3](./TDD.md#33-why-not-a-dedicated-vector-db).                                                                       |
+| **Anki enrichment**  | `claude-opus-4-8`, Batch         | **≈ $3.43 one-time**           | 457 cards, chunked to ~2k tok in / 200 tok out ≈ 914k in / 91k out. At $5/$25 per MTok, halved by Batch: ≈ $2.29 + $1.14…                       |
+|                      |                                  |                                | At Opus 4.8 prices. Recompute for the model AI-A picks. Chunking (AI-2) is what keeps it here instead of ~$15 on raw 48k-char fields.           |
+| **BMX triage**       | `claude-opus-4-8`, Batch, tiered | **~$8 one-time** for all 3,861 | Tier-2 (metadata-only, ~45%) costs ~⅕ of Tier-1 — the paywall constraint is accidentally a cost saving. Harvest incrementally, not all at once. |
+| Quest narration (P1) | cached prefix                    | ~$0.50/mo                      |                                                                                                                                                 |
+| **Steady state**     |                                  | **≈ $0–1/mo**                  | One-time backfill ≈ $12.                                                                                                                        |
 
 The cost story is a _design_ outcome: scale-to-zero Postgres, no always-on container, no second service, batch + cache + chunk on the AI path.
 

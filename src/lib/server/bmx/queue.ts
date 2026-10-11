@@ -4,6 +4,7 @@ import { db } from '../db';
 import * as table from '../db/schema';
 import { internalId } from '../ingest/identity';
 import { sanitizeCardHtml } from '../ingest/sanitize';
+import { truncate } from './extract';
 import { contentHashOf, harvestUrl, type HarvestResult } from './harvest';
 import { domainOf, normalizeUrl } from './normalize-url';
 
@@ -63,7 +64,7 @@ export async function queueUrls(userId: string, urls: string[]) {
 
 // Postgres text and jsonb refuse U+0000, and one would fail the whole CSV import.
 const clip = (s: string | undefined, max = 1000) =>
-	s ? s.replaceAll('\u0000', '').trim().slice(0, max) || null : null;
+	s ? truncate(s.replaceAll('\u0000', '').trim(), max) || null : null;
 
 /**
  * Backfill from `source_data/articles.csv` (id, date, url, title, description,
@@ -147,7 +148,7 @@ function proposalOf(r: HarvestResult): Proposal {
 		publishedAt: r.publishedAt,
 		image: r.image,
 		finalUrl: r.finalUrl,
-		excerpt: r.text ? r.text.slice(0, 600) : null,
+		excerpt: r.text ? truncate(r.text, 600) : null,
 		source: 'fetch'
 	};
 }

@@ -18,5 +18,6 @@ describe.skipIf(!hasDb)('review endpoints', () => {
 	])('%s answers a malformed body with 400', async (_, h) => {
 		await expect(call(h(), '{not json')).rejects.toMatchObject({ status: 400 });
 		await expect(call(h(), '')).rejects.toMatchObject({ status: 400 });
+		await expect(call(h(), 'null')).rejects.toMatchObject({ status: 400 });
 	});
 });

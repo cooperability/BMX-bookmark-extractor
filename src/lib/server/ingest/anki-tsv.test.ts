@@ -164,6 +164,19 @@ describe('malformed input', () => {
 		expect(warnings.some((w) => w.includes('Row 2'))).toBe(true);
 	});
 
+	// No page can open, study or delete a deck named "".
+	it('files a card with no deck name under Default, with a warning', () => {
+		for (const raw of [
+			['#separator:tab', '#deck:', 'front\tback'].join('\n'),
+			['#separator:tab', '#deck column:3', 'front\tback\tDeck', 'front2\tback2'].join('\n')
+		]) {
+			const { notes, warnings } = parseAnkiExport(raw, OWNER);
+			expect(notes.map((n) => n.deck)).not.toContain('');
+			expect(notes.at(-1)?.deck).toBe('Default');
+			expect(warnings.some((w) => w.includes('no deck'))).toBe(true);
+		}
+	});
+
 	it('warns on an empty front field', () => {
 		const raw = [PREAMBLE, 'g1\tBasic\tDeck\t\tback\ttag'].join('\n');
 		expect(parseAnkiExport(raw, OWNER).warnings.some((w) => w.includes('empty front'))).toBe(true);

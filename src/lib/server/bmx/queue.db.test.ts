@@ -105,6 +105,25 @@ describe.skipIf(!hasDb)('harvest queue against the database', () => {
 		});
 	});
 
+	// JSON.stringify writes a lone surrogate as \ud800, and Postgres refuses it in jsonb.
+	it('stores an excerpt and CSV fields cut inside a surrogate pair', async () => {
+		await as(() => q.queueUrls(userId, ['https://a.test/emoji']));
+		const text = `${'x'.repeat(599)}\u{1F600} and more`;
+		const out = await as(() =>
+			q.processQueue(userId, { harvest: async () => result({ tier: 'full', text }) })
+		);
+		expect(out.done).toBe(1);
+		const csv = `url,title\nhttps://b.test/e,${'t'.repeat(999)}\u{1F600}\n`;
+		expect((await as(() => q.importArticlesCsv(userId, csv))).added).toBe(1);
+		const list = await as(() => q.listHarvests(userId, 'ready'));
+		expect(list.items).toHaveLength(2);
+		for (const { proposal } of list.items) {
+			for (const v of Object.values(proposal ?? {})) {
+				if (typeof v === 'string') expect(v.isWellFormed()).toBe(true);
+			}
+		}
+	});
+
 	it('stops at the time budget and reports what remains', async () => {
 		await as(() =>
 			q.queueUrls(userId, ['https://a.test/1', 'https://a.test/2', 'https://a.test/3'])
