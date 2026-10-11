@@ -27,7 +27,7 @@
 	"devDependencies": {
 		"@eslint/compat": "^2.0.0",
 		"@eslint/js": "^10.0.1",
-		"@playwright/test": "^1.49.1",
+		"@playwright/test": "^1.64.0",
 		"@sveltejs/adapter-vercel": "^6.1.2",
 		"@sveltejs/kit": "^2.16.0",
 		"@sveltejs/vite-plugin-svelte": "7.3.1",
