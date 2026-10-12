@@ -61,9 +61,10 @@
 
 	<div class="mt-10 flex items-baseline justify-between">
 		<h1 class="text-2xl font-bold tracking-tight">Decks</h1>
-		<div class="flex items-baseline gap-4">
+		<div class="flex flex-wrap items-baseline justify-end gap-x-4 gap-y-2">
 			<span class="text-muted font-mono text-xs">{data.decks.length} decks</span>
 			<a href={resolve('/harvest')} class="text-muted hover:text-fg text-sm">Harvest links →</a>
+			<a href="{resolve('/cards/browse')}?new=1" class="btn min-h-11 sm:min-h-0">New card</a>
 		</div>
 	</div>
 

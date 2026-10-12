@@ -250,6 +250,15 @@
 							{#if item.failReason}
 								<p class="text-again mt-1 text-sm">{item.failReason}</p>
 							{/if}
+							{#if data.status === 'accepted' && item.nodeId}
+								<a
+									href="{resolve('/cards/browse')}?card={item.nodeId}&return={encodeURIComponent(
+										'/harvest?status=accepted'
+									)}"
+									class="text-muted hover:text-fg mt-1 inline-flex min-h-11 items-center text-sm"
+									>Edit card →</a
+								>
+							{/if}
 						</div>
 					</li>
 				{/each}

@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { untrack } from 'svelte';
-	import { invalidate } from '$app/navigation';
+	import { goto, invalidate } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import { fly } from 'svelte/transition';
 	import { prefersReducedMotion } from 'svelte/motion';
@@ -38,6 +38,11 @@
 	});
 
 	const current = $derived(queue[0]);
+	// The editor returns here after Save, and the round resumes on this card.
+	const editHref = $derived(
+		current &&
+			`${resolve('/cards/browse')}?card=${current.card.id}&return=${encodeURIComponent(`/cards/study?deck=${encodeURIComponent(data.deck)}`)}`
+	);
 	const total = $derived(data.cards.length);
 	const still = $derived(prefersReducedMotion.current);
 
@@ -104,6 +109,11 @@
 
 	function onkeydown(e: KeyboardEvent) {
 		if (grades || failed || !current) return;
+		// E is Anki's edit-current-card. Study only: Quest and the demo have no editor link.
+		if ((e.key === 'e' || e.key === 'E') && !(e.ctrlKey || e.metaKey || e.altKey)) {
+			if (!busy && editHref) goto(editHref);
+			return;
+		}
 		const k = studyKey(e);
 		if (k === 'flip') {
 			e.preventDefault();
@@ -129,6 +139,13 @@
 				<span class="chip border-again/30 bg-again/10 text-again">relearning</span>
 			{/if}
 			<span class="text-muted font-mono text-xs tabular-nums">{done} / {total}</span>
+			{#if editHref && !grades}
+				<a
+					href={editHref}
+					class="btn btn-ghost text-muted min-h-11 px-2 py-1"
+					title="Edit this card (E)">Edit</a
+				>
+			{/if}
 		</div>
 		<div
 			class="bg-surface-2 mt-3 h-1.5 overflow-hidden rounded-full"

@@ -1,6 +1,7 @@
 import { sql } from 'drizzle-orm';
 import {
 	bigserial,
+	boolean,
 	index,
 	integer,
 	jsonb,
@@ -82,7 +83,13 @@ export const node = pgTable(
 		summary: text('summary'), // AI
 		difficulty: smallint('difficulty'), // AI, 1-5
 		embedding: vector('embedding', { dimensions: 1024 }),
-		createdAt: timestamp('created_at', { withTimezone: true, mode: 'date' }).notNull().defaultNow()
+		// Anki's browser flags: 0 none, 1-7 the colours in cards/edit.ts FLAGS.
+		flag: smallint('flag').notNull().default(0),
+		// Out of Cards rounds and due counts, schedule kept. Quest still shows the room.
+		suspended: boolean('suspended').notNull().default(false),
+		createdAt: timestamp('created_at', { withTimezone: true, mode: 'date' }).notNull().defaultNow(),
+		// Last edit in the app. Null until one: an import is not an edit.
+		updatedAt: timestamp('updated_at', { withTimezone: true, mode: 'date' })
 	},
 	(t) => [
 		// Idempotent re-import: same GUID updates instead of duplicating.
@@ -286,6 +293,24 @@ export const questRun = pgTable(
 	(t) => [uniqueIndex('idx_quest_run_user').on(t.userId)]
 );
 
+/**
+ * Cards deleted in the editor, kept long enough to undo. One row per delete,
+ * holding every row the delete removed (cards/edit.ts Trashed), so Undo restores
+ * from what the server took, never from anything the browser sends back.
+ */
+export const cardTrash = pgTable(
+	'card_trash',
+	{
+		id: text('id').primaryKey(),
+		userId: text('user_id')
+			.notNull()
+			.references(() => user.id),
+		payload: jsonb('payload').notNull(),
+		createdAt: timestamp('created_at', { withTimezone: true, mode: 'date' }).notNull().defaultNow()
+	},
+	(t) => [index('idx_trash_user').on(t.userId, t.createdAt)]
+);
+
 /** Queue on Postgres. Claimed with FOR UPDATE SKIP LOCKED by the cron worker. */
 export const job = pgTable(
 	'jobs',
@@ -314,3 +339,4 @@ export type Assessment = typeof assessment.$inferSelect;
 export type Harvest = typeof harvest.$inferSelect;
 export type QuestRun = typeof questRun.$inferSelect;
 export type Job = typeof job.$inferSelect;
+export type CardTrash = typeof cardTrash.$inferSelect;

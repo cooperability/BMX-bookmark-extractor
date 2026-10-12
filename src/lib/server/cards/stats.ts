@@ -177,7 +177,7 @@ export async function overview(userId: string, now = new Date(), tz = 'UTC') {
 		db
 			.select({
 				total: sql<number>`count(*)::int`,
-				due: sql<number>`count(*) filter (where ${table.reviewState.state} != 0 and ${table.reviewState.due} <= ${now.toISOString()}::timestamptz)::int`
+				due: sql<number>`count(*) filter (where not ${table.node.suspended} and ${table.reviewState.state} != 0 and ${table.reviewState.due} <= ${now.toISOString()}::timestamptz)::int`
 			})
 			.from(table.node)
 			.leftJoin(table.reviewState, eq(table.reviewState.nodeId, table.node.id))
@@ -218,6 +218,7 @@ export async function deckDetail(userId: string, deck: string, now = new Date(),
 		db
 			.select({
 				tags: table.node.tags,
+				suspended: table.node.suspended,
 				state: table.reviewState.state,
 				due: table.reviewState.due,
 				stability: table.reviewState.stability
@@ -240,13 +241,15 @@ export async function deckDetail(userId: string, deck: string, now = new Date(),
 	if (cards.length === 0) return null;
 
 	const seen = (c: (typeof cards)[number]) => c.state !== null && c.state !== 0;
+	// Suspended cards are out of the work counts, and still in mastery: they were learned.
+	const active = cards.filter((c) => !c.suspended);
 	const latest = history.at(-1);
 	return {
 		total: cards.length,
-		fresh: cards.filter((c) => !seen(c)).length,
-		due: cards.filter((c) => seen(c) && c.due! <= now).length,
+		fresh: active.filter((c) => !seen(c)).length,
+		due: active.filter((c) => seen(c) && c.due! <= now).length,
 		forecast: dueForecast(
-			cards.filter(seen).map((c) => c.due!),
+			active.filter(seen).map((c) => c.due!),
 			now,
 			14,
 			tz

@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { parseAnkiExport } from './anki-tsv';
-import { sanitizeCardHtml } from './sanitize';
+import { sanitizeCardHtml } from '$lib/cards/sanitize';
 
 describe('script execution', () => {
 	it.each([

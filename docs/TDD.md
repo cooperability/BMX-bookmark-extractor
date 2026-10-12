@@ -672,7 +672,7 @@ BMX promotes **SSRF to a top-tier threat**: the product's core feature is "fetch
 Today's corpus scans clean (0 `<script>`, 0 `javascript:`, 0 `onerror`). That's luck about provenance, not a property of the format.
 
 ```ts
-// src/lib/server/ingest/sanitize.ts  ← 100% coverage
+// src/lib/cards/sanitize.ts  ← 100% coverage
 import DOMPurify from 'isomorphic-dompurify';
 
 DOMPurify.addHook('afterSanitizeAttributes', (node) => {

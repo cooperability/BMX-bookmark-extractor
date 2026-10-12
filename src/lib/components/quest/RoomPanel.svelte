@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { resolve } from '$app/paths';
 	import { percent, reopens } from '$lib/quest/format';
 	import { VIA_LABEL, type Door, type Room } from '$lib/quest/types';
 
@@ -121,7 +122,7 @@
 				<span class="text-muted" aria-hidden="true">{showCard ? '−' : '+'}</span>
 			</button>
 			{#if showCard}
-				<!-- Card HTML is DOMPurify-sanitized at import (ingest/sanitize.ts) before it is stored. -->
+				<!-- Card HTML is DOMPurify-sanitized (cards/sanitize.ts) on every write, before it is stored. -->
 				<div class="card-html prose prose-sm dark:prose-invert max-h-48 max-w-none overflow-y-auto">
 					<!-- eslint-disable-next-line svelte/no-at-html-tags -->
 					{@html room.front}
@@ -137,6 +138,12 @@
 						{#each room.tags as tag (tag)}<span class="chip">{tag}</span>{/each}
 					</div>
 				{/if}
+				<!-- The run keeps the room, so Save lands the player back in it. -->
+				<a
+					href="{resolve('/cards/browse')}?card={room.id}&return=%2Fquest"
+					class="text-muted hover:text-fg mt-3 inline-flex min-h-11 items-center text-sm"
+					>Edit card →</a
+				>
 			{/if}
 		</div>
 	{/if}

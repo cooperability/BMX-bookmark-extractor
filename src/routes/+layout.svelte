@@ -49,6 +49,11 @@
 					aria-current={page.url.pathname === '/cards' ? 'page' : undefined}>Decks</a
 				>
 				<a
+					href={resolve('/cards/browse')}
+					class="text-muted hover:text-fg aria-[current=page]:text-fg inline-flex min-h-11 items-center text-sm"
+					aria-current={page.url.pathname === '/cards/browse' ? 'page' : undefined}>Browse</a
+				>
+				<a
 					href={resolve('/quest')}
 					class="text-muted hover:text-fg aria-[current=page]:text-fg inline-flex min-h-11 items-center text-sm"
 					aria-current={page.url.pathname === '/quest' ? 'page' : undefined}>Quest</a

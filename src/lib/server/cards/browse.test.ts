@@ -9,7 +9,14 @@ const parse = (qs: string) => parseBrowseParams(new URLSearchParams(qs));
 
 describe('parseBrowseParams', () => {
 	it('defaults to page 1, sorted by due, unfiltered', () => {
-		expect(parse('deck=a%2Fb')).toEqual({ q: '', tag: null, state: null, sort: 'due', page: 1 });
+		expect(parse('deck=a%2Fb')).toEqual({
+			q: '',
+			tag: null,
+			state: null,
+			flag: null,
+			sort: 'due',
+			page: 1
+		});
 	});
 
 	it('keeps recognised values', () => {
@@ -17,9 +24,23 @@ describe('parseBrowseParams', () => {
 			q: 'verb',
 			tag: 'grammar',
 			state: 'relearning',
+			flag: null,
 			sort: 'lapses',
 			page: 3
 		});
+	});
+
+	it("reads Anki's suspended filter, flags and the editor's sorts", () => {
+		expect(parse('state=suspended&flag=0&sort=edited')).toMatchObject({
+			state: 'suspended',
+			flag: 0,
+			sort: 'edited'
+		});
+		expect(parse('flag=7&sort=created')).toMatchObject({ flag: 7, sort: 'created' });
+	});
+
+	it('drops a flag outside 0-7', () => {
+		for (const f of ['8', '-1', '1.5', 'red', '']) expect(parse(`flag=${f}`).flag).toBeNull();
 	});
 
 	it('drops an unknown state or sort instead of passing it to SQL', () => {

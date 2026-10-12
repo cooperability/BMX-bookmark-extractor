@@ -81,7 +81,15 @@
 			<p class="eyebrow">Deck</p>
 			<h1 class="mt-1 text-3xl font-bold tracking-tight break-words">{data.deck}</h1>
 		</div>
-		<StudyLink deck={data.deck} class="btn btn-primary px-6" />
+		<div class="flex flex-wrap gap-2">
+			<a href="{resolve('/cards/browse')}?deck={encodeURIComponent(data.deck)}&new=1" class="btn"
+				>New card</a
+			>
+			<a href="{resolve('/cards/browse')}?deck={encodeURIComponent(data.deck)}" class="btn"
+				>Browse &amp; edit</a
+			>
+			<StudyLink deck={data.deck} class="btn btn-primary px-6" />
+		</div>
 	</header>
 
 	<section class="mt-6 grid grid-cols-2 gap-3 lg:grid-cols-4">

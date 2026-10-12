@@ -35,6 +35,9 @@
 	--hard: #d9861c;
 	--good: #1f9d63;
 	--easy: #2f7fd8;
+	--flag-pink: #d6458f;
+	--flag-teal: #12a3a3;
+	--flag-purple: #8a4fd8;
 	--glow: 0 0 0 transparent;
 	color-scheme: light;
 }
@@ -57,6 +60,9 @@
 		--hard: #ffb347;
 		--good: #3ddc97;
 		--easy: #5aa9ff;
+		--flag-pink: #ff6eb4;
+		--flag-teal: #3ad6d6;
+		--flag-purple: #b48cff;
 		--glow: 0 0 40px -12px rgb(180 255 57 / 0.45);
 		color-scheme: dark;
 	}
@@ -76,6 +82,9 @@
 	--hard: #ffb347;
 	--good: #3ddc97;
 	--easy: #5aa9ff;
+	--flag-pink: #ff6eb4;
+	--flag-teal: #3ad6d6;
+	--flag-purple: #b48cff;
 	--glow: 0 0 40px -12px rgb(180 255 57 / 0.45);
 	color-scheme: dark;
 }
@@ -108,6 +117,9 @@
 	--color-hard: var(--hard);
 	--color-good: var(--good);
 	--color-easy: var(--easy);
+	--color-flag-pink: var(--flag-pink);
+	--color-flag-teal: var(--flag-teal);
+	--color-flag-purple: var(--flag-purple);
 }
 
 @layer base {

@@ -116,8 +116,9 @@ export async function listDecks(userId: string, now = new Date()) {
 		.select({
 			deck: table.node.deck,
 			total: sql<number>`count(*)::int`,
-			fresh: sql<number>`count(*) filter (where ${table.reviewState.nodeId} is null or ${table.reviewState.state} = 0)::int`,
-			due: sql<number>`count(*) filter (where ${table.reviewState.state} != 0 and ${table.reviewState.due} <= ${now.toISOString()}::timestamptz)::int`
+			// Suspended cards count toward the deck's size, not its work, as in Anki.
+			fresh: sql<number>`count(*) filter (where not ${table.node.suspended} and (${table.reviewState.nodeId} is null or ${table.reviewState.state} = 0))::int`,
+			due: sql<number>`count(*) filter (where not ${table.node.suspended} and ${table.reviewState.state} != 0 and ${table.reviewState.due} <= ${now.toISOString()}::timestamptz)::int`
 		})
 		.from(table.node)
 		.leftJoin(table.reviewState, eq(table.reviewState.nodeId, table.node.id))
@@ -191,7 +192,8 @@ export async function startRound(userId: string, deck: string, now = new Date(),
 		})
 		.from(n)
 		.leftJoin(table.reviewState, eq(table.reviewState.nodeId, n.id))
-		.where(and(eq(n.userId, userId), eq(n.deck, deck), eq(n.kind, 'card')))
+		// A suspended card leaves rounds, including an open one it was dealt into.
+		.where(and(eq(n.userId, userId), eq(n.deck, deck), eq(n.kind, 'card'), eq(n.suspended, false)))
 		.orderBy(asc(n.createdAt), asc(n.id));
 	if (rows.length === 0) return null;
 	const byId = new Map(rows.map((r) => [r.node.id, r]));

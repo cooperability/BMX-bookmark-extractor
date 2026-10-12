@@ -4,7 +4,7 @@
 	let { card, flipped }: { card: Card; flipped: boolean } = $props();
 </script>
 
-<!-- Card HTML is DOMPurify-sanitized at import (ingest/sanitize.ts) before it is stored. -->
+<!-- Card HTML is DOMPurify-sanitized (cards/sanitize.ts) on every write, before it is stored. -->
 <div class="scene">
 	<div class="flip" class:flipped>
 		<section
