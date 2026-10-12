@@ -159,4 +159,6 @@ Copy `.env.example` to `.env`.
 
 ## License
 
-[LICENSE](LICENSE)
+Copyright 2023-2026 Cooper Reed. Free for noncommercial use under the [PolyForm Noncommercial License 1.0.0](LICENSE). Personal study, hobby projects, noncommercial research, and use by charities, schools, public research bodies and government all qualify. Commercial use needs a separate license: ask through [cooperability.com](https://cooperability.com).
+
+The license does not cover the third-party text inside `source_data/`. The article metadata and the passages quoted in the Anki exports belong to their original authors.
