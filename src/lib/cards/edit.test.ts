@@ -83,6 +83,17 @@ describe('replaceText', () => {
 		expect(replaceText('Cat cat', 'cat', 'dog', true)).toBe('Cat dog');
 	});
 
+	it('finds a double quote, which stored text keeps unescaped', () => {
+		expect(replaceText('He said "hi"', '"hi"', 'bye', false)).toBe('He said bye');
+	});
+
+	it('leaves an attribute alone when its value holds a >', () => {
+		const html = '<img alt="1>2 cats" src="https://a.test/c.png"> cats';
+		expect(replaceText(html, 'cats', 'dogs', false)).toBe(
+			'<img alt="1>2 cats" src="https://a.test/c.png"> dogs'
+		);
+	});
+
 	it('changes nothing for an empty search', () => {
 		expect(replaceText('abc', '', 'x', false)).toBe('abc');
 	});

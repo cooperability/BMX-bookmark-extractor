@@ -1,4 +1,4 @@
-import { and, desc, eq, getTableColumns, inArray, lt, ne, or, sql } from 'drizzle-orm';
+import { and, desc, eq, getTableColumns, gte, inArray, lt, ne, or, sql } from 'drizzle-orm';
 import type { PgColumn } from 'drizzle-orm/pg-core';
 import { db } from '$lib/server/db';
 import * as table from '$lib/server/db/schema';
@@ -275,13 +275,20 @@ const at = (s: string | null) => (s === null ? null : new Date(s));
  * meantime (a re-import) stays as it is now, and so does everything hung off it.
  * Returns the number of cards restored.
  */
-export async function restoreCards(userId: string, trashId: string) {
+export async function restoreCards(userId: string, trashId: string, now = new Date()) {
 	return locked(userId, async (tx) => {
 		const t = table.cardTrash;
+		// Trash outlives its TTL until the next delete purges it, so the age is checked here.
 		const [row] = await tx
 			.select()
 			.from(t)
-			.where(and(eq(t.id, trashId), eq(t.userId, userId)));
+			.where(
+				and(
+					eq(t.id, trashId),
+					eq(t.userId, userId),
+					gte(t.createdAt, new Date(now.getTime() - TRASH_TTL_MS))
+				)
+			);
 		if (!row) return 0;
 		const p = row.payload as Trashed;
 		// The payload is the server's own, but the user id is pinned anyway.

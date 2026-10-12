@@ -96,6 +96,22 @@ test.describe('card editor', () => {
 			await page.getByRole('button', { name: /^Save/ }).click();
 			await expect(page.getByText('Saved.')).toBeVisible();
 
+			// Ctrl+Delete in a field deletes a word, never the card. A save after it
+			// is the barrier: a delete it fired would have been sent first.
+			const deletes: string[] = [];
+			page.on('request', (r) => {
+				if (r.method() === 'POST' && r.url().includes('/delete')) deletes.push(r.url());
+			});
+			await page.locator('#edit-back').click();
+			await page.keyboard.press('End');
+			await page.keyboard.press('ControlOrMeta+Delete');
+			await Promise.all([
+				page.waitForResponse((r) => r.url().includes('/save') && r.request().method() === 'POST'),
+				page.keyboard.press('ControlOrMeta+Enter')
+			]);
+			expect(deletes).toEqual([]);
+			await expect(page).toHaveURL(/[?&]card=/);
+
 			await page.goto(`/cards/study?deck=${encodeURIComponent(deck)}`);
 			await page.keyboard.press('Space');
 			await expect(page.locator('.card-html').filter({ hasText: 'Paris' })).toBeVisible();
@@ -111,8 +127,9 @@ test.describe('card editor', () => {
 				await expect(page.getByText('Paris, on the Seine')).toBeVisible();
 			}
 
+			// kind = 'card': the Quest graph keeps a concept row with the same deck and no tags.
 			const [stored] =
-				await sql`select tags from nodes where user_id = ${USER_ID} and deck = ${deck}`;
+				await sql`select tags from nodes where user_id = ${USER_ID} and deck = ${deck} and kind = 'card'`;
 			expect(stored.tags).toEqual(['geo']);
 			expect(errors).toEqual([]);
 		});

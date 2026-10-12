@@ -129,6 +129,9 @@
 		4: ['Easy', 'text-easy']
 	};
 
+	const inField = (t: EventTarget | null) =>
+		t instanceof Element && Boolean(t.closest('input, textarea, select, [contenteditable="true"]'));
+
 	function onkeydown(e: KeyboardEvent) {
 		const mod = e.ctrlKey || e.metaKey;
 		if (mod && e.key === 'Enter') {
@@ -140,7 +143,8 @@
 		} else if (mod && !e.shiftKey && e.key.toLowerCase() === 'j' && suspendForm) {
 			e.preventDefault();
 			suspendForm.requestSubmit();
-		} else if (mod && e.key === 'Delete' && deleteForm) {
+		} else if (mod && e.key === 'Delete' && deleteForm && !inField(e.target)) {
+			// In a field Ctrl+Delete deletes the next word. It must not take the card with it.
 			e.preventDefault();
 			deleteForm.requestSubmit();
 		} else if (e.key === 'Escape' && !e.defaultPrevented) {

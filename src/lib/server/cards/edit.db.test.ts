@@ -206,6 +206,14 @@ describe.skipIf(!hasDb)('card editor writes', () => {
 		expect((await nodeById(id)).front).toBe('reimported');
 	});
 
+	it('restores nothing from a delete over a day old', async () => {
+		const id = card(userId, 0).id;
+		const longAgo = new Date(Date.now() - 25 * 60 * 60 * 1000);
+		const gone = (await me(() => edit.deleteCards(userId, [id], longAgo)))!;
+		expect(await me(() => edit.restoreCards(userId, gone.trashId))).toBe(0);
+		expect(await nodeById(id)).toBeUndefined();
+	});
+
 	it('takes a suspended card out of rounds and due counts, and keeps its schedule', async () => {
 		const id = await grade(0);
 		const before = await stateOf(id);

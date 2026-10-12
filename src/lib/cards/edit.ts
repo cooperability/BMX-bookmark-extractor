@@ -66,8 +66,9 @@ export function safeReturn(raw: string | null): string | null {
 	}
 }
 
+// As serialized HTML escapes a text node: a quote stays bare there, so escaping it would never match.
 const escapeHtml = (s: string) =>
-	s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]!);
+	s.replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' })[c]!);
 const escapeRegExp = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
 /**
@@ -79,8 +80,9 @@ export function replaceText(html: string, find: string, replacement: string, mat
 	if (!find) return html;
 	const re = new RegExp(escapeRegExp(escapeHtml(find)), matchCase ? 'g' : 'gi');
 	const to = escapeHtml(replacement);
+	// A tag ends at the first > outside its double-quoted attribute values, which may hold one.
 	return html
-		.split(/(<[^>]*>)/)
+		.split(/(<(?:[^>"]|"[^"]*")*>)/)
 		.map((part, i) => (i % 2 ? part : part.replace(re, () => to)))
 		.join('');
 }
