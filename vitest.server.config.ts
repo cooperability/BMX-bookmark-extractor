@@ -19,7 +19,8 @@ export default defineConfig({
 		include: [
 			'src/lib/server/**/*.test.ts',
 			'src/lib/cards/**/*.test.ts',
-			'src/lib/quest/**/*.test.ts'
+			'src/lib/quest/**/*.test.ts',
+			'src/*.test.ts'
 		]
 	}
 });
