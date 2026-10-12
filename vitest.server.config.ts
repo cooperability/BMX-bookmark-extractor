@@ -11,7 +11,7 @@ export default defineConfig({
 		alias: {
 			$lib: here('./src/lib'),
 			'$app/environment': here('./src/lib/server/testing/app-environment.ts'),
-			'$env/dynamic/private': here('./src/lib/server/testing/env-private.ts')
+			'$app/env/private': here('./src/lib/server/testing/env-private.ts')
 		}
 	},
 	test: {
