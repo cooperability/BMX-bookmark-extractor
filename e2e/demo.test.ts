@@ -40,3 +40,17 @@ test('landing demo round: flip, relearn, finish, restart', async ({ page }) => {
 	await expect(demo.getByRole('button', { name: /Good/ })).toBeVisible();
 	expect(errors).toEqual([]);
 });
+
+// The server-rendered button has no handler until hydration. Slow the app's scripts so a
+// click lands in that window every run, instead of on a slow CI runner now and then.
+test('landing demo: Show answer clicked before hydration still flips', async ({ page }) => {
+	await page.route('**/_app/immutable/**/*.js', async (route) => {
+		await new Promise((r) => setTimeout(r, 2000));
+		await route.continue();
+	});
+	await page.goto('/', { waitUntil: 'commit' });
+
+	const demo = page.getByRole('group', { name: 'Demo study round' });
+	await demo.getByRole('button', { name: /Show answer/ }).click();
+	await expect(demo.getByRole('button', { name: /Again/ })).toBeVisible();
+});

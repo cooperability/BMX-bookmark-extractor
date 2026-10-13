@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { onMount } from 'svelte';
 	import { RATINGS } from './ratings';
 
 	let {
@@ -15,10 +16,14 @@
 		onflip: () => void;
 		onrate: (rating: number) => void;
 	} = $props();
+
+	// The server-rendered button has no handler until hydration, and a click before then is lost.
+	let hydrated = $state(false);
+	onMount(() => (hydrated = true));
 </script>
 
 {#if !flipped}
-	<button class="btn btn-primary w-full py-4 text-base" onclick={onflip}>
+	<button class="btn btn-primary w-full py-4 text-base" disabled={!hydrated} onclick={onflip}>
 		Show answer <span class="kbd border-transparent bg-black/15 text-current">Space</span>
 	</button>
 {:else}
