@@ -1,5 +1,5 @@
 import { hasDb } from '../testing/db';
-import { eq } from 'drizzle-orm';
+import { and, eq } from 'drizzle-orm';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import * as table from '../db/schema';
 
@@ -29,8 +29,12 @@ describe.skipIf(!hasDb)('deck import inside a signed-in request', () => {
 		const raw = `${PREAMBLE}g1\t${deck}\tfront\u0000one\tback\n`;
 		const out = await asTenant(userId, () => repo.importDeck(userId, raw));
 		expect(out.imported).toBe(1);
-		const [n] = await db.select().from(table.node).where(eq(table.node.userId, userId));
-		expect(n.front).toBe('frontone');
+		// Cards only: the import also writes the deck's concept node for this user.
+		const cards = await db
+			.select({ front: table.node.front })
+			.from(table.node)
+			.where(and(eq(table.node.userId, userId), eq(table.node.kind, 'card')));
+		expect(cards).toEqual([{ front: 'frontone' }]);
 	});
 
 	it('leaves the request usable after a failed import', async () => {
