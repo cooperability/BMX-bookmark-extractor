@@ -16,6 +16,7 @@ const hasRls =
 	)[0].n > 0 ||
 		Boolean(process.env.CI));
 const repo = hasDb ? await import('./repo') : ({} as typeof import('./repo'));
+const browse = hasDb ? await import('./browse') : ({} as typeof import('./browse'));
 
 describe.skipIf(!hasDb)('card editor writes', () => {
 	const run = crypto.randomUUID().slice(0, 8);
@@ -224,13 +225,64 @@ describe.skipIf(!hasDb)('card editor writes', () => {
 			.where(eq(table.reviewState.nodeId, id));
 		const r = (await repo.startRound(userId, deck))!;
 		expect(r.cards.map((c) => c.id)).not.toContain(id);
-		const [d] = (await repo.listDecks(userId)).filter((x) => x.deck === deck);
-		expect(d).toMatchObject({ total: 3, due: 0 });
+		// A new card suspended too: out of the new count as well as the due one.
+		await me(() => edit.setSuspended(userId, [card(userId, 1).id], true));
+		const counts = async () => {
+			const [d] = (await repo.listDecks(userId)).filter((x) => x.deck === deck);
+			return { total: d.total, fresh: d.fresh, due: d.due };
+		};
+		expect(await counts()).toEqual({ total: 3, fresh: 1, due: 0 });
 		expect((await stateOf(id)).stability).toBe(before.stability);
 
-		await me(() => edit.setSuspended(userId, [id], false));
-		const [d2] = (await repo.listDecks(userId)).filter((x) => x.deck === deck);
-		expect(d2.due).toBe(1);
+		await me(() => edit.setSuspended(userId, [id, card(userId, 1).id], false));
+		expect(await counts()).toEqual({ total: 3, fresh: 2, due: 1 });
+	});
+
+	it('filters by flag, and sorts by when a card was added or last edited', async () => {
+		const [a, b, c] = [0, 1, 2].map((i) => card(userId, i).id);
+		const hour = 3_600_000;
+		for (const [id, ago] of [
+			[a, 3],
+			[b, 2],
+			[c, 1]
+		] as const)
+			await db
+				.update(table.node)
+				.set({ createdAt: new Date(Date.now() - ago * hour) })
+				.where(eq(table.node.id, id));
+		const ids = async (qs: string) =>
+			(
+				await me(() =>
+					browse.browseCards(userId, null, browse.parseBrowseParams(new URLSearchParams(qs)))
+				)
+			).cards.map((x) => x.id);
+
+		await me(() => edit.setFlag(userId, [b], 4));
+		expect(await ids('flag=4')).toEqual([b]);
+		expect(await ids('flag=0&sort=created')).toEqual([c, a]);
+
+		expect(await ids('sort=created')).toEqual([c, b, a]);
+		// An edit puts the oldest card first. A flag is not an edit, so b stays where it was.
+		await me(() => edit.updateCard(userId, a, input({ front: 'edited' })));
+		expect(await ids('sort=edited')).toEqual([a, c, b]);
+	});
+
+	it('keeps an in-app edit when the deck is imported again, and updates the rest', async () => {
+		const tsv = (rows: string[][]) =>
+			`#separator:tab\n#html:true\n#guid column:1\n#deck column:2\n#tags column:5\n${rows
+				.map((r) => r.join('\t'))
+				.join('\n')}\n`;
+		const row = (g: string, front: string) => [`${run}${g}`, deck, front, 'back', 'anki'];
+		await me(() => repo.importDeck(userId, tsv([row('g1', 'one'), row('g2', 'two')])));
+		const [one, two] = ['g1', 'g2'].map((g) => internalId(userId, `${run}${g}`));
+		await me(() => edit.updateCard(userId, one, input({ front: 'fixed here', tags: ['mine'] })));
+
+		const out = await me(() =>
+			repo.importDeck(userId, tsv([row('g1', 'one again'), row('g2', 'two again')]))
+		);
+		expect(out).toMatchObject({ imported: 1, kept: 1 });
+		expect(await nodeById(one)).toMatchObject({ front: 'fixed here', tags: ['mine'] });
+		expect(await nodeById(two)).toMatchObject({ front: 'two again', tags: ['anki'] });
 	});
 
 	it('flags cards, and refuses a flag outside 0-7', async () => {

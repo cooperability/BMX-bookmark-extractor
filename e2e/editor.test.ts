@@ -134,4 +134,96 @@ test.describe('card editor', () => {
 			expect(errors).toEqual([]);
 		});
 	}
+
+	test('side actions keep the filters and the open card', async ({ page, context, baseURL }) => {
+		await page.setViewportSize({ width: 1440, height: 900 });
+		await context.addCookies([{ name: 'auth-session', value: token, url: baseURL! }]);
+		const deck = 'E2E Editor actions';
+		const [a, b] = ['e2e-editor-a', 'e2e-editor-b'];
+		await sql`insert into nodes (id, user_id, deck, front, back) values
+			(${a}, ${USER_ID}, ${deck}, 'alpha front', 'alpha back'),
+			(${b}, ${USER_ID}, ${deck}, 'beta front', 'beta back')`;
+		const dialogs: string[] = [];
+		page.on('dialog', (d) => {
+			dialogs.push(d.message());
+			void d.dismiss();
+		});
+		const start = `/cards/browse?deck=${encodeURIComponent(deck)}&sort=created&card=${a}`;
+		const here = () => new URL(page.url()).pathname + new URL(page.url()).search;
+		await page.goto(start);
+		const bulk = page.getByRole('region', { name: 'Bulk actions' });
+
+		// Each filter shows its whole label beside the open editor.
+		const clipped = await page.locator('#browse-q').evaluate((q) =>
+			[...q.form!.querySelectorAll('select')].flatMap((s) => {
+				const css = getComputedStyle(s);
+				const ctx = document.createElement('canvas').getContext('2d')!;
+				ctx.font = css.font;
+				const room = s.clientWidth - parseFloat(css.paddingLeft) - parseFloat(css.paddingRight);
+				const label = s.selectedOptions[0].text;
+				return ctx.measureText(label).width > room ? [label] : [];
+			})
+		);
+		expect(clipped).toEqual([]);
+
+		await page.locator(`[data-row="${b}"] input[type=checkbox]`).check();
+		await bulk.getByRole('button', { name: 'Suspend', exact: true }).click();
+		await expect(page.getByText('Suspended 1 card.')).toBeVisible();
+		expect(here()).toBe(start);
+
+		// Ctrl+J with unsaved text: no discard prompt, and the text is still there.
+		await typeInto(page, '#edit-back', 'unsaved words');
+		await page.keyboard.press('ControlOrMeta+j');
+		await expect(page.getByRole('heading', { name: /Edit card\s+suspended/ })).toBeVisible();
+		await expect(page.locator('#edit-back')).toHaveText('unsaved words');
+		await page.getByRole('button', { name: 'Revert' }).click();
+
+		await page.getByTitle('Flag').click();
+		await page.getByRole('button', { name: 'Purple' }).click();
+		await expect(page.locator(`summary[aria-label="Flag: Purple"]`)).toBeVisible();
+		expect(here()).toBe(start);
+
+		await page.locator(`[data-row="${b}"] input[type=checkbox]`).check();
+		await bulk.getByRole('button', { name: 'Delete', exact: true }).click();
+		await bulk.getByRole('button', { name: 'Delete 1 card' }).click();
+		await expect(page.locator(`[data-row="${b}"]`)).toHaveCount(0);
+		await page.getByRole('button', { name: 'Undo' }).click();
+		await expect(page.getByText('Restored 1 card.')).toBeVisible();
+		await expect(page.locator(`[data-row="${b}"]`)).toHaveCount(1);
+		expect(here()).toBe(start);
+		expect(dialogs).toEqual([]);
+
+		const rows =
+			await sql`select id, flag, suspended from nodes where id in ${sql([a, b])} order by id`;
+		expect(rows).toEqual([
+			{ id: a, flag: 7, suspended: true },
+			{ id: b, flag: 0, suspended: true }
+		]);
+	});
+
+	test('a double Ctrl+Enter adds one card, with the tag still being typed', async ({
+		page,
+		context,
+		baseURL
+	}) => {
+		await page.setViewportSize({ width: 1440, height: 900 });
+		await context.addCookies([{ name: 'auth-session', value: token, url: baseURL! }]);
+		const deck = 'E2E Editor twice';
+		await page.goto('/cards/browse?new=1');
+		await page.locator('#edit-deck').fill(deck);
+		await typeInto(page, '#edit-front', 'pressed twice');
+		const saves: string[] = [];
+		page.on('request', (r) => {
+			if (r.method() === 'POST' && r.url().includes('/save')) saves.push(r.url());
+		});
+		await page.locator('#edit-tags').fill('halfway');
+		await page.keyboard.press('ControlOrMeta+Enter');
+		await page.keyboard.press('ControlOrMeta+Enter');
+		await expect(page.getByText(`Added to ${deck}.`)).toBeVisible();
+		await page.waitForLoadState('networkidle');
+		expect(saves).toHaveLength(1);
+		const rows =
+			await sql`select tags from nodes where user_id = ${USER_ID} and deck = ${deck} and kind = 'card'`;
+		expect(rows).toEqual([{ tags: ['halfway'] }]);
+	});
 });

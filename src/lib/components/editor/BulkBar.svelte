@@ -51,13 +51,15 @@
 				error = String(result.data?.message ?? 'Could not apply that.');
 				return;
 			}
-			if (result.type !== 'success') return update();
+			// navigate: false keeps this URL. SvelteKit 3 otherwise lands on the action's URL,
+			// which drops the filters, the page and the open card.
+			if (result.type !== 'success') return update({ navigate: false });
 			const data = result.data ?? {};
 			op = null;
 			if ('trashId' in data) ondeleted(data as { trashId: string; count: number });
 			else onnotice(String(data.message ?? 'Done.'));
 			onclear();
-			await update({ reset: false });
+			await update({ reset: false, navigate: false });
 		};
 	};
 </script>

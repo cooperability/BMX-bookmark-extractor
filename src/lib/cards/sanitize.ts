@@ -52,11 +52,41 @@ const ALLOWED_TAGS = [
 	'th'
 ];
 
+const CONFIG = {
+	ALLOWED_TAGS,
+	ALLOWED_ATTR: ['src', 'alt', 'class', 'href', 'target', 'rel'],
+	FORBID_TAGS: ['script', 'style', 'iframe', 'object', 'embed', 'form', 'input', 'svg', 'math'],
+	ALLOW_DATA_ATTR: false
+};
+
 export function sanitizeCardHtml(dirty: string): string {
-	return DOMPurify.sanitize(dirty, {
-		ALLOWED_TAGS,
-		ALLOWED_ATTR: ['src', 'alt', 'class', 'href', 'target', 'rel'],
-		FORBID_TAGS: ['script', 'style', 'iframe', 'object', 'embed', 'form', 'input', 'svg', 'math'],
-		ALLOW_DATA_ATTR: false
-	});
+	return DOMPurify.sanitize(dirty, CONFIG);
+}
+
+const escapeRegExp = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+/**
+ * Find and replace in a field's visible text, returning sanitized HTML, or the
+ * field unchanged when nothing matched. It edits the parsed text nodes, so tags,
+ * attributes and entity names are out of reach: `&` finds the character `&amp;`
+ * stands for, and `<b>` in the replacement is stored as text.
+ */
+export function replaceText(html: string, find: string, replacement: string, matchCase: boolean) {
+	if (!find) return html;
+	const re = new RegExp(escapeRegExp(find), matchCase ? 'g' : 'gi');
+	const root = DOMPurify.sanitize(html, { ...CONFIG, RETURN_DOM_FRAGMENT: true });
+	const doc = root.ownerDocument;
+	// 4 is NodeFilter.SHOW_TEXT. The server's DOM has no NodeFilter global.
+	const walk = doc.createTreeWalker(root, 4);
+	let changed = false;
+	for (let t = walk.nextNode() as Text | null; t; t = walk.nextNode() as Text | null) {
+		const next = t.data.replace(re, () => replacement);
+		if (next === t.data) continue;
+		t.data = next;
+		changed = true;
+	}
+	if (!changed) return html;
+	const box = doc.createElement('div');
+	box.append(root);
+	return box.innerHTML;
 }

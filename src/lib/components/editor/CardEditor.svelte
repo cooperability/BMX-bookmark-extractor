@@ -154,6 +154,8 @@
 	}
 
 	// The small forms beside the main one: report, then refresh the page's data.
+	// navigate: false keeps the URL. SvelteKit 3 otherwise lands on the action's URL,
+	// which closes the editor and drops the list's filters.
 	const quiet =
 		(done?: () => void): SubmitFunction =>
 		() =>
@@ -161,8 +163,8 @@
 			if (result.type === 'failure') error = String(result.data?.message ?? 'Could not save.');
 			else if (result.type === 'success') {
 				done?.();
-				await update({ reset: false });
-			} else await update();
+				await update({ reset: false, navigate: false });
+			} else await update({ navigate: false });
 		};
 
 	// A delete closes the editor, so the page navigates instead of reloading this card.
@@ -172,7 +174,7 @@
 			if (result.type === 'failure') error = String(result.data?.message ?? 'Could not delete.');
 			else if (result.type === 'success')
 				ondeleted(result.data as { trashId: string; count: number });
-			else await update();
+			else await update({ navigate: false });
 		};
 </script>
 
@@ -258,7 +260,9 @@
 		action="?/save"
 		class="flex flex-1 flex-col"
 		hidden={tab === 'info'}
-		use:enhance={() => {
+		use:enhance={({ cancel }) => {
+			// requestSubmit (Ctrl+Enter) ignores the disabled Save button, so a second press lands here.
+			if (saving) return cancel();
 			saving = true;
 			error = null;
 			return async ({ result, update }) => {
@@ -274,7 +278,7 @@
 					deck = s.deck;
 					tags = [...s.tags];
 					onsaved(s);
-				} else await update();
+				} else await update({ navigate: false });
 			};
 		}}
 	>

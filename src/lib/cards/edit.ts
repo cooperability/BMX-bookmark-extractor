@@ -60,29 +60,10 @@ export function safeReturn(raw: string | null): string | null {
 	if (!raw || !raw.startsWith('/') || raw.startsWith('//') || raw.startsWith('/\\')) return null;
 	try {
 		const u = new URL(raw, 'http://x.invalid');
-		return u.origin === 'http://x.invalid' ? `${u.pathname}${u.search}` : null;
+		// Dot segments collapse: `/.//host` parses to the path `//host`.
+		if (u.origin !== 'http://x.invalid' || u.pathname.startsWith('//')) return null;
+		return `${u.pathname}${u.search}`;
 	} catch {
 		return null;
 	}
-}
-
-// As serialized HTML escapes a text node: a quote stays bare there, so escaping it would never match.
-const escapeHtml = (s: string) =>
-	s.replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' })[c]!);
-const escapeRegExp = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-
-/**
- * Find and replace in a field's visible text. Tags and attributes are left
- * alone, so replacing "a" cannot break `<a href>`. Both strings are literal text:
- * `&` finds the stored `&amp;`, and `<b>` in the replacement shows as text.
- */
-export function replaceText(html: string, find: string, replacement: string, matchCase: boolean) {
-	if (!find) return html;
-	const re = new RegExp(escapeRegExp(escapeHtml(find)), matchCase ? 'g' : 'gi');
-	const to = escapeHtml(replacement);
-	// A tag ends at the first > outside its double-quoted attribute values, which may hold one.
-	return html
-		.split(/(<(?:[^>"]|"[^"]*")*>)/)
-		.map((part, i) => (i % 2 ? part : part.replace(re, () => to)))
-		.join('');
 }

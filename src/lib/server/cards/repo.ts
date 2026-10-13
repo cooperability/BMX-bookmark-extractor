@@ -25,6 +25,7 @@ export async function importDeck(userId: string, raw: string) {
 	}
 	const notes = [...byId.values()];
 	const excluded = (col: string) => sql.raw(`excluded.${col}`);
+	let kept = 0;
 	// A savepoint inside the request's transaction (asTenant). A failed batch rolls
 	// back the whole import, not a prefix of it, and leaves the request's transaction
 	// usable, so the page load after the action's error still renders.
@@ -34,9 +35,10 @@ export async function importDeck(userId: string, raw: string) {
 		// deadlock against a Quest grade (which holds the run, then the card).
 		await tx.execute(questLock(userId));
 		for (let i = 0; i < notes.length; i += 500) {
-			await tx
+			const batch = notes.slice(i, i + 500);
+			const written = await tx
 				.insert(table.node)
-				.values(notes.slice(i, i + 500).map((n) => ({ ...n, userId })))
+				.values(batch.map((n) => ({ ...n, userId })))
 				.onConflictDoUpdate({
 					target: table.node.id,
 					set: {
@@ -47,13 +49,18 @@ export async function importDeck(userId: string, raw: string) {
 						notetype: excluded('notetype')
 					},
 					// Never let a card overwrite a concept or a document with the same id.
-					setWhere: eq(table.node.kind, 'card')
-				});
+					// An edit made in the app (updated_at set) wins over the export's copy:
+					// a TSV export carries no modification time to compare.
+					setWhere: and(eq(table.node.kind, 'card'), isNull(table.node.updatedAt))
+				})
+				.returning({ id: table.node.id });
+			// A row the setWhere skipped is not returned.
+			kept += batch.length - written.length;
 		}
 		// Keep the Quest map in step with the cards' decks and tags.
 		await syncImportGraphIn(tx, userId);
 	});
-	return { imported: notes.length, warnings };
+	return { imported: notes.length - kept, kept, warnings };
 }
 
 /**

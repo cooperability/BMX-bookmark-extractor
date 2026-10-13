@@ -1,10 +1,10 @@
 import { hasDb } from '../testing/db';
-import { eq } from 'drizzle-orm';
+import { eq, inArray } from 'drizzle-orm';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import * as table from '../db/schema';
 
 const { db } = hasDb ? await import('../db') : ({} as typeof import('../db'));
-const { overview } = hasDb ? await import('./stats') : ({} as typeof import('./stats'));
+const { deckDetail, overview } = hasDb ? await import('./stats') : ({} as typeof import('./stats'));
 
 describe.skipIf(!hasDb)('overview against the database', () => {
 	const run = crypto.randomUUID().slice(0, 8);
@@ -13,6 +13,7 @@ describe.skipIf(!hasDb)('overview against the database', () => {
 
 	async function cleanup() {
 		await db.delete(table.reviewLog).where(eq(table.reviewLog.userId, userId));
+		await db.delete(table.reviewState).where(eq(table.reviewState.userId, userId));
 		await db.delete(table.assessment).where(eq(table.assessment.userId, userId));
 		await db.delete(table.node).where(eq(table.node.userId, userId));
 		await db.delete(table.user).where(eq(table.user.id, userId));
@@ -71,5 +72,29 @@ describe.skipIf(!hasDb)('overview against the database', () => {
 		expect(la.streakDays).toBe(1);
 		const utc = await overview(userId, now);
 		expect(utc.reviewedToday).toBe(2);
+	});
+
+	it('leaves suspended cards out of the new and due counts, not the total', async () => {
+		const due = new Date(now.getTime() - 86_400_000);
+		await db.insert(table.reviewState).values(
+			['a', 'b'].map((k) => ({
+				nodeId: `${run}-${k}`,
+				userId,
+				state: 2,
+				due,
+				stability: 5,
+				difficulty: 5,
+				reps: 1,
+				lapses: 0,
+				lastReview: due
+			}))
+		);
+		// a: due and suspended. c: new and suspended. b stays due.
+		await db
+			.update(table.node)
+			.set({ suspended: true })
+			.where(inArray(table.node.id, [`${run}-a`, `${run}-c`]));
+		expect((await overview(userId, now)).dueNow).toBe(1);
+		expect(await deckDetail(userId, 'd', now)).toMatchObject({ total: 3, fresh: 0, due: 1 });
 	});
 });

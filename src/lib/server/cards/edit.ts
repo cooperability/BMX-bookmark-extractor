@@ -2,8 +2,8 @@ import { and, desc, eq, getTableColumns, gte, inArray, lt, ne, or, sql } from 'd
 import type { PgColumn } from 'drizzle-orm/pg-core';
 import { db } from '$lib/server/db';
 import * as table from '$lib/server/db/schema';
-import { BULK_MAX, FIELD_MAX, normalizeDeck, normalizeTags, replaceText } from '$lib/cards/edit';
-import { sanitizeCardHtml } from '$lib/cards/sanitize';
+import { BULK_MAX, FIELD_MAX, normalizeDeck, normalizeTags } from '$lib/cards/edit';
+import { replaceText, sanitizeCardHtml } from '$lib/cards/sanitize';
 import { internalId } from '$lib/server/ingest/identity';
 import { questLock, syncImportGraphIn } from '$lib/server/quest/repo';
 import { plainText, stateName } from './browse';

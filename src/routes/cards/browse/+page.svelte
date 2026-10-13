@@ -218,12 +218,12 @@
 				action={resolve('/cards/browse')}
 				data-sveltekit-keepfocus
 				data-sveltekit-noscroll
-				class="grid grid-cols-2 gap-2 p-4 sm:grid-cols-3 xl:grid-cols-6"
+				class="grid grid-cols-2 gap-2 p-4 sm:grid-cols-3"
 			>
 				{#if data.card}<input type="hidden" name="card" value={data.card.id} />{/if}
 				{#if data.returnTo}<input type="hidden" name="return" value={data.returnTo} />{/if}
 				<label class="sr-only" for="browse-q">Search cards</label>
-				<div class="relative col-span-2 sm:col-span-3 xl:col-span-6">
+				<div class="relative col-span-2 sm:col-span-3">
 					<input
 						bind:this={search}
 						id="browse-q"
@@ -454,7 +454,7 @@
 						if (result.type === 'success')
 							notify({ message: String(result.data?.message ?? 'Restored.') });
 						else if (result.type === 'failure') notify({ message: String(result.data?.message) });
-						await update({ reset: false });
+						await update({ reset: false, navigate: false });
 					}}
 			>
 				<input type="hidden" name="trash" value={toast.trashId} />
