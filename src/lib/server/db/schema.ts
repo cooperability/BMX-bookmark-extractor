@@ -42,9 +42,9 @@ export const loginCode = pgTable('login_code', {
 });
 
 /**
- * Per-address budget across codes, over a rolling window. A code's own 5-try
- * limit resets whenever a new code is issued, so without this an attacker who
- * knows an allowed address gets 5 guesses a minute, indefinitely.
+ * Login attempts per address in a fixed window, so nobody who knows an allowed
+ * address can guess the shared password without limit. See login-throttle.ts.
+ * `sends` is left over from emailed codes and unused.
  */
 export const loginThrottle = pgTable('login_throttle', {
 	email: text('email').primaryKey(),
