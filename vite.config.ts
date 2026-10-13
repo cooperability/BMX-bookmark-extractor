@@ -36,6 +36,15 @@ export default defineConfig({
 			}
 		})
 	],
+	environments: {
+		ssr: {
+			// SSR deps pre-bundle for platform 'node', where rolldown's runtime imports
+			// 'node:module'. Resolving it skips our tsconfig.json (its include misses the
+			// runtime) and loads the next one up, so a worktree nested in another checkout
+			// fails to start whenever that outer tsconfig cannot load.
+			optimizeDeps: { rolldownOptions: { tsconfig: false } }
+		}
+	},
 	server: {
 		host: '0.0.0.0',
 		port: 3000
