@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { enhance, type SubmitFunction } from '$app/forms';
 	import { FLAGS } from '$lib/cards/edit';
+	import { STAY } from './forms';
 	import TagInput from './TagInput.svelte';
 
 	let {
@@ -51,15 +52,13 @@
 				error = String(result.data?.message ?? 'Could not apply that.');
 				return;
 			}
-			// navigate: false keeps this URL. SvelteKit 3 otherwise lands on the action's URL,
-			// which drops the filters, the page and the open card.
-			if (result.type !== 'success') return update({ navigate: false });
+			if (result.type !== 'success') return update(STAY);
 			const data = result.data ?? {};
 			op = null;
 			if ('trashId' in data) ondeleted(data as { trashId: string; count: number });
 			else onnotice(String(data.message ?? 'Done.'));
 			onclear();
-			await update({ reset: false, navigate: false });
+			await update(STAY);
 		};
 	};
 </script>

@@ -89,7 +89,11 @@ export const actions: Actions = {
 	undo: async ({ request, locals }) => {
 		const trashId = text(await request.formData(), 'trash').slice(0, 64);
 		const restored = await restoreCards(locals.user!.id, trashId);
-		if (!restored) return fail(404, { message: 'Nothing to undo. The delete is over a day old.' });
+		if (restored === null)
+			return fail(404, {
+				message: 'Nothing to undo. It was undone already, or is over a day old.'
+			});
+		if (!restored) return { message: 'Nothing to restore. Those cards are back already.' };
 		return { message: `Restored ${plural(restored)}.` };
 	},
 

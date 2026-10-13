@@ -166,6 +166,18 @@ test.describe('card editor', () => {
 		);
 		expect(clipped).toEqual([]);
 
+		// The editor's shortcuts belong to the editor. In the search box they do nothing.
+		const saves: string[] = [];
+		page.on('request', (r) => {
+			if (r.method() === 'POST' && r.url().includes('/save')) saves.push(r.url());
+		});
+		await page.locator('#browse-q').focus();
+		await page.keyboard.press('ControlOrMeta+Enter');
+		await page.keyboard.press('Escape');
+		await page.waitForLoadState('networkidle');
+		expect(saves).toEqual([]);
+		expect(here()).toBe(start);
+
 		await page.locator(`[data-row="${b}"] input[type=checkbox]`).check();
 		await bulk.getByRole('button', { name: 'Suspend', exact: true }).click();
 		await expect(page.getByText('Suspended 1 card.')).toBeVisible();
@@ -187,8 +199,11 @@ test.describe('card editor', () => {
 		await bulk.getByRole('button', { name: 'Delete', exact: true }).click();
 		await bulk.getByRole('button', { name: 'Delete 1 card' }).click();
 		await expect(page.locator(`[data-row="${b}"]`)).toHaveCount(0);
-		await page.getByRole('button', { name: 'Undo' }).click();
+		// A double click is one Undo. The second must not report the spent trash as a failure.
+		await page.getByRole('button', { name: 'Undo' }).dblclick();
 		await expect(page.getByText('Restored 1 card.')).toBeVisible();
+		await page.waitForLoadState('networkidle');
+		await expect(page.getByRole('status').filter({ hasText: 'Restored 1 card.' })).toBeVisible();
 		await expect(page.locator(`[data-row="${b}"]`)).toHaveCount(1);
 		expect(here()).toBe(start);
 		expect(dialogs).toEqual([]);
@@ -225,5 +240,105 @@ test.describe('card editor', () => {
 		const rows =
 			await sql`select tags from nodes where user_id = ${USER_ID} and deck = ${deck} and kind = 'card'`;
 		expect(rows).toEqual([{ tags: ['halfway'] }]);
+	});
+
+	test('keyboard shortcuts, and pasted or typed HTML is sanitized', async ({
+		page,
+		context,
+		baseURL
+	}) => {
+		await page.setViewportSize({ width: 1440, height: 900 });
+		await context.addCookies([{ name: 'auth-session', value: token, url: baseURL! }]);
+		const dialogs: string[] = [];
+		page.on('dialog', (d) => {
+			dialogs.push(d.message());
+			void d.dismiss();
+		});
+		const deck = 'E2E Editor keys';
+		const [k1, k2, k3] = ['e2e-keys-1', 'e2e-keys-2', 'e2e-keys-3'];
+		// Newest first under sort=created: k3, k2, k1.
+		await sql`insert into nodes (id, user_id, deck, front, back, created_at) values
+			(${k1}, ${USER_ID}, ${deck}, 'one', 'b', now() - interval '3 minutes'),
+			(${k2}, ${USER_ID}, ${deck}, 'two', 'b', now() - interval '2 minutes'),
+			(${k3}, ${USER_ID}, ${deck}, 'three', 'b', now() - interval '1 minute')`;
+		await page.goto(`/cards/browse?deck=${encodeURIComponent(deck)}&sort=created`);
+		// Keys reach the page's handlers once it has hydrated.
+		await page.waitForLoadState('networkidle');
+
+		await page.keyboard.press('/');
+		await expect(page.locator('#browse-q')).toBeFocused();
+		await page.locator('#browse-q').blur();
+
+		await page.keyboard.press('j');
+		await expect(page).toHaveURL(new RegExp(`card=${k3}`));
+		await page.keyboard.press('j');
+		await expect(page).toHaveURL(new RegExp(`card=${k2}`));
+		await page.keyboard.press('k');
+		await expect(page).toHaveURL(new RegExp(`card=${k3}`));
+
+		const preview = page.getByRole('tab', { name: /Preview/ });
+		await page.keyboard.press('ControlOrMeta+Shift+p');
+		await expect(preview).toHaveAttribute('aria-selected', 'true');
+		await page.keyboard.press('ControlOrMeta+Shift+p');
+		await expect(preview).toHaveAttribute('aria-selected', 'false');
+
+		await page.keyboard.press('Escape');
+		await expect(page).not.toHaveURL(/card=/);
+		await page.keyboard.press('n');
+		await expect(page).toHaveURL(/new=1/);
+		await expect(page.getByRole('heading', { name: 'New card' })).toBeVisible();
+
+		// Paste goes through the card sanitizer before it reaches the field.
+		const front = page.locator('div#edit-front');
+		await front.click();
+		await front.evaluate((el) => {
+			const data = new DataTransfer();
+			data.setData('text/html', '<b>bold</b><img src="https://a.test/x.png" onerror="alert(1)">');
+			data.setData('text/plain', 'bold');
+			el.dispatchEvent(new ClipboardEvent('paste', { clipboardData: data, bubbles: true }));
+		});
+		await expect(front.locator('b')).toHaveText('bold');
+		expect(await front.innerHTML()).not.toMatch(/onerror/);
+
+		// Ctrl+Shift+X shows the HTML source, and leaving it sanitizes what was typed there.
+		await page.keyboard.press('ControlOrMeta+Shift+x');
+		const source = page.locator('textarea#edit-front');
+		await expect(source).toHaveValue(/<b>bold<\/b>/);
+		await source.fill('<i>it</i><img src="https://a.test/y.png" onerror="alert(2)">');
+		await source.press('ControlOrMeta+Shift+x');
+		await expect(front.locator('i')).toHaveText('it');
+		expect(await front.innerHTML()).not.toMatch(/onerror/);
+		expect(dialogs).toEqual([]);
+	});
+
+	test('a re-import keeps a card edited here, and says so', async ({ page, context, baseURL }) => {
+		await page.setViewportSize({ width: 1440, height: 900 });
+		await context.addCookies([{ name: 'auth-session', value: token, url: baseURL! }]);
+		const deck = 'E2E Editor import';
+		const tsv = (front: string) =>
+			`#separator:tab\n#html:true\n#guid column:1\n#deck column:2\ne2eKeepGuid\t${deck}\t${front}\tback\n`;
+		async function upload(front: string) {
+			await page.goto('/cards');
+			await page.getByLabel('Anki export').setInputFiles({
+				name: 'deck.txt',
+				mimeType: 'text/plain',
+				buffer: Buffer.from(tsv(front))
+			});
+			await page.getByRole('button', { name: 'Import deck' }).click();
+		}
+
+		await upload('from anki');
+		await expect(page.getByText('Imported 1 cards.')).toBeVisible();
+		const [{ id }] =
+			await sql`select id from nodes where user_id = ${USER_ID} and deck = ${deck} and kind = 'card'`;
+		await page.goto(`/cards/browse?card=${id}`);
+		await typeInto(page, '#edit-front', 'fixed here');
+		await page.keyboard.press('ControlOrMeta+Enter');
+		await expect(page.getByText('Saved.')).toBeVisible();
+
+		await upload('from anki again');
+		await expect(page.getByText(/Imported 0 cards\. Kept your edits to 1/)).toBeVisible();
+		const [row] = await sql`select front from nodes where id = ${id}`;
+		expect(row.front).toBe('fixed here');
 	});
 });

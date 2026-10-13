@@ -42,8 +42,8 @@
 	// A datalist pick fires input with the whole tag, and no key to commit it.
 	function oninput(e: Event & { currentTarget: HTMLInputElement }) {
 		// Chrome fires a plain Event, with no inputType, for a datalist pick.
-		const ev = e as unknown as InputEvent;
-		if (ev.inputType === 'insertReplacementText' || !ev.inputType) {
+		const type = e instanceof InputEvent ? e.inputType : '';
+		if (type === 'insertReplacementText' || !type) {
 			if (suggestions.includes(e.currentTarget.value)) commit();
 		} else if (/\s/.test(draft)) commit();
 	}

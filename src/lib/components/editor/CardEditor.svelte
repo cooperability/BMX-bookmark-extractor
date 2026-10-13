@@ -6,6 +6,8 @@
 	import { sanitizeCardHtml } from '$lib/cards/sanitize';
 	import Flashcard from '$lib/components/study/Flashcard.svelte';
 	import type { EditorCard } from '$lib/server/cards/edit';
+	import CardInfo from './CardInfo.svelte';
+	import { STAY } from './forms';
 	import RichField from './RichField.svelte';
 	import TagInput from './TagInput.svelte';
 
@@ -60,6 +62,7 @@
 	let saving = $state(false);
 	let error = $state<string | null>(null);
 	let duplicates = $state<{ id: string; deck: string }[]>([]);
+	let root = $state<HTMLDivElement>();
 	let form = $state<HTMLFormElement>();
 	let suspendForm = $state<HTMLFormElement>();
 	let deleteForm = $state<HTMLFormElement>();
@@ -104,35 +107,13 @@
 		error = null;
 	}
 
-	const day = (d: Date | null) =>
-		d ? new Date(d).toLocaleString('en', { dateStyle: 'medium', timeStyle: 'short' }) : '–';
-	const facts = $derived(
-		card
-			? [
-					['Added', day(card.createdAt)],
-					['Edited', card.updatedAt ? day(card.updatedAt) : 'never'],
-					['State', card.suspended ? `${card.state}, suspended` : card.state],
-					['Due', card.scheduled ? day(card.due) : 'new'],
-					['Stability', card.scheduled ? `${card.stability?.toFixed(1)}d` : '–'],
-					['Difficulty', card.scheduled ? (card.difficulty?.toFixed(1) ?? '–') : '–'],
-					['Reviews', String(card.reps ?? 0)],
-					['Lapses', String(card.lapses ?? 0)],
-					['Last review', day(card.lastReview)],
-					['Note type', card.notetype]
-				]
-			: []
-	);
-	const RATING: Record<number, [string, string]> = {
-		1: ['Again', 'text-again'],
-		2: ['Hard', 'text-hard'],
-		3: ['Good', 'text-good'],
-		4: ['Easy', 'text-easy']
-	};
-
 	const inField = (t: EventTarget | null) =>
 		t instanceof Element && Boolean(t.closest('input, textarea, select, [contenteditable="true"]'));
 
 	function onkeydown(e: KeyboardEvent) {
+		// Another field on the page (search, the bulk bar) keeps its keys: Escape there
+		// must not close this card, nor Ctrl+Enter save it.
+		if (inField(e.target) && !root?.contains(e.target as Node)) return;
 		const mod = e.ctrlKey || e.metaKey;
 		if (mod && e.key === 'Enter') {
 			e.preventDefault();
@@ -154,8 +135,6 @@
 	}
 
 	// The small forms beside the main one: report, then refresh the page's data.
-	// navigate: false keeps the URL. SvelteKit 3 otherwise lands on the action's URL,
-	// which closes the editor and drops the list's filters.
 	const quiet =
 		(done?: () => void): SubmitFunction =>
 		() =>
@@ -163,8 +142,8 @@
 			if (result.type === 'failure') error = String(result.data?.message ?? 'Could not save.');
 			else if (result.type === 'success') {
 				done?.();
-				await update({ reset: false, navigate: false });
-			} else await update({ navigate: false });
+				await update(STAY);
+			} else await update(STAY);
 		};
 
 	// A delete closes the editor, so the page navigates instead of reloading this card.
@@ -174,13 +153,13 @@
 			if (result.type === 'failure') error = String(result.data?.message ?? 'Could not delete.');
 			else if (result.type === 'success')
 				ondeleted(result.data as { trashId: string; count: number });
-			else await update({ navigate: false });
+			else await update(STAY);
 		};
 </script>
 
 <svelte:window {onkeydown} />
 
-<div class="flex min-h-full flex-col">
+<div bind:this={root} class="flex min-h-full flex-col">
 	<header class="border-line flex items-center gap-2 border-b px-4 py-3">
 		<a
 			href={closeHref}
@@ -278,7 +257,7 @@
 					deck = s.deck;
 					tags = [...s.tags];
 					onsaved(s);
-				} else await update({ navigate: false });
+				} else await update(STAY);
 			};
 		}}
 	>
@@ -384,47 +363,10 @@
 
 	<!-- Outside the save form: a form cannot hold another. -->
 	{#if tab === 'info' && card}
-		<div class="flex-1 space-y-5 px-4 py-4 text-sm">
-			{#if error}<p class="text-again text-sm" role="alert">{error}</p>{/if}
-			<dl class="grid grid-cols-2 gap-x-6 gap-y-3 font-mono text-xs sm:grid-cols-3">
-				{#each facts as [k, v] (k)}
-					<div>
-						<dt class="eyebrow text-[10px]">{k}</dt>
-						<dd class="mt-0.5 break-words">{v}</dd>
-					</div>
-				{/each}
-			</dl>
-			<div>
-				<h3 class="eyebrow">Review history</h3>
-				{#if card.log.length}
-					<ol class="mt-2 divide-y divide-[var(--line)]">
-						{#each card.log as l, i (i)}
-							<li class="flex items-center justify-between gap-3 py-1.5 font-mono text-xs">
-								<span class="text-muted">{day(l.reviewedAt)}</span>
-								<span class="text-muted">{l.surface}</span>
-								<span class="w-12 text-right {RATING[l.rating]?.[1] ?? ''}">
-									{RATING[l.rating]?.[0] ?? l.rating}
-								</span>
-							</li>
-						{/each}
-					</ol>
-				{:else}
-					<p class="text-muted mt-2">Never reviewed.</p>
-				{/if}
-			</div>
-			<form
-				method="POST"
-				action="?/bulk"
-				class="border-line border-t pt-4"
-				use:enhance={quiet(() => onnotice('Schedule reset. The card is new again.'))}
-			>
-				<input type="hidden" name="op" value="forget" />
-				<input type="hidden" name="id" value={card.id} />
-				<button class="btn min-h-11 lg:min-h-0" disabled={!card.scheduled}
-					>Forget: make it new</button
-				>
-				<p class="text-muted mt-1 text-xs">Review history stays. Only the schedule resets.</p>
-			</form>
-		</div>
+		<CardInfo
+			{card}
+			{error}
+			forget={quiet(() => onnotice('Schedule reset. The card is new again.'))}
+		/>
 	{/if}
 </div>

@@ -103,7 +103,7 @@
 			<span class="eyebrow">Import</span>
 			<span class="font-semibold">{fileName || 'Choose an Anki export'}</span>
 			<span class="text-muted text-xs"
-				>.txt, .tsv or .csv. Re-importing updates cards in place.</span
+				>.txt, .tsv or .csv. Re-importing updates cards in place, except ones edited here.</span
 			>
 			<input
 				type="file"

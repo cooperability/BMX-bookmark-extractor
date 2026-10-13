@@ -1,13 +1,13 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { SvelteURLSearchParams } from 'svelte/reactivity';
-	import { enhance } from '$app/forms';
-	import { beforeNavigate, goto, invalidateAll } from '$app/navigation';
+	import { beforeNavigate, goto, refreshAll } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import { page } from '$app/state';
 	import { FLAGS, flagOf } from '$lib/cards/edit';
 	import BulkBar from '$lib/components/editor/BulkBar.svelte';
 	import CardEditor from '$lib/components/editor/CardEditor.svelte';
+	import Toast, { type Toast as ToastData } from '$lib/components/editor/Toast.svelte';
 
 	let { data } = $props();
 
@@ -95,10 +95,9 @@
 		else dirty = false;
 	});
 
-	type Toast = { message: string; trashId?: string; link?: { href: string; label: string } };
-	let toast = $state<Toast | null>(null);
+	let toast = $state<ToastData | null>(null);
 	let toastTimer: ReturnType<typeof setTimeout> | undefined;
-	function notify(t: Toast) {
+	function notify(t: ToastData) {
 		toast = t;
 		clearTimeout(toastTimer);
 		toastTimer = setTimeout(() => (toast = null), t.trashId ? 12_000 : 5_000);
@@ -113,7 +112,7 @@
 				link: { href: cardHref(s.id), label: 'Open' }
 			});
 		else notify({ message: 'Saved.' });
-		invalidateAll();
+		refreshAll();
 	}
 
 	// The list, not returnTo: Undo lives in this page's toast.
@@ -121,7 +120,7 @@
 		dirty = false;
 		notify({ message: `Deleted ${d.count} card${d.count === 1 ? '' : 's'}.`, trashId: d.trashId });
 		if (closes) goto(href({ card: null, new: null }), { reset: false });
-		else invalidateAll();
+		else refreshAll();
 	}
 
 	let search = $state<HTMLInputElement>();
@@ -437,36 +436,7 @@
 </main>
 
 {#if toast}
-	<div
-		class="panel fixed bottom-[max(1rem,env(safe-area-inset-bottom))] left-1/2 z-40 flex w-[min(28rem,calc(100vw-2rem))] -translate-x-1/2 items-center gap-3 px-4 py-3 text-sm shadow-lg"
-		role="status"
-	>
-		<span class="min-w-0 flex-1">{toast.message}</span>
-		{#if toast.link}<a href={toast.link.href} class="btn btn-ghost min-h-11 px-3 lg:min-h-0"
-				>{toast.link.label}</a
-			>{/if}
-		{#if toast.trashId}
-			<form
-				method="POST"
-				action="?/undo"
-				use:enhance={() =>
-					async ({ result, update }) => {
-						if (result.type === 'success')
-							notify({ message: String(result.data?.message ?? 'Restored.') });
-						else if (result.type === 'failure') notify({ message: String(result.data?.message) });
-						await update({ reset: false, navigate: false });
-					}}
-			>
-				<input type="hidden" name="trash" value={toast.trashId} />
-				<button class="btn min-h-11 px-3 lg:min-h-0">Undo</button>
-			</form>
-		{/if}
-		<button
-			class="text-muted hover:text-fg min-h-11 px-1 lg:min-h-0"
-			aria-label="Dismiss"
-			onclick={() => (toast = null)}>×</button
-		>
-	</div>
+	<Toast {toast} onnotice={(message) => notify({ message })} ondismiss={() => (toast = null)} />
 {/if}
 
 <style>

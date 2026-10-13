@@ -179,7 +179,7 @@ describe.skipIf(!hasDb)('card editor writes', () => {
 		const [h] = await db.select().from(table.harvest).where(eq(table.harvest.userId, userId));
 		expect(h).toMatchObject({ status: 'ready', nodeId: null });
 
-		expect(await asTenant(other, () => edit.restoreCards(other, gone.trashId))).toBe(0);
+		expect(await asTenant(other, () => edit.restoreCards(other, gone.trashId))).toBeNull();
 		expect(await me(() => edit.restoreCards(userId, gone.trashId))).toBe(1);
 		expect((await nodeById(id)).front).toBe('front 0');
 		expect(await db.execute(sql`select * from review_state where node_id = ${id}`)).toEqual(state);
@@ -195,14 +195,15 @@ describe.skipIf(!hasDb)('card editor writes', () => {
 			.where(and(eq(table.edge.srcId, id), eq(table.edge.kind, 'deck')));
 		expect(deckEdge).toHaveLength(1);
 
-		// The trash is spent: a second Undo has nothing to restore.
-		expect(await me(() => edit.restoreCards(userId, gone.trashId))).toBe(0);
+		// The trash is spent: a second Undo finds nothing, which is not the same as restoring 0.
+		expect(await me(() => edit.restoreCards(userId, gone.trashId))).toBeNull();
 	});
 
 	it('keeps a card re-imported since its delete as it is now', async () => {
 		const id = card(userId, 0).id;
 		const gone = (await me(() => edit.deleteCards(userId, [id])))!;
 		await db.insert(table.node).values(card(userId, 0, deck, { front: 'reimported' }));
+		// The trash was there, and every card in it was back already.
 		expect(await me(() => edit.restoreCards(userId, gone.trashId))).toBe(0);
 		expect((await nodeById(id)).front).toBe('reimported');
 	});
@@ -211,8 +212,37 @@ describe.skipIf(!hasDb)('card editor writes', () => {
 		const id = card(userId, 0).id;
 		const longAgo = new Date(Date.now() - 25 * 60 * 60 * 1000);
 		const gone = (await me(() => edit.deleteCards(userId, [id], longAgo)))!;
-		expect(await me(() => edit.restoreCards(userId, gone.trashId))).toBe(0);
+		expect(await me(() => edit.restoreCards(userId, gone.trashId))).toBeNull();
 		expect(await nodeById(id)).toBeUndefined();
+	});
+
+	it('purges expired trash on any editor write, not only a delete', async () => {
+		const longAgo = new Date(Date.now() - 25 * 60 * 60 * 1000);
+		const gone = (await me(() => edit.deleteCards(userId, [card(userId, 0).id], longAgo)))!;
+		const trash = () =>
+			db.select().from(table.cardTrash).where(eq(table.cardTrash.id, gone.trashId));
+		expect(await trash()).toHaveLength(1);
+		await me(() => edit.setFlag(userId, [card(userId, 1).id], 2));
+		expect(await trash()).toEqual([]);
+	});
+
+	it('saves nothing when nothing changed, so the card still takes a re-import', async () => {
+		const id = card(userId, 0).id;
+		const saved = await me(() =>
+			edit.updateCard(userId, id, input({ front: 'front 0', back: 'back 0' }))
+		);
+		expect(saved).toMatchObject({ id, front: 'front 0', back: 'back 0', tags: ['t1'] });
+		expect((await nodeById(id)).updatedAt).toBeNull();
+	});
+
+	it('drops a suspended card from a round that is already open', async () => {
+		const id = card(userId, 0).id;
+		const r = (await repo.startRound(userId, deck))!;
+		expect(r.cards.map((c) => c.id)).toContain(id);
+		await me(() => edit.setSuspended(userId, [id], true));
+		const again = (await repo.startRound(userId, deck))!;
+		expect(again.assessmentId).toBe(r.assessmentId);
+		expect(again.cards.map((c) => c.id)).not.toContain(id);
 	});
 
 	it('takes a suspended card out of rounds and due counts, and keeps its schedule', async () => {
@@ -318,6 +348,14 @@ describe.skipIf(!hasDb)('card editor writes', () => {
 			'<a href="https://front.test" target="_blank" rel="noopener noreferrer">face</a> face'
 		);
 		expect((await nodeById(card(userId, 2).id)).front).toBe('front 2');
+	});
+
+	it('refuses a replace that would leave a front empty, as Save does', async () => {
+		const id = card(userId, 0).id;
+		await expect(
+			me(() => edit.replaceInCards(userId, [id], 'front 0', '', 'front', true))
+		).rejects.toThrow(edit.EditError);
+		expect((await nodeById(id)).front).toBe('front 0');
 	});
 
 	it('finds a duplicate front across formatting and case, never the card itself', async () => {

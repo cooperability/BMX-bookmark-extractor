@@ -25,14 +25,19 @@ export interface CardInput {
 	tags: string[];
 }
 
-/** How long a delete stays undoable. Older trash is purged on the next delete. */
+/** How long a delete stays undoable. Older trash is purged on the next editor write. */
 const TRASH_TTL_MS = 24 * 60 * 60 * 1000;
 
 const n = table.node;
+const expired = (now: Date) => new Date(now.getTime() - TRASH_TTL_MS);
 
+// No scheduler runs here (ROADMAP: no cron), so every editor write purges the
+// user's expired trash. Restore checks the age itself, so a late purge costs storage only.
 function locked<T>(userId: string, fn: (tx: Tx) => Promise<T>): Promise<T> {
 	return db.transaction(async (tx) => {
 		await tx.execute(questLock(userId));
+		const t = table.cardTrash;
+		await tx.delete(t).where(and(eq(t.userId, userId), lt(t.createdAt, expired(new Date()))));
 		return fn(tx);
 	});
 }
@@ -48,16 +53,20 @@ async function ownCards(tx: Tx, userId: string, ids: string[]) {
 		.for('update');
 }
 
+// An image alone is a front. Whitespace and empty tags are not.
+const emptyFront = (front: string) => !plainText(front) && !/<img\b/i.test(front);
+
 function cleanInput(input: CardInput) {
 	if (input.front.length > FIELD_MAX || input.back.length > FIELD_MAX)
 		throw new EditError('A field is over 64 KB. Split the card or trim the pasted text.');
 	const deck = normalizeDeck(input.deck);
 	if (!deck) throw new EditError('Pick a deck.');
 	const front = sanitizeCardHtml(input.front);
-	// An image alone is a front. Whitespace and empty tags are not.
-	if (!plainText(front) && !/<img\b/i.test(front)) throw new EditError('The front is empty.');
+	if (emptyFront(front)) throw new EditError('The front is empty.');
 	return { front, back: sanitizeCardHtml(input.back), deck, tags: normalizeTags(input.tags) };
 }
+
+const sameTags = (a: string[], b: string[]) => a.join('\u0000') === b.join('\u0000');
 
 /** Anki's GUID alphabet is base91. Base62 is a subset, safe in a TSV export and a URL. */
 function randomGuid() {
@@ -86,12 +95,14 @@ export async function updateCard(userId: string, id: string, input: CardInput, n
 	return locked(userId, async (tx) => {
 		const [old] = await ownCards(tx, userId, [id]);
 		if (!old) return null;
+		const graphChanged = old.deck !== card.deck || !sameTags(old.tags, card.tags);
+		// A save with nothing changed is not an edit: updated_at decides whether a
+		// re-import may overwrite the card (importDeck).
+		if (!graphChanged && old.front === card.front && old.back === card.back) return { id, ...card };
 		await tx
 			.update(n)
 			.set({ ...card, updatedAt: now })
 			.where(and(eq(n.id, id), eq(n.userId, userId)));
-		const graphChanged =
-			old.deck !== card.deck || old.tags.join('\u0000') !== card.tags.join('\u0000');
 		if (graphChanged) await syncImportGraphIn(tx, userId);
 		return { id, ...card };
 	});
@@ -248,10 +259,6 @@ export async function deleteCards(userId: string, ids: string[], now = new Date(
 			.where(and(mine(table.questRun.userId), inArray(table.questRun.currentNodeId, got)));
 		await tx.delete(n).where(and(mine(n.userId), inArray(n.id, got)));
 
-		const t = table.cardTrash;
-		await tx
-			.delete(t)
-			.where(and(mine(t.userId), lt(t.createdAt, new Date(now.getTime() - TRASH_TTL_MS))));
 		const trashId = crypto.randomUUID();
 		const payload: Trashed = JSON.parse(
 			JSON.stringify({
@@ -262,7 +269,7 @@ export async function deleteCards(userId: string, ids: string[], now = new Date(
 				harvests: harvests.map((x) => ({ ...x, id: String(x.id) }))
 			})
 		);
-		await tx.insert(t).values({ id: trashId, userId, payload, createdAt: now });
+		await tx.insert(table.cardTrash).values({ id: trashId, userId, payload, createdAt: now });
 		await syncImportGraphIn(tx, userId);
 		return { trashId, count: got.length };
 	});
@@ -273,23 +280,18 @@ const at = (s: string | null) => (s === null ? null : new Date(s));
 /**
  * Undo a delete from the server's own copy. A card whose id came back in the
  * meantime (a re-import) stays as it is now, and so does everything hung off it.
- * Returns the number of cards restored.
+ * Returns the number of cards restored, or null when there is no such delete to
+ * undo (already undone, over a day old, or another user's).
  */
 export async function restoreCards(userId: string, trashId: string, now = new Date()) {
 	return locked(userId, async (tx) => {
 		const t = table.cardTrash;
-		// Trash outlives its TTL until the next delete purges it, so the age is checked here.
+		// Trash outlives its TTL until the next write purges it, so the age is checked here.
 		const [row] = await tx
 			.select()
 			.from(t)
-			.where(
-				and(
-					eq(t.id, trashId),
-					eq(t.userId, userId),
-					gte(t.createdAt, new Date(now.getTime() - TRASH_TTL_MS))
-				)
-			);
-		if (!row) return 0;
+			.where(and(eq(t.id, trashId), eq(t.userId, userId), gte(t.createdAt, expired(now))));
+		if (!row) return null;
 		const p = row.payload as Trashed;
 		// The payload is the server's own, but the user id is pinned anyway.
 		const restored = p.nodes.length
@@ -415,7 +417,7 @@ export async function retagCards(
 				...c.tags.filter((t) => !dropping.has(t.toLowerCase())),
 				...adding
 			]);
-			if (tags.join('\u0000') === c.tags.join('\u0000')) continue;
+			if (sameTags(tags, c.tags)) continue;
 			await tx
 				.update(n)
 				.set({ tags, updatedAt: now })
@@ -492,6 +494,7 @@ export async function replaceInCards(
 			if (front === c.front && back === c.back) continue;
 			if (front.length > FIELD_MAX || back.length > FIELD_MAX)
 				throw new EditError('A replacement would make a field over 64 KB.');
+			if (emptyFront(front)) throw new EditError('A replacement would leave a front empty.');
 			await tx
 				.update(n)
 				.set({ front, back, updatedAt: now })
