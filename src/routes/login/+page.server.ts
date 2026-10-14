@@ -4,6 +4,7 @@ import { encodeBase32LowerCase } from '@oslojs/encoding';
 import * as auth from '$lib/server/auth';
 import { db } from '$lib/server/db';
 import * as table from '$lib/server/db/schema';
+import { clearLoginAttempts, takeLoginAttempt } from '$lib/server/login-throttle';
 import { checkDevPassword, isAllowed, normalizeEmail } from '$lib/server/otp';
 import type { Actions, PageServerLoad } from './$types';
 
@@ -16,10 +17,15 @@ export const actions: Actions = {
 		const form = await event.request.formData();
 		const email = normalizeEmail(String(form.get('email') ?? ''));
 		const password = String(form.get('password') ?? '');
-		// One answer for every failure, so the form does not reveal the allowlist.
-		if (!isAllowed(email) || !checkDevPassword(password)) {
+		const underLimit = await takeLoginAttempt(email);
+		// Both checks always run, and every failure gets one answer, so neither the
+		// message nor the timing reveals the allowlist.
+		const allowed = isAllowed(email);
+		const passwordOk = checkDevPassword(password);
+		if (!underLimit || !allowed || !passwordOk) {
 			return fail(400, { email, message: "Sorry, you don't have the dev password." });
 		}
+		await clearLoginAttempts(email);
 
 		let [user] = await db.select().from(table.user).where(eq(table.user.email, email));
 		if (!user) {
