@@ -3,7 +3,7 @@ import { parse } from 'csv-parse/sync';
 import { db } from '../db';
 import * as table from '../db/schema';
 import { internalId } from '../ingest/identity';
-import { sanitizeCardHtml } from '../ingest/sanitize';
+import { sanitizeCardHtml } from '../../cards/sanitize';
 import { truncate } from './extract';
 import { contentHashOf, harvestUrl, type HarvestResult } from './harvest';
 import { domainOf, normalizeUrl } from './normalize-url';

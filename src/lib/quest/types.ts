@@ -49,7 +49,7 @@ export interface Room {
 	id: string;
 	facet: Facet;
 	title: string;
-	/** Sanitized card HTML (ingest/sanitize.ts). Cards only. */
+	/** Sanitized card HTML (cards/sanitize.ts). Cards only. */
 	front?: string;
 	back?: string;
 	tags?: string[];

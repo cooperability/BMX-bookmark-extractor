@@ -1,6 +1,6 @@
 import { parse } from 'csv-parse/sync';
 import { contentId, internalId } from './identity';
-import { sanitizeCardHtml } from './sanitize';
+import { sanitizeCardHtml } from '../../cards/sanitize';
 
 export interface AnkiNote {
 	/** URL-safe. Derived from the GUID, or from content when the export declares none. */

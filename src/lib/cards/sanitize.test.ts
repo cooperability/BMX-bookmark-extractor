@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { parseAnkiExport } from './anki-tsv';
+import { parseAnkiExport } from '$lib/server/ingest/anki-tsv';
 import { sanitizeCardHtml } from './sanitize';
 
 describe('script execution', () => {
@@ -137,6 +137,19 @@ describe('the real corpus', () => {
 });
 
 describe('card media', () => {
+	// The editor sends stored HTML back through the sanitizer on every save.
+	it.each([
+		'<img src="pic.png"> Q',
+		'<img>',
+		'<img alt="">',
+		'<img src="https://a.test/x.png">',
+		'<img src="http://a.test/x.png">',
+		'<a href="https://a.test">x</a>'
+	])('changes nothing on a second pass: %s', (html) => {
+		const once = sanitizeCardHtml(html);
+		expect(sanitizeCardHtml(once)).toBe(once);
+	});
+
 	it('drops the src of a bare Anki media filename and names it instead', () => {
 		const out = sanitizeCardHtml('<img src="Screenshot 2022-12-12 at 4.00.40 PM.png">');
 		expect(out).not.toContain('src=');

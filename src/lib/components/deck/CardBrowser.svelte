@@ -50,8 +50,18 @@
 <section class="panel mt-4 overflow-hidden" id="cards">
 	<div class="flex flex-wrap items-baseline justify-between gap-3 p-5 pb-3">
 		<h2 class="eyebrow">Cards</h2>
-		<span class="text-muted font-mono text-xs">
-			{browse.total ? `${first}–${last} of ${browse.total}` : filtered ? 'No matches' : 'No cards'}
+		<span class="flex items-baseline gap-4">
+			<span class="text-muted font-mono text-xs">
+				{browse.total
+					? `${first}–${last} of ${browse.total}`
+					: filtered
+						? 'No matches'
+						: 'No cards'}
+			</span>
+			<a
+				href="{resolve('/cards/browse')}?{pageQuery(p.page)}"
+				class="text-muted hover:text-fg text-sm">Open in editor →</a
+			>
 		</span>
 	</div>
 
@@ -163,6 +173,10 @@
 								<p class="eyebrow text-[10px]">Back</p>
 								<p class="mt-1 break-words">{c.back || '(empty back)'}</p>
 							</div>
+							<a
+								href="{resolve('/cards/browse')}?deck={encodeURIComponent(deck)}&card={c.id}"
+								class="btn min-h-11 px-3 py-1 text-xs sm:min-h-0">Edit card</a
+							>
 							<dl class="flex flex-wrap gap-x-6 gap-y-2 font-mono text-xs">
 								<div>
 									<dt class="eyebrow text-[10px]">Stability</dt>

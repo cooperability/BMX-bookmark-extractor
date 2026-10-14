@@ -28,8 +28,9 @@ export const actions: Actions = {
 			return fail(413, { message: 'That file is over 4 MB. Export one deck at a time.' });
 		}
 		try {
-			const { imported, warnings } = await importDeck(locals.user!.id, await file.text());
-			return { message: `Imported ${imported} cards.`, warnings };
+			const { imported, kept, warnings } = await importDeck(locals.user!.id, await file.text());
+			const edited = kept ? ` Kept your edits to ${kept}: the export's copy was skipped.` : '';
+			return { message: `Imported ${imported} cards.${edited}`, warnings };
 		} catch (e) {
 			console.error('[cards] import', e);
 			return fail(400, { message: 'Could not read that file as an Anki export.' });

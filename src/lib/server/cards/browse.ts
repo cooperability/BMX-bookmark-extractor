@@ -9,13 +9,18 @@ const DAY = 86_400_000;
 
 export const STATES = ['new', 'learning', 'review', 'relearning'] as const;
 export type CardState = (typeof STATES)[number];
-export const SORTS = ['due', 'stability', 'lapses', 'recent'] as const;
+/** The state filter also offers Anki's `is:suspended`, which is not an FSRS state. */
+export const STATE_FILTERS = [...STATES, 'suspended'] as const;
+export type StateFilter = (typeof STATE_FILTERS)[number];
+export const SORTS = ['due', 'stability', 'lapses', 'recent', 'created', 'edited'] as const;
 export type Sort = (typeof SORTS)[number];
 
 export interface BrowseParams {
 	q: string;
 	tag: string | null;
-	state: CardState | null;
+	state: StateFilter | null;
+	/** 0 for unflagged, 1-7 for one flag, null for any. */
+	flag: number | null;
 	sort: Sort;
 	page: number;
 }
@@ -26,10 +31,12 @@ const oneOf = <T extends string>(list: readonly T[], v: string | null): T | null
 /** Reads the browser's URL params. Anything unrecognised falls back to the default. */
 export function parseBrowseParams(sp: URLSearchParams): BrowseParams {
 	const page = Number.parseInt(sp.get('page') ?? '', 10);
+	const flag = sp.get('flag') ?? '';
 	return {
 		q: (sp.get('q') ?? '').trim().slice(0, MAX_QUERY),
 		tag: sp.get('tag') || null,
-		state: oneOf(STATES, sp.get('state')),
+		state: oneOf(STATE_FILTERS, sp.get('state')),
+		flag: /^[0-7]$/.test(flag) ? Number(flag) : null,
 		sort: oneOf(SORTS, sp.get('sort')) ?? 'due',
 		page: Number.isFinite(page) && page > 1 ? page : 1
 	};
@@ -78,13 +85,23 @@ export function dueLabel(state: CardState, due: Date | null, now: Date): string 
 
 export const stateName = (state: number | null): CardState => STATES[state ?? 0] ?? 'new';
 
-export async function browseCards(userId: string, deck: string, p: BrowseParams, now = new Date()) {
+/** One deck's cards, or every deck's when `deck` is null (the editor's browser). */
+export async function browseCards(
+	userId: string,
+	deck: string | null,
+	p: BrowseParams,
+	now = new Date()
+) {
 	const n = table.node;
 	const rs = table.reviewState;
 	const rl = table.reviewLog;
 	const isNew = or(isNull(rs.nodeId), eq(rs.state, 0))!;
 	const pattern = `%${escapeLike(p.q)}%`;
-	const inDeck = and(eq(n.userId, userId), eq(n.deck, deck), eq(n.kind, 'card'));
+	const inDeck = and(
+		eq(n.userId, userId),
+		deck === null ? undefined : eq(n.deck, deck),
+		eq(n.kind, 'card')
+	);
 	// Match visible text only: raw fields are HTML, and "div" or "nbsp" hit most cards.
 	const visible = (col: typeof n.front | typeof n.back) =>
 		sql`regexp_replace(regexp_replace(${col}, '<[^>]*>', ' ', 'g'), '&[a-z0-9#]+;', ' ', 'gi')`;
@@ -92,7 +109,14 @@ export async function browseCards(userId: string, deck: string, p: BrowseParams,
 		inDeck,
 		p.q ? or(ilike(visible(n.front), pattern), ilike(visible(n.back), pattern)) : undefined,
 		p.tag ? sql`${p.tag} = any(${n.tags})` : undefined,
-		p.state === null ? undefined : p.state === 'new' ? isNew : eq(rs.state, STATES.indexOf(p.state))
+		p.flag === null ? undefined : eq(n.flag, p.flag),
+		p.state === null
+			? undefined
+			: p.state === 'suspended'
+				? eq(n.suspended, true)
+				: p.state === 'new'
+					? isNew
+					: eq(rs.state, STATES.indexOf(p.state))
 	);
 	const joined = and(eq(rs.nodeId, n.id), eq(rs.userId, userId));
 
@@ -102,7 +126,10 @@ export async function browseCards(userId: string, deck: string, p: BrowseParams,
 		due: [asc(newLast), asc(rs.due)],
 		stability: [asc(newLast), asc(rs.stability)],
 		lapses: [desc(sql`coalesce(${rs.lapses}, 0)`), asc(newLast), asc(rs.due)],
-		recent: [sql`${rs.lastReview} desc nulls last`]
+		recent: [sql`${rs.lastReview} desc nulls last`],
+		created: [desc(n.createdAt)],
+		// An imported card was never edited here; it sorts by when it arrived.
+		edited: [sql`coalesce(${n.updatedAt}, ${n.createdAt}) desc`]
 	};
 
 	const [[{ total }], tagRows] = await Promise.all([
@@ -120,7 +147,10 @@ export async function browseCards(userId: string, deck: string, p: BrowseParams,
 			id: n.id,
 			front: n.front,
 			back: n.back,
+			deck: n.deck,
 			tags: n.tags,
+			flag: n.flag,
+			suspended: n.suspended,
 			state: rs.state,
 			due: rs.due,
 			stability: rs.stability,
@@ -153,7 +183,10 @@ export async function browseCards(userId: string, deck: string, p: BrowseParams,
 				id: r.id,
 				front: plainText(r.front),
 				back: plainText(r.back, 400),
+				deck: r.deck,
 				tags: r.tags,
+				flag: r.flag,
+				suspended: r.suspended,
 				state,
 				due: dueLabel(state, r.due, now),
 				overdue: seen && r.due !== null && r.due <= now,

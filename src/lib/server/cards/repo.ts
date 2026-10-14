@@ -25,6 +25,7 @@ export async function importDeck(userId: string, raw: string) {
 	}
 	const notes = [...byId.values()];
 	const excluded = (col: string) => sql.raw(`excluded.${col}`);
+	let kept = 0;
 	// A savepoint inside the request's transaction (asTenant). A failed batch rolls
 	// back the whole import, not a prefix of it, and leaves the request's transaction
 	// usable, so the page load after the action's error still renders.
@@ -34,9 +35,25 @@ export async function importDeck(userId: string, raw: string) {
 		// deadlock against a Quest grade (which holds the run, then the card).
 		await tx.execute(questLock(userId));
 		for (let i = 0; i < notes.length; i += 500) {
+			const batch = notes.slice(i, i + 500);
+			const edited = await tx
+				.select({ id: table.node.id })
+				.from(table.node)
+				.where(
+					and(
+						eq(table.node.userId, userId),
+						eq(table.node.kind, 'card'),
+						isNotNull(table.node.updatedAt),
+						inArray(
+							table.node.id,
+							batch.map((n) => n.id)
+						)
+					)
+				);
+			kept += edited.length;
 			await tx
 				.insert(table.node)
-				.values(notes.slice(i, i + 500).map((n) => ({ ...n, userId })))
+				.values(batch.map((n) => ({ ...n, userId })))
 				.onConflictDoUpdate({
 					target: table.node.id,
 					set: {
@@ -47,13 +64,15 @@ export async function importDeck(userId: string, raw: string) {
 						notetype: excluded('notetype')
 					},
 					// Never let a card overwrite a concept or a document with the same id.
-					setWhere: eq(table.node.kind, 'card')
+					// An edit made in the app (updated_at set) wins over the export's copy:
+					// a TSV export carries no modification time to compare.
+					setWhere: and(eq(table.node.kind, 'card'), isNull(table.node.updatedAt))
 				});
 		}
 		// Keep the Quest map in step with the cards' decks and tags.
 		await syncImportGraphIn(tx, userId);
 	});
-	return { imported: notes.length, warnings };
+	return { imported: notes.length - kept, kept, warnings };
 }
 
 /**
@@ -116,8 +135,9 @@ export async function listDecks(userId: string, now = new Date()) {
 		.select({
 			deck: table.node.deck,
 			total: sql<number>`count(*)::int`,
-			fresh: sql<number>`count(*) filter (where ${table.reviewState.nodeId} is null or ${table.reviewState.state} = 0)::int`,
-			due: sql<number>`count(*) filter (where ${table.reviewState.state} != 0 and ${table.reviewState.due} <= ${now.toISOString()}::timestamptz)::int`
+			// Suspended cards count toward the deck's size, not its work, as in Anki.
+			fresh: sql<number>`count(*) filter (where not ${table.node.suspended} and (${table.reviewState.nodeId} is null or ${table.reviewState.state} = 0))::int`,
+			due: sql<number>`count(*) filter (where not ${table.node.suspended} and ${table.reviewState.state} != 0 and ${table.reviewState.due} <= ${now.toISOString()}::timestamptz)::int`
 		})
 		.from(table.node)
 		.leftJoin(table.reviewState, eq(table.reviewState.nodeId, table.node.id))
@@ -191,7 +211,8 @@ export async function startRound(userId: string, deck: string, now = new Date(),
 		})
 		.from(n)
 		.leftJoin(table.reviewState, eq(table.reviewState.nodeId, n.id))
-		.where(and(eq(n.userId, userId), eq(n.deck, deck), eq(n.kind, 'card')))
+		// A suspended card leaves rounds, including an open one it was dealt into.
+		.where(and(eq(n.userId, userId), eq(n.deck, deck), eq(n.kind, 'card'), eq(n.suspended, false)))
 		.orderBy(asc(n.createdAt), asc(n.id));
 	if (rows.length === 0) return null;
 	const byId = new Map(rows.map((r) => [r.node.id, r]));

@@ -48,6 +48,12 @@
 					class="text-muted hover:text-fg hidden text-sm sm:inline"
 					aria-current={page.url.pathname === '/cards' ? 'page' : undefined}>Decks</a
 				>
+				<!-- Phones lack the room (QST-5). They reach Browse from New card on /cards and the deck page. -->
+				<a
+					href={resolve('/cards/browse')}
+					class="text-muted hover:text-fg aria-[current=page]:text-fg hidden min-h-11 items-center text-sm sm:inline-flex"
+					aria-current={page.url.pathname === '/cards/browse' ? 'page' : undefined}>Browse</a
+				>
 				<a
 					href={resolve('/quest')}
 					class="text-muted hover:text-fg aria-[current=page]:text-fg inline-flex min-h-11 items-center text-sm"
