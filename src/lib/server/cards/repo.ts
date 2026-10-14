@@ -36,7 +36,22 @@ export async function importDeck(userId: string, raw: string) {
 		await tx.execute(questLock(userId));
 		for (let i = 0; i < notes.length; i += 500) {
 			const batch = notes.slice(i, i + 500);
-			const written = await tx
+			const edited = await tx
+				.select({ id: table.node.id })
+				.from(table.node)
+				.where(
+					and(
+						eq(table.node.userId, userId),
+						eq(table.node.kind, 'card'),
+						isNotNull(table.node.updatedAt),
+						inArray(
+							table.node.id,
+							batch.map((n) => n.id)
+						)
+					)
+				);
+			kept += edited.length;
+			await tx
 				.insert(table.node)
 				.values(batch.map((n) => ({ ...n, userId })))
 				.onConflictDoUpdate({
@@ -52,10 +67,7 @@ export async function importDeck(userId: string, raw: string) {
 					// An edit made in the app (updated_at set) wins over the export's copy:
 					// a TSV export carries no modification time to compare.
 					setWhere: and(eq(table.node.kind, 'card'), isNull(table.node.updatedAt))
-				})
-				.returning({ id: table.node.id });
-			// A row the setWhere skipped is not returned.
-			kept += batch.length - written.length;
+				});
 		}
 		// Keep the Quest map in step with the cards' decks and tags.
 		await syncImportGraphIn(tx, userId);

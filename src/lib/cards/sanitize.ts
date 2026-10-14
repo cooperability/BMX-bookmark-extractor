@@ -12,6 +12,9 @@ function placeholderMedia(node: Element) {
 		node.setAttribute('src', `https://${src.slice('http://'.length)}`);
 		return;
 	}
+	// Already a placeholder: the editor re-sanitizes stored HTML on every save, and
+	// naming it again would nest its alt text ("[image: [image: x.png]]").
+	if (!src && node.getAttribute('class') === 'media-missing') return;
 	const name = src || node.getAttribute('alt') || 'image';
 	node.removeAttribute('src');
 	node.setAttribute('alt', `[image: ${name.slice(0, 120)}]`);

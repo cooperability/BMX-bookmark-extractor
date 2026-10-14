@@ -109,11 +109,14 @@
 
 	const inField = (t: EventTarget | null) =>
 		t instanceof Element && Boolean(t.closest('input, textarea, select, [contenteditable="true"]'));
+	// A checkbox or a select takes no text, so Escape from one still closes the card.
+	const typing = (t: EventTarget | null) =>
+		inField(t) && !(t as Element).closest('input[type="checkbox"], select');
 
 	function onkeydown(e: KeyboardEvent) {
-		// Another field on the page (search, the bulk bar) keeps its keys: Escape there
-		// must not close this card, nor Ctrl+Enter save it.
-		if (inField(e.target) && !root?.contains(e.target as Node)) return;
+		// Typing in another field on the page (search, the bulk bar) keeps its keys:
+		// Escape there must not close this card, nor Ctrl+Enter save it.
+		if (typing(e.target) && !root?.contains(e.target as Node)) return;
 		const mod = e.ctrlKey || e.metaKey;
 		if (mod && e.key === 'Enter') {
 			e.preventDefault();

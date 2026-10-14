@@ -95,10 +95,16 @@ export async function updateCard(userId: string, id: string, input: CardInput, n
 	return locked(userId, async (tx) => {
 		const [old] = await ownCards(tx, userId, [id]);
 		if (!old) return null;
-		const graphChanged = old.deck !== card.deck || !sameTags(old.tags, card.tags);
 		// A save with nothing changed is not an edit: updated_at decides whether a
-		// re-import may overwrite the card (importDeck).
-		if (!graphChanged && old.front === card.front && old.back === card.back) return { id, ...card };
+		// re-import may overwrite the card (importDeck). An import stores its deck and
+		// tags as the export spelled them, so compare those normalized.
+		const unchanged =
+			old.front === card.front &&
+			old.back === card.back &&
+			normalizeDeck(old.deck) === card.deck &&
+			sameTags(normalizeTags(old.tags), card.tags);
+		if (unchanged) return { id, ...card };
+		const graphChanged = old.deck !== card.deck || !sameTags(old.tags, card.tags);
 		await tx
 			.update(n)
 			.set({ ...card, updatedAt: now })
@@ -485,16 +491,16 @@ export async function replaceInCards(
 	return locked(userId, async (tx) => {
 		let changed = 0;
 		for (const c of await ownCards(tx, userId, ids)) {
-			const edit = (html: string, on: boolean) => {
-				const next = on ? replaceText(html, find, replacement, matchCase) : html;
-				return next === html ? html : sanitizeCardHtml(next);
-			};
+			// replaceText returns the field unchanged, or sanitized when it matched.
+			const edit = (html: string, on: boolean) =>
+				on ? replaceText(html, find, replacement, matchCase) : html;
 			const front = edit(c.front, field !== 'back');
 			const back = edit(c.back, field !== 'front');
 			if (front === c.front && back === c.back) continue;
 			if (front.length > FIELD_MAX || back.length > FIELD_MAX)
 				throw new EditError('A replacement would make a field over 64 KB.');
-			if (emptyFront(front)) throw new EditError('A replacement would leave a front empty.');
+			if (front !== c.front && emptyFront(front))
+				throw new EditError('A replacement would leave a front empty.');
 			await tx
 				.update(n)
 				.set({ front, back, updatedAt: now })

@@ -208,6 +208,11 @@ test.describe('card editor', () => {
 		expect(here()).toBe(start);
 		expect(dialogs).toEqual([]);
 
+		// A checkbox takes no text, so Escape from a ticked row still closes the card.
+		await page.locator(`[data-row="${a}"] input[type=checkbox]`).check();
+		await page.keyboard.press('Escape');
+		await expect(page).not.toHaveURL(/card=/);
+
 		const rows =
 			await sql`select id, flag, suspended from nodes where id in ${sql([a, b])} order by id`;
 		expect(rows).toEqual([

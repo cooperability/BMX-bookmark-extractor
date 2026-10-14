@@ -235,6 +235,31 @@ describe.skipIf(!hasDb)('card editor writes', () => {
 		expect((await nodeById(id)).updatedAt).toBeNull();
 	});
 
+	it('treats an untouched save of an imported card as no edit', async () => {
+		// As an export arrives: a media image the sanitizer turned into a placeholder,
+		// a spaced deck path and a tag repeated in another case.
+		await me(() =>
+			repo.importDeck(
+				userId,
+				`#separator:tab
+#html:true
+#guid column:1
+#deck column:2
+#tags column:5
+${run}im	Lang :: Fr	<img src="pic.png"> Q	A	Bio bio
+`
+			)
+		);
+		const id = internalId(userId, `${run}im`);
+		const stored = await nodeById(id);
+		// What the editor posts when nothing was touched: the stored fields as they are.
+		const input = { front: stored.front, back: stored.back, deck: stored.deck, tags: stored.tags };
+		await me(() => edit.updateCard(userId, id, input));
+		const after = await nodeById(id);
+		expect(after.updatedAt).toBeNull();
+		expect(after.front).toBe(stored.front);
+	});
+
 	it('drops a suspended card from a round that is already open', async () => {
 		const id = card(userId, 0).id;
 		const r = (await repo.startRound(userId, deck))!;
@@ -356,6 +381,12 @@ describe.skipIf(!hasDb)('card editor writes', () => {
 			me(() => edit.replaceInCards(userId, [id], 'front 0', '', 'front', true))
 		).rejects.toThrow(edit.EditError);
 		expect((await nodeById(id)).front).toBe('front 0');
+
+		// A back-only replace never touches a front, so an empty one elsewhere is not in the way.
+		await db.update(table.node).set({ front: '<br>' }).where(eq(table.node.id, id));
+		const n = await me(() => edit.replaceInCards(userId, [id], 'back', 'verso', 'back', true));
+		expect(n).toBe(1);
+		expect((await nodeById(id)).back).toBe('verso 0');
 	});
 
 	it('finds a duplicate front across formatting and case, never the card itself', async () => {
