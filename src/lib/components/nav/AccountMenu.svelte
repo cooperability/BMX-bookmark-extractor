@@ -18,7 +18,11 @@
 		if (root?.open && e.target instanceof Node && !root.contains(e.target)) root.open = false;
 	}}
 	onkeydown={(e) => {
-		if (root?.open && e.key === 'Escape') root.open = false;
+		if (!root?.open || e.key !== 'Escape') return;
+		// Claimed, so the card editor's own Escape leaves the card open.
+		e.preventDefault();
+		root.open = false;
+		root.querySelector('summary')?.focus();
 	}}
 />
 
