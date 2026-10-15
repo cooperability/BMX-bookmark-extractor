@@ -258,7 +258,7 @@
 	}
 
 	function onkeydown(e: KeyboardEvent) {
-		if (encounter || e.ctrlKey || e.metaKey || e.altKey) return;
+		if (encounter || e.ctrlKey || e.metaKey || e.altKey || e.defaultPrevented) return;
 		if (e.target instanceof Element && e.target.closest('input, textarea, select')) return;
 		// Caps Lock or Shift must not turn the shortcuts off.
 		const key = e.key.toLowerCase();
