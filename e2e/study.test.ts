@@ -180,6 +180,11 @@ test.describe('study round', () => {
 			await page.getByRole('link', { name: 'Details' }).first().click();
 			await page.waitForURL(/\/cards\/deck/);
 			expect(await overflow(), `deck page at ${width}px`).toBe(0);
+			// Reviewed and Stability drop out, each header with its cells.
+			await expect(page.getByRole('columnheader', { name: 'Reviewed' })).toBeHidden();
+			const shown = (row: string) => page.locator(`${row} > :is(th, td):visible`).count();
+			expect(await shown('thead tr')).toBe(3);
+			expect(await shown('tbody tr:first-child')).toBe(3);
 		}
 	});
 

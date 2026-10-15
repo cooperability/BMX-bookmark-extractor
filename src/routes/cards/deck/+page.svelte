@@ -65,14 +65,16 @@
 	const scored = $derived(data.history.filter((a) => a.score !== null));
 	const newestFirst = $derived([...data.history].reverse());
 
-	// wide: dropped below sm, so the table fits a phone without a sideways scroll.
-	const COLUMNS: { key: Key; label: string; num: boolean; wide?: boolean }[] = [
+	const COLUMNS: { key: Key; label: string; num: boolean }[] = [
 		{ key: 'tag', label: 'Tag', num: false },
 		{ key: 'cards', label: 'Cards', num: true },
-		{ key: 'reviewed', label: 'Reviewed', num: true, wide: true },
-		{ key: 'stability', label: 'Stability', num: true, wide: true },
+		{ key: 'reviewed', label: 'Reviewed', num: true },
+		{ key: 'stability', label: 'Stability', num: true },
 		{ key: 'score', label: 'Standing', num: true }
 	];
+	// Dropped below sm, so the table fits a phone without a sideways scroll. One rule
+	// for the header and its cells, so the two cannot fall out of line.
+	const wide = (k: Key) => (k === 'reviewed' || k === 'stability' ? 'max-sm:hidden' : '');
 </script>
 
 <svelte:head>
@@ -172,9 +174,7 @@
 					<tr>
 						{#each COLUMNS as c (c.key)}
 							<th
-								class="px-5 py-2 font-medium {c.num ? 'text-right' : ''} {c.wide
-									? 'max-sm:hidden'
-									: ''}"
+								class="px-5 py-2 font-medium {c.num ? 'text-right' : ''} {wide(c.key)}"
 								aria-sort={sortKey === c.key ? (desc ? 'descending' : 'ascending') : 'none'}
 							>
 								<button class="eyebrow hover:text-fg text-[10px]" onclick={() => sortBy(c.key)}>
@@ -194,8 +194,8 @@
 								</span>
 							</td>
 							<td class="px-5 py-2 text-right font-mono">{r.cards}</td>
-							<td class="px-5 py-2 text-right font-mono max-sm:hidden">{r.reviewed}</td>
-							<td class="px-5 py-2 text-right font-mono max-sm:hidden">
+							<td class="px-5 py-2 text-right font-mono {wide('reviewed')}">{r.reviewed}</td>
+							<td class="px-5 py-2 text-right font-mono {wide('stability')}">
 								{r.stability === null ? '–' : `${r.stability.toFixed(1)}d`}
 							</td>
 							<td
