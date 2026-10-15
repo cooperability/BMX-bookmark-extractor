@@ -71,7 +71,9 @@ test.describe('study round', () => {
 		await page.getByRole('button', { name: 'Import deck' }).click();
 		await expect(page.getByText('Imported 137 cards.')).toBeVisible();
 
-		await page.getByRole('link', { name: 'Study' }).first().click();
+		// New cards are not due, so Up next offers a round in the new deck by name.
+		await expect(page.getByText('All caught up')).toBeVisible();
+		await page.getByRole('link', { name: /^Study \S/ }).click();
 		const counter = page.locator('header .font-mono').first();
 		await expect(counter).toHaveText('0 / 20');
 
@@ -89,8 +91,8 @@ test.describe('study round', () => {
 		expect(tick).toBe('none');
 
 		// Each rating shows the interval it would schedule. A new card: minutes for
-		// Again, days for Easy.
-		await page.keyboard.press('Space');
+		// Again, days for Easy. A tap on the question reveals it, clear of any link inside.
+		await page.locator('.scene').click({ position: { x: 8, y: 8 } });
 		await expect(page.getByRole('button', { name: /Again/ })).toContainText(/\d+m/);
 		await expect(page.getByRole('button', { name: /Easy/ })).toContainText(/\d+d/);
 		await Promise.all([
@@ -123,6 +125,10 @@ test.describe('study round', () => {
 		// First attempts only: 19 of 20 recalled.
 		await expect(page.getByText('Round score')).toBeVisible();
 		await expect(page.getByText('95%').first()).toBeVisible();
+		await expect(page.getByRole('link', { name: 'Explore the map' })).toHaveAttribute(
+			'href',
+			'/quest'
+		);
 
 		await page.getByRole('button', { name: 'Next round' }).click();
 		await expect(counter).toHaveText('0 / 20');

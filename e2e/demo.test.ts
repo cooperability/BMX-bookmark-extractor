@@ -33,6 +33,8 @@ test('landing demo round: flip, relearn, finish, restart', async ({ page }) => {
 	await expect(demo.getByText('Round score')).toBeVisible();
 	// 4 Good and 1 Again on first attempts: 4 / 5.
 	await expect(demo.getByText('80%', { exact: true })).toBeVisible();
+	// Signed out, the map is behind a login: the demo offers no way there.
+	await expect(demo.getByRole('link', { name: 'Explore the map' })).toHaveCount(0);
 
 	await demo.getByRole('button', { name: 'Next round' }).click();
 	await expect(demo.getByText('0 / 5')).toBeVisible();
