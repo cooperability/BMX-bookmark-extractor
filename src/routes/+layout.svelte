@@ -1,13 +1,17 @@
 <script lang="ts">
 	import '../app.css';
 	import { onMount } from 'svelte';
-	import { invalidateAll } from '$app/navigation';
+	import { prefersReducedMotion } from 'svelte/motion';
+	import { invalidateAll, onNavigate } from '$app/navigation';
 	import { page } from '$app/state';
 	import { TZ_COOKIE, toTimeZone } from '$lib/timezone';
 	import { resolve } from '$app/paths';
 	import { splashScreens } from '$lib/pwa/splash';
 	import Logo from '$lib/components/brand/Logo.svelte';
 	import ThemeToggle from '$lib/components/brand/ThemeToggle.svelte';
+	import AccountMenu from '$lib/components/nav/AccountMenu.svelte';
+	import TabBar from '$lib/components/nav/TabBar.svelte';
+	import { VIEWS } from '$lib/components/nav/views';
 
 	let { data, children } = $props();
 
@@ -23,6 +27,19 @@
 
 	// The study screen is a focus mode: it carries its own minimal header.
 	const focus = $derived(page.url.pathname.startsWith('/cards/study'));
+
+	// Crossfade between pages. Same-path navigations (search, filters, the editor's
+	// ?card=) swap in place: a fade on every keystroke would only flicker.
+	onNavigate((nav) => {
+		if (!document.startViewTransition || prefersReducedMotion.current) return;
+		if (nav.from?.url.pathname === nav.to?.url.pathname) return;
+		return new Promise((done) => {
+			document.startViewTransition(async () => {
+				done();
+				await nav.complete;
+			});
+		});
+	});
 </script>
 
 <!-- iOS reads these when a page is added to the Home Screen, so every page carries them. -->
@@ -32,38 +49,34 @@
 	{/each}
 </svelte:head>
 
-<div class="bg-bg text-fg min-h-dvh">
+<div class="bg-bg text-fg min-h-dvh" class:has-tabbar={data.user && !focus}>
 	{#if data.user && !focus}
-		<nav class="border-line bg-bg/80 sticky top-0 z-20 border-b backdrop-blur">
-			<div class="mx-auto flex h-14 max-w-6xl items-center gap-3 px-4 sm:gap-6">
-				<!-- Below 420px the wordmark gives way so Quest and Log out stay on one line. -->
-				<a
-					href={resolve('/cards')}
-					aria-label="Remediate decks"
-					class="max-[419px]:[&_span_span]:hidden"><Logo /></a
+		<!-- relative on phones too: the account menu must paint over the page below the bar. -->
+		<nav
+			class="topbar border-line bg-bg/80 relative z-20 border-b backdrop-blur-md sm:sticky sm:top-0"
+		>
+			<div class="mx-auto flex h-14 max-w-6xl items-center gap-2 px-4 sm:gap-6">
+				<a href={resolve('/cards')} aria-label="Remediate decks" class="mr-auto sm:mr-0"><Logo /></a
 				>
-				<!-- Phones drop this duplicate of the logo link to fit Log out and the theme toggle. -->
-				<a
-					href={resolve('/cards')}
-					class="text-muted hover:text-fg hidden text-sm sm:inline"
-					aria-current={page.url.pathname === '/cards' ? 'page' : undefined}>Decks</a
-				>
-				<!-- Phones lack the room (QST-5). They reach Browse from New card on /cards and the deck page. -->
-				<a
-					href={resolve('/cards/browse')}
-					class="text-muted hover:text-fg aria-[current=page]:text-fg hidden min-h-11 items-center text-sm sm:inline-flex"
-					aria-current={page.url.pathname === '/cards/browse' ? 'page' : undefined}>Browse</a
-				>
-				<a
-					href={resolve('/quest')}
-					class="text-muted hover:text-fg aria-[current=page]:text-fg inline-flex min-h-11 items-center text-sm"
-					aria-current={page.url.pathname === '/quest' ? 'page' : undefined}>Quest</a
-				>
-				<form method="POST" action="/login?/logout" class="ml-auto flex items-center gap-3">
-					<span class="text-muted hidden font-mono text-xs sm:inline">{data.user.email}</span>
-					<button class="btn btn-ghost whitespace-nowrap">Log out</button>
-				</form>
-				<ThemeToggle theme={data.theme} />
+				<!-- Phones carry these in the tab bar at the bottom of the screen. -->
+				<ul class="hidden items-center gap-1 sm:flex">
+					{#each VIEWS as v (v.href)}
+						<li>
+							<a
+								href={resolve(v.href)}
+								class="text-muted hover:text-fg aria-[current=page]:bg-surface-2 aria-[current=page]:text-fg inline-flex min-h-9 items-center gap-2 rounded-full px-3.5 text-sm font-medium transition-colors"
+								aria-current={v.match(page.url.pathname) ? 'page' : undefined}
+							>
+								<v.icon class="size-4" />
+								{v.label}
+							</a>
+						</li>
+					{/each}
+				</ul>
+				<div class="flex items-center gap-1 sm:ml-auto sm:gap-2">
+					<ThemeToggle theme={data.theme} />
+					<AccountMenu email={data.user.email} />
+				</div>
 			</div>
 		</nav>
 	{:else if !data.user && !focus}
@@ -74,4 +87,15 @@
 		</div>
 	{/if}
 	{@render children()}
+	{#if data.user && !focus}<TabBar />{/if}
 </div>
+
+<style>
+	/* Held still only where it is sticky. On phones it scrolls away, and a named layer
+	   would slide back down from wherever it was. */
+	@media (min-width: 640px) {
+		.topbar {
+			view-transition-name: topbar;
+		}
+	}
+</style>

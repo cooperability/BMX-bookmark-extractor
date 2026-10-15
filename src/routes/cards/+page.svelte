@@ -4,12 +4,24 @@
 	import Heatmap from '$lib/components/charts/Heatmap.svelte';
 	import DeckCard from '$lib/components/deck/DeckCard.svelte';
 	import StatTile from '$lib/components/deck/StatTile.svelte';
+	import StudyLink from '$lib/components/deck/StudyLink.svelte';
+	import CheckCheck from '@lucide/svelte/icons/check-check';
+	import Link from '@lucide/svelte/icons/link';
+	import MapIcon from '@lucide/svelte/icons/map';
+	import Play from '@lucide/svelte/icons/play';
+	import Plus from '@lucide/svelte/icons/plus';
+	import Upload from '@lucide/svelte/icons/upload';
 
 	let { data, form } = $props();
 
 	const s = $derived(data.stats);
 	const pct = (n: number | null) => (n === null ? '–' : `${Math.round(n * 100)}%`);
 	const reviews12w = $derived(s.heatmap.flat().reduce((n, c) => n + (c?.count ?? 0), 0));
+
+	// Where a round should start: the most due, else the most unseen.
+	const upNext = $derived(
+		[...data.decks].sort((a, b) => b.due - a.due || b.fresh - a.fresh).find((d) => d.due || d.fresh)
+	);
 
 	let fileName = $state('');
 	let importing = $state(false);
@@ -19,7 +31,52 @@
 	<title>Decks · Remediate</title>
 </svelte:head>
 
-<main class="mx-auto max-w-6xl px-4 py-8 sm:py-10">
+<main class="mx-auto max-w-6xl px-4 py-6 sm:py-10">
+	{#if data.decks.length}
+		<section
+			class="hero panel relative mb-4 flex flex-col gap-5 overflow-hidden p-5 sm:flex-row sm:items-center sm:p-6"
+		>
+			<div class="min-w-0 flex-1">
+				<p class="eyebrow">Up next</p>
+				{#if s.dueNow > 0}
+					<p class="mt-1.5 text-2xl font-bold tracking-tight sm:text-3xl">
+						{s.dueNow} card{s.dueNow === 1 ? '' : 's'} due
+					</p>
+					<p class="text-muted mt-1 text-sm break-words">
+						{#if upNext}Start with <span class="text-fg font-medium">{upNext.deck}</span>,
+							{upNext.due} due.{/if}
+						{#if s.streakDays}Keep the {s.streakDays}-day streak going.{/if}
+					</p>
+				{:else}
+					<p class="mt-1.5 flex items-center gap-2 text-2xl font-bold tracking-tight sm:text-3xl">
+						<CheckCheck class="text-good size-7 shrink-0" /> All caught up
+					</p>
+					<p class="text-muted mt-1 text-sm break-words">
+						{#if upNext}
+							Nothing is due. Start a round in
+							<span class="text-fg font-medium">{upNext.deck}</span>, or wander the map.
+						{:else}
+							Nothing is due. Wander the map while it holds.
+						{/if}
+					</p>
+				{/if}
+			</div>
+			<div class="flex flex-col gap-2 sm:flex-row sm:items-center">
+				{#if upNext}
+					<StudyLink deck={upNext.deck} class="btn btn-primary min-h-12 px-6 text-base">
+						<Play class="size-4 fill-current" /> Study <span class="sr-only">{upNext.deck}</span>
+					</StudyLink>
+				{/if}
+				<a
+					href={resolve('/quest')}
+					class="btn min-h-12 px-5 text-base {upNext ? '' : 'btn-primary'}"
+				>
+					<MapIcon class="size-4" /> Quest
+				</a>
+			</div>
+		</section>
+	{/if}
+
 	<section class="grid grid-cols-2 gap-3 lg:grid-cols-4">
 		<StatTile
 			label="Due now"
@@ -59,12 +116,17 @@
 		</p>
 	{/if}
 
-	<div class="mt-10 flex items-baseline justify-between">
-		<h1 class="text-2xl font-bold tracking-tight">Decks</h1>
-		<div class="flex flex-wrap items-baseline justify-end gap-x-4 gap-y-2">
-			<span class="text-muted font-mono text-xs">{data.decks.length} decks</span>
-			<a href={resolve('/harvest')} class="text-muted hover:text-fg text-sm">Harvest links →</a>
-			<a href="{resolve('/cards/browse')}?new=1" class="btn min-h-11 sm:min-h-0">New card</a>
+	<div class="mt-10 flex flex-wrap items-center justify-between gap-3">
+		<h1 class="flex items-baseline gap-3 text-2xl font-bold tracking-tight">
+			Decks <span class="text-muted font-mono text-xs font-normal">{data.decks.length}</span>
+		</h1>
+		<div class="flex items-center gap-1 sm:gap-2">
+			<a href={resolve('/harvest')} class="btn btn-ghost text-muted min-h-11 sm:min-h-0">
+				<Link class="size-4" /> Harvest links
+			</a>
+			<a href="{resolve('/cards/browse')}?new=1" class="btn min-h-11 sm:min-h-0">
+				<Plus class="size-4" /> New card
+			</a>
 		</div>
 	</div>
 
@@ -100,8 +162,12 @@
 		<label
 			class="panel hover:border-accent focus-within:border-accent flex cursor-pointer flex-col items-center gap-2 border-2 border-dashed p-8 text-center transition"
 		>
+			<span
+				class="bg-surface-2 text-muted grid size-11 place-items-center rounded-full"
+				aria-hidden="true"><Upload class="size-5" /></span
+			>
 			<span class="eyebrow">Import</span>
-			<span class="font-semibold">{fileName || 'Choose an Anki export'}</span>
+			<span class="font-semibold break-all">{fileName || 'Choose an Anki export'}</span>
 			<span class="text-muted text-xs"
 				>.txt, .tsv or .csv. Re-importing updates cards in place, except ones edited here.</span
 			>
@@ -131,3 +197,12 @@
 		</div>
 	</form>
 </main>
+
+<style>
+	/* A soft accent wash, so the next action reads first. */
+	.hero {
+		background:
+			radial-gradient(120% 140% at 100% 0%, var(--accent-soft), transparent 60%), var(--surface);
+		border-color: color-mix(in srgb, var(--accent) 35%, var(--line));
+	}
+</style>

@@ -176,6 +176,24 @@
 	padding-bottom: max(0.75rem, env(safe-area-inset-bottom));
 }
 
+/* The phone tab bar's height, home indicator included. Bottom bars and toasts sit
+   above it. Zero from sm up, where the bar is hidden. */
+.has-tabbar {
+	--tabbar-h: 0px;
+}
+@media (max-width: 639.98px) {
+	.has-tabbar {
+		--tabbar-h: calc(4rem + env(safe-area-inset-bottom));
+		padding-bottom: var(--tabbar-h);
+	}
+}
+
+/* Page crossfade (layout's onNavigate): quick, so it never holds up a tap. */
+::view-transition-old(root),
+::view-transition-new(root) {
+	animation-duration: 160ms;
+}
+
 @media (prefers-reduced-motion: reduce) {
 	*,
 	*::before,

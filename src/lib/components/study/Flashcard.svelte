@@ -1,11 +1,30 @@
 <script lang="ts">
 	type Card = { front: string; back: string; tags: string[] };
 
-	let { card, flipped }: { card: Card; flipped: boolean } = $props();
+	let {
+		card,
+		flipped,
+		onflip
+	}: {
+		card: Card;
+		flipped: boolean;
+		/** Set, a tap on the question reveals the answer. */ onflip?: () => void;
+	} = $props();
+
+	// A tap reveals, unless it followed a link in the card or ended a text selection.
+	function tap(e: MouseEvent) {
+		if (flipped || !onflip) return;
+		if (e.target instanceof Element && e.target.closest('a[href], button, summary, video, audio'))
+			return;
+		if (getSelection()?.toString()) return;
+		onflip();
+	}
 </script>
 
 <!-- Card HTML is DOMPurify-sanitized (cards/sanitize.ts) on every write, before it is stored. -->
-<div class="scene">
+<!-- Keyboards flip with Space (study/keys.ts) and the Show answer button; the tap is a shortcut for thumbs. -->
+<!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
+<div class="scene" class:tappable={onflip && !flipped} onclick={tap}>
 	<div class="flip" class:flipped>
 		<section
 			class="face panel flex flex-col justify-center p-6 sm:p-10"
@@ -21,6 +40,11 @@
 				<div class="mt-6 flex flex-wrap gap-1.5">
 					{#each card.tags as tag (tag)}<span class="chip">{tag}</span>{/each}
 				</div>
+			{/if}
+			{#if onflip}
+				<p class="text-muted mt-6 hidden text-center text-xs pointer-coarse:block">
+					Tap the card to reveal
+				</p>
 			{/if}
 		</section>
 
@@ -50,6 +74,10 @@
 <style>
 	.scene {
 		perspective: 1800px;
+	}
+	.tappable {
+		cursor: pointer;
+		-webkit-tap-highlight-color: transparent;
 	}
 	/* Both faces share one grid cell, so the card is as tall as its taller face. */
 	.flip {

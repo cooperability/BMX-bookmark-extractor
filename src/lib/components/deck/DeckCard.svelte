@@ -2,6 +2,9 @@
 	import { resolve } from '$app/paths';
 	import Sparkline from '$lib/components/charts/Sparkline.svelte';
 	import StudyLink from './StudyLink.svelte';
+	import ChartColumn from '@lucide/svelte/icons/chart-column';
+	import Library from '@lucide/svelte/icons/library';
+	import Play from '@lucide/svelte/icons/play';
 
 	type Round = { finishedAt: Date | null; score: number | null; weak: string[] };
 	let {
@@ -75,7 +78,21 @@
 	{/if}
 
 	<div class="mt-auto flex gap-2 pt-1">
-		<StudyLink {deck} class="btn btn-primary flex-1" />
-		<a href="{resolve('/cards/deck')}?deck={encodeURIComponent(deck)}" class="btn">Details</a>
+		<StudyLink {deck} class="btn btn-primary min-h-11 flex-1">
+			<Play class="size-4 fill-current" /> Study
+		</StudyLink>
+		<a
+			href="{resolve('/cards/browse')}?deck={encodeURIComponent(deck)}"
+			class="btn size-11 shrink-0 p-0"
+			aria-label="Browse {deck}"
+			title="Browse cards"><Library class="size-4" /></a
+		>
+		<a
+			href="{resolve('/cards/deck')}?deck={encodeURIComponent(deck)}"
+			class="btn min-h-11 shrink-0"
+			aria-label="Details for {deck}"
+			title="Stats and history"
+			><ChartColumn class="size-4" /><span class="max-[379px]:hidden">Details</span></a
+		>
 	</div>
 </article>

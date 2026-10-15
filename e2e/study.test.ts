@@ -138,15 +138,23 @@ test.describe('study round', () => {
 		for (const width of [375, 320]) {
 			await page.setViewportSize({ width, height: 800 });
 			await page.goto('/cards');
-			await expect(page.getByRole('button', { name: 'Log out' })).toBeVisible();
+			await expect(page.getByRole('navigation', { name: 'Views' })).toBeVisible();
 			expect(await overflow(), `/cards at ${width}px`).toBe(0);
-			// A squeezed row wraps Log out instead of overflowing, so check the items too.
-			const button = (await page.getByRole('button', { name: 'Log out' }).boundingBox())!;
+			// A squeezed top bar wraps instead of overflowing, so check the items too.
+			const account = (await page.getByLabel('Account').boundingBox())!;
 			const toggle = (await page.getByRole('group', { name: 'Theme' }).boundingBox())!;
-			expect(button.height, `Log out on one line at ${width}px`).toBeLessThan(48);
-			expect(toggle.x + toggle.width, `toggle inside the gutter at ${width}px`).toBeLessThanOrEqual(
-				width - 16
+			expect(account.y + account.height, `top bar on one line at ${width}px`).toBeLessThan(56);
+			expect(
+				account.x + account.width,
+				`account menu inside the gutter at ${width}px`
+			).toBeLessThanOrEqual(width - 16);
+			expect(toggle.x + toggle.width, `toggle left of the menu at ${width}px`).toBeLessThanOrEqual(
+				account.x
 			);
+			await page.getByLabel('Account').click();
+			// A trial click hit-tests the button: it fails if the page paints over the menu.
+			await page.getByRole('button', { name: 'Log out' }).click({ trial: true, timeout: 2000 });
+			await page.keyboard.press('Escape');
 
 			await page.getByRole('link', { name: 'Details' }).first().click();
 			await page.waitForURL(/\/cards\/deck/);

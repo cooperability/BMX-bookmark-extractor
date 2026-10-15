@@ -8,6 +8,11 @@
 	import RoomPanel from '$lib/components/quest/RoomPanel.svelte';
 	import TravelList from '$lib/components/quest/TravelList.svelte';
 	import { percent } from '$lib/quest/format';
+	import LocateFixed from '@lucide/svelte/icons/locate-fixed';
+	import Maximize2 from '@lucide/svelte/icons/maximize-2';
+	import Minimize2 from '@lucide/svelte/icons/minimize-2';
+	import Scan from '@lucide/svelte/icons/scan';
+	import X from '@lucide/svelte/icons/x';
 	import type { Door, EncounterCard, MapNode, Outcome, QuestView } from '$lib/quest/types';
 
 	let { data } = $props();
@@ -26,6 +31,8 @@
 	let flash = $state<string | null>(null);
 	let mapRef: QuestMap | undefined = $state();
 	let panel: HTMLElement | undefined = $state();
+	/** Phones: the map can take most of the screen, with the room below it. */
+	let bigMap = $state(false);
 	/** Where focus was when an encounter opened, to return it there. */
 	let opener: HTMLElement | null = null;
 	const still = $derived(prefersReducedMotion.current);
@@ -299,7 +306,9 @@
 	<main class="mx-auto flex max-w-6xl flex-col lg:h-[calc(100dvh-3.5rem)] lg:flex-row">
 		<section
 			aria-label="Map"
-			class="border-line relative h-[46dvh] min-h-64 border-b lg:h-auto lg:flex-1 lg:border-r lg:border-b-0"
+			class="border-line relative min-h-64 border-b transition-[height] duration-300 lg:h-auto lg:flex-1 lg:border-r lg:border-b-0 {bigMap
+				? 'h-[72dvh]'
+				: 'h-[46dvh]'}"
 		>
 			<QuestMap
 				bind:this={mapRef}
@@ -330,11 +339,7 @@
 						title="Find me (F)"
 						aria-label="Center on your room"
 					>
-						<svg viewBox="0 0 16 16" aria-hidden="true"
-							><circle cx="8" cy="8" r="2.5" /><path
-								d="M8 1.5v2.5M8 12v2.5M1.5 8H4M12 8h2.5"
-							/></svg
-						>
+						<LocateFixed class="size-[1.1rem]" />
 					</button>
 					<button
 						class="btn map-btn"
@@ -342,9 +347,18 @@
 						title="Whole map (M)"
 						aria-label="Show the whole map"
 					>
-						<svg viewBox="0 0 16 16" aria-hidden="true"
-							><path d="M2 5.5V2h3.5M10.5 2H14v3.5M14 10.5V14h-3.5M5.5 14H2v-3.5" /></svg
-						>
+						<Scan class="size-[1.1rem]" />
+					</button>
+					<button
+						class="btn map-btn lg:hidden"
+						onclick={() => (bigMap = !bigMap)}
+						aria-pressed={bigMap}
+						title="Larger map"
+						aria-label="Larger map"
+					>
+						{#if bigMap}<Minimize2 class="size-[1.1rem]" />{:else}<Maximize2
+								class="size-[1.1rem]"
+							/>{/if}
 					</button>
 				</div>
 			</div>
@@ -369,7 +383,7 @@
 					<button
 						class="btn btn-ghost min-h-11 shrink-0 px-3"
 						aria-label="Close"
-						onclick={() => (selected = null)}>✕</button
+						onclick={() => (selected = null)}><X class="size-4" /></button
 					>
 				</div>
 			{:else}
@@ -397,7 +411,10 @@
 				<TravelList nodes={view.map.nodes} current={view.map.current} {busy} ongo={act} />
 			</div>
 
-			<div class="border-line bg-bg/90 pb-safe sticky bottom-0 border-t px-4 pt-3 backdrop-blur">
+			<!-- Phones: above the tab bar, which already clears the home indicator. -->
+			<div
+				class="border-line bg-bg/90 sm:pb-safe sticky bottom-[var(--tabbar-h,0px)] border-t px-4 pt-3 pb-3 backdrop-blur"
+			>
 				{#if view.encounter}
 					<button
 						class="btn btn-primary min-h-12 w-full text-base"
@@ -442,7 +459,7 @@
 
 {#if notice}
 	<div
-		class="toast fixed inset-x-4 bottom-[calc(6rem+env(safe-area-inset-bottom))] z-30 mx-auto flex max-w-md items-center gap-3 px-4 py-3 text-sm"
+		class="toast fixed inset-x-4 bottom-[calc(6rem+max(var(--tabbar-h,0px),env(safe-area-inset-bottom)))] z-30 mx-auto flex max-w-md items-center gap-3 px-4 py-3 text-sm"
 		class:error={notice.tone === 'error'}
 		in:fly={{ y: still ? 0 : 8, duration: 160 }}
 	>
@@ -451,7 +468,7 @@
 			<a class="btn min-h-11" href={resolve('/login')}>Log in</a>
 		{/if}
 		<button class="btn btn-ghost min-h-11 px-3" aria-label="Dismiss" onclick={() => (notice = null)}
-			>✕</button
+			><X class="size-4" /></button
 		>
 	</div>
 {/if}
@@ -500,14 +517,6 @@
 		padding: 0;
 		background: color-mix(in srgb, var(--surface) 88%, transparent);
 		backdrop-filter: blur(6px);
-	}
-	.map-btn svg {
-		height: 1.1rem;
-		width: 1.1rem;
-		fill: none;
-		stroke: currentColor;
-		stroke-width: 1.6;
-		stroke-linecap: round;
 	}
 	.legend {
 		pointer-events: none;

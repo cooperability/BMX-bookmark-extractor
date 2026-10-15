@@ -11,6 +11,8 @@
 	import { studyKey } from '$lib/components/study/keys';
 	import type { Grades } from '$lib/components/study/ratings';
 	import { MAX_REPEATS, resumeQueue } from '$lib/cards/round';
+	import ArrowLeft from '@lucide/svelte/icons/arrow-left';
+	import Pencil from '@lucide/svelte/icons/pencil';
 
 	let { data } = $props();
 
@@ -131,8 +133,8 @@
 <div class="mx-auto flex min-h-dvh max-w-3xl flex-col px-4 pb-10">
 	<header class="bg-bg/85 sticky top-0 z-10 -mx-4 px-4 pt-4 pb-3 backdrop-blur">
 		<div class="flex items-center gap-3 text-sm">
-			<a href={resolve('/cards')} class="btn btn-ghost text-muted -ml-2 px-2 py-1">
-				<span aria-hidden="true">←</span> Decks
+			<a href={resolve('/cards')} class="btn btn-ghost text-muted -ml-2 min-h-11 px-2 py-1">
+				<ArrowLeft class="size-4" /> <span class="max-[379px]:sr-only">Decks</span>
 			</a>
 			<span class="min-w-0 flex-1 truncate text-center font-medium">{data.deck}</span>
 			{#if current && current.repeats > 0 && !grades}
@@ -143,7 +145,8 @@
 				<a
 					href={editHref}
 					class="btn btn-ghost text-muted min-h-11 px-2 py-1"
-					title="Edit this card (E)">Edit</a
+					title="Edit this card (E)"
+					><Pencil class="size-4" /> <span class="max-[379px]:sr-only">Edit</span></a
 				>
 			{/if}
 		</div>
@@ -181,6 +184,7 @@
 				{grades}
 				priorScore={data.prior?.score ?? null}
 				onnext={() => invalidate('cards:round')}
+				quest
 			/>
 		{:else if current}
 			{#if data.prior && done === 0 && current.repeats === 0}
@@ -189,7 +193,7 @@
 
 			{#key `${current.card.id}:${current.repeats}`}
 				<div in:fly={{ x: still ? 0 : 24, duration: still ? 0 : 220 }}>
-					<Flashcard card={current.card} {flipped} />
+					<Flashcard card={current.card} {flipped} onflip={() => (flipped = true)} />
 				</div>
 			{/key}
 

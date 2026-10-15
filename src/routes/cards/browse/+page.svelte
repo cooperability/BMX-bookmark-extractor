@@ -8,6 +8,14 @@
 	import BulkBar from '$lib/components/editor/BulkBar.svelte';
 	import CardEditor from '$lib/components/editor/CardEditor.svelte';
 	import Toast, { type Toast as ToastData } from '$lib/components/editor/Toast.svelte';
+	import StudyLink from '$lib/components/deck/StudyLink.svelte';
+	import ArrowLeft from '@lucide/svelte/icons/arrow-left';
+	import ChevronLeft from '@lucide/svelte/icons/chevron-left';
+	import ChevronRight from '@lucide/svelte/icons/chevron-right';
+	import Play from '@lucide/svelte/icons/play';
+	import Plus from '@lucide/svelte/icons/plus';
+	import Search from '@lucide/svelte/icons/search';
+	import SlidersHorizontal from '@lucide/svelte/icons/sliders-horizontal';
 
 	let { data } = $props();
 
@@ -176,6 +184,14 @@
 	const first = $derived((p.page - 1) * data.browse.pageSize + 1);
 	const last = $derived(first + cards.length - 1);
 	const filtered = $derived(Boolean(p.q || p.tag || p.state || p.flag !== null));
+	// Phones fold the five selects behind one button; the badge says how many are set.
+	// Only once hydrated: without JS the button does nothing, so the selects stay out.
+	let filtersOpen = $state(false);
+	let hydrated = $state(false);
+	onMount(() => (hydrated = true));
+	const narrowing = $derived(
+		[data.deck, p.tag, p.state, p.flag].filter((v) => v != null && v !== '').length
+	);
 	const pageHref = (n: number) => href({ page: n > 1 ? String(n) : null });
 </script>
 
@@ -194,8 +210,8 @@
 				(data.deck
 					? `${resolve('/cards/deck')}?deck=${encodeURIComponent(data.deck)}`
 					: resolve('/cards'))}
-			class="text-muted hover:text-fg inline-flex min-h-11 items-center text-sm lg:min-h-0"
-			>← {data.returnTo ? 'Back' : data.deck ? 'Deck' : 'Decks'}</a
+			class="text-muted hover:text-fg -ml-1 inline-flex min-h-11 items-center gap-1.5 text-sm lg:min-h-0"
+			><ArrowLeft class="size-4" /> {data.returnTo ? 'Back' : data.deck ? 'Deck' : 'Decks'}</a
 		>
 		<header class="mt-2 flex flex-wrap items-end justify-between gap-3">
 			<div class="min-w-0">
@@ -204,11 +220,19 @@
 					{data.deck ?? 'All cards'}
 				</h1>
 			</div>
-			<a href={newHref} class="btn btn-primary min-h-11" data-sveltekit-noscroll>
-				New card <span class="kbd hidden border-transparent bg-black/10 text-current lg:inline-flex"
-					>N</span
-				>
-			</a>
+			<div class="flex gap-2">
+				{#if data.deck}
+					<StudyLink deck={data.deck} class="btn min-h-11">
+						<Play class="size-4 fill-current" /> Study
+					</StudyLink>
+				{/if}
+				<a href={newHref} class="btn btn-primary min-h-11" data-sveltekit-noscroll>
+					<Plus class="size-4" /> New card
+					<span class="kbd hidden border-transparent bg-black/10 text-current lg:inline-flex"
+						>N</span
+					>
+				</a>
+			</div>
 		</header>
 
 		<div class="panel mt-4 overflow-hidden">
@@ -222,11 +246,14 @@
 				{#if data.card}<input type="hidden" name="card" value={data.card.id} />{/if}
 				{#if data.returnTo}<input type="hidden" name="return" value={data.returnTo} />{/if}
 				<label class="sr-only" for="browse-q">Search cards</label>
-				<div class="relative col-span-2 sm:col-span-3">
+				<div class="relative col-span-2 flex gap-2 sm:col-span-3">
+					<Search
+						class="text-muted pointer-events-none absolute top-1/2 left-3.5 size-4 -translate-y-1/2"
+					/>
 					<input
 						bind:this={search}
 						id="browse-q"
-						class="input min-h-11 pr-10 text-sm"
+						class="input min-h-11 flex-1 pr-10 pl-10 text-sm"
 						type="search"
 						name="q"
 						value={p.q}
@@ -238,23 +265,41 @@
 						class="kbd pointer-events-none absolute top-1/2 right-3 hidden -translate-y-1/2 lg:inline-flex"
 						>/</span
 					>
-				</div>
-				{#each filters as f (f.id)}
-					<label class="sr-only" for="browse-{f.id}">{f.label}</label>
-					<select
-						id="browse-{f.id}"
-						name={f.id}
-						class="input min-h-11 min-w-0 text-sm {f.id === 'deck'
-							? 'col-span-2 sm:col-span-1'
-							: ''}"
-						onchange={(e) => submitSoon(e.currentTarget.form)}
+					<button
+						type="button"
+						class="btn relative size-11 shrink-0 p-0 sm:hidden {hydrated ? '' : 'hidden'}"
+						aria-expanded={filtersOpen}
+						aria-controls="browse-filters"
+						aria-label="Filters{narrowing ? `, ${narrowing} set` : ''}"
+						onclick={() => (filtersOpen = !filtersOpen)}
 					>
-						{#if f.all !== null}<option value="" selected={!f.value}>{f.all}</option>{/if}
-						{#each f.items as [value, label] (value)}
-							<option {value} selected={f.value === value}>{label}</option>
-						{/each}
-					</select>
-				{/each}
+						<SlidersHorizontal class="size-4" />
+						{#if narrowing}
+							<span
+								class="bg-accent text-accent-fg absolute -top-1.5 -right-1.5 grid size-5 place-items-center rounded-full font-mono text-[10px] font-semibold"
+								aria-hidden="true">{narrowing}</span
+							>
+						{/if}
+					</button>
+				</div>
+				<div id="browse-filters" class="contents">
+					{#each filters as f (f.id)}
+						<label class="sr-only" for="browse-{f.id}">{f.label}</label>
+						<select
+							id="browse-{f.id}"
+							name={f.id}
+							class="input min-h-11 min-w-0 text-sm {f.id === 'deck'
+								? 'col-span-2 sm:col-span-1'
+								: ''} {hydrated && !filtersOpen ? 'max-sm:hidden' : ''}"
+							onchange={(e) => submitSoon(e.currentTarget.form)}
+						>
+							{#if f.all !== null}<option value="" selected={!f.value}>{f.all}</option>{/if}
+							{#each f.items as [value, label] (value)}
+								<option {value} selected={f.value === value}>{label}</option>
+							{/each}
+						</select>
+					{/each}
+				</div>
 				<noscript><button class="btn">Apply</button></noscript>
 			</form>
 
@@ -368,21 +413,21 @@
 				>
 					{#if p.page > 1}
 						<a class="btn min-h-11 px-3 py-1.5" href={pageHref(p.page - 1)} data-sveltekit-noscroll
-							>← Prev</a
+							><ChevronLeft class="size-4" /> Prev</a
 						>
 					{:else}
 						<span class="btn pointer-events-none min-h-11 px-3 py-1.5 opacity-50" aria-hidden="true"
-							>← Prev</span
+							><ChevronLeft class="size-4" /> Prev</span
 						>
 					{/if}
 					<span class="text-muted font-mono text-xs">Page {p.page} of {data.browse.pages}</span>
 					{#if p.page < data.browse.pages}
 						<a class="btn min-h-11 px-3 py-1.5" href={pageHref(p.page + 1)} data-sveltekit-noscroll
-							>Next →</a
+							>Next <ChevronRight class="size-4" /></a
 						>
 					{:else}
 						<span class="btn pointer-events-none min-h-11 px-3 py-1.5 opacity-50" aria-hidden="true"
-							>Next →</span
+							>Next <ChevronRight class="size-4" /></span
 						>
 					{/if}
 				</nav>
