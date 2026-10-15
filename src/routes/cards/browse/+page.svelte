@@ -185,7 +185,8 @@
 	const last = $derived(first + cards.length - 1);
 	const filtered = $derived(Boolean(p.q || p.tag || p.state || p.flag !== null));
 	// Phones fold the five selects behind one button; the badge says how many are set.
-	// Only once hydrated: without JS the button does nothing, so the selects stay out.
+	// The fold is CSS from the first paint, so the list does not jump at hydration.
+	// Without JS (noscript) the button could not open it, so the selects stay out.
 	let filtersOpen = $state(false);
 	let hydrated = $state(false);
 	onMount(() => (hydrated = true));
@@ -267,7 +268,8 @@
 					>
 					<button
 						type="button"
-						class="btn relative size-11 shrink-0 p-0 sm:hidden {hydrated ? '' : 'hidden'}"
+						class="btn relative size-11 shrink-0 p-0 sm:hidden noscript:hidden"
+						disabled={!hydrated}
 						aria-expanded={filtersOpen}
 						aria-controls="browse-filters"
 						aria-label="Filters{narrowing ? `, ${narrowing} set` : ''}"
@@ -290,7 +292,7 @@
 							name={f.id}
 							class="input min-h-11 min-w-0 text-sm {f.id === 'deck'
 								? 'col-span-2 sm:col-span-1'
-								: ''} {hydrated && !filtersOpen ? 'max-sm:hidden' : ''}"
+								: ''} {filtersOpen ? '' : 'max-sm:not-noscript:hidden'}"
 							onchange={(e) => submitSoon(e.currentTarget.form)}
 						>
 							{#if f.all !== null}<option value="" selected={!f.value}>{f.all}</option>{/if}

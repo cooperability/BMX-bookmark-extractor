@@ -188,10 +188,40 @@ test.describe('study round', () => {
 			expect(await overflow(), `deck page at ${width}px`).toBe(0);
 			// Reviewed and Stability drop out, each header with its cells.
 			await expect(page.getByRole('columnheader', { name: 'Reviewed' })).toBeHidden();
-			const shown = (row: string) => page.locator(`${row} > :is(th, td):visible`).count();
-			expect(await shown('thead tr')).toBe(3);
-			expect(await shown('tbody tr:first-child')).toBe(3);
+			const shown = (row: string) => page.locator(`${row} > :is(th, td):visible`);
+			await expect(shown('thead tr')).toHaveCount(3);
+			await expect(shown('tbody tr:first-child')).toHaveCount(3);
 		}
+	});
+
+	test('Browse folds its filters behind one button on a phone', async ({
+		page,
+		context,
+		baseURL
+	}) => {
+		await context.addCookies([{ name: 'auth-session', value: token, url: baseURL! }]);
+		await page.setViewportSize({ width: 375, height: 800 });
+		// Slow the scripts: the server-rendered page must fold them already, or the card
+		// list jumps up at hydration.
+		await page.route('**/_app/immutable/**/*.js', async (route) => {
+			await new Promise((r) => setTimeout(r, 2000));
+			await route.continue();
+		});
+		await page.goto('/cards/browse?state=new', { waitUntil: 'commit' });
+		const deck = page.locator('#browse-deck');
+		await expect(deck).toBeAttached();
+		// Unstyled, everything would read as hidden.
+		await page.waitForFunction(() =>
+			[...document.querySelectorAll<HTMLLinkElement>('link[rel=stylesheet]')].every((l) => l.sheet)
+		);
+		// Checked once, not retried: a retry would pass on the fold hydration makes.
+		expect(await deck.isVisible()).toBe(false);
+
+		const filters = page.getByRole('button', { name: 'Filters, 1 set' });
+		await expect(filters).toBeEnabled();
+		await filters.click();
+		await expect(filters).toHaveAttribute('aria-expanded', 'true');
+		await expect(deck).toBeVisible();
 	});
 
 	// Runs last among the signed-in tests: it removes the deck the others use.
@@ -220,6 +250,14 @@ test.describe('study round', () => {
 			);
 			await page.getByRole('button', { name: 'Import deck' }).click();
 			await expect(page.getByText('Imported 137 cards.')).toBeVisible();
+		});
+
+		test('Browse shows its filters on a phone', async ({ page, context, baseURL }) => {
+			await context.addCookies([{ name: 'auth-session', value: token, url: baseURL! }]);
+			await page.setViewportSize({ width: 375, height: 800 });
+			await page.goto('/cards/browse');
+			await expect(page.locator('#browse-deck')).toBeVisible();
+			await expect(page.getByRole('button', { name: /^Filters/ })).toBeHidden();
 		});
 	});
 });
