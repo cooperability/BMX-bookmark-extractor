@@ -213,6 +213,22 @@ test.describe('study round', () => {
 		}
 	});
 
+	// The details element opens natively before hydration. Hydration must not shut it
+	// under the thumb that opened it. Slow the scripts so the tap lands first every run.
+	test('account menu opened before hydration stays open', async ({ page, context, baseURL }) => {
+		await context.addCookies([{ name: 'auth-session', value: token, url: baseURL! }]);
+		await page.route('**/_app/immutable/**/*.js', async (route) => {
+			await new Promise((r) => setTimeout(r, 2000));
+			await route.continue();
+		});
+		await page.goto('/cards', { waitUntil: 'commit' });
+		await page.getByLabel('Account').click();
+		const logOut = page.getByRole('button', { name: 'Log out' });
+		await expect(logOut).toBeVisible();
+		await page.waitForLoadState('networkidle');
+		await expect(logOut).toBeVisible();
+	});
+
 	test('Browse folds its filters behind one button on a phone', async ({
 		page,
 		context,
