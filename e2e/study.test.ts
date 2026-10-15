@@ -278,5 +278,17 @@ test.describe('study round', () => {
 			await expect(page.locator('#browse-deck')).toBeVisible();
 			await expect(page.getByRole('button', { name: /^Filters/ })).toBeHidden();
 		});
+
+		// Runs last: it ends the session the other tests sign in with.
+		test('logs out from the account menu', async ({ page, context, baseURL }) => {
+			await context.addCookies([{ name: 'auth-session', value: token, url: baseURL! }]);
+			await page.setViewportSize({ width: 375, height: 800 });
+			await page.goto('/cards');
+			await page.getByLabel('Account').click();
+			await page.getByRole('button', { name: 'Log out' }).click();
+			await expect(page).toHaveURL('/login');
+			const [{ n }] = await sql`select count(*)::int as n from session where user_id = ${USER_ID}`;
+			expect(n).toBe(0);
+		});
 	});
 });
