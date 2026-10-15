@@ -135,6 +135,25 @@ test.describe('study round', () => {
 		expect(errors).toEqual([]);
 	});
 
+	test('a deck card opens Browse on its deck, and Browse offers to study it', async ({
+		page,
+		context,
+		baseURL
+	}) => {
+		await context.addCookies([{ name: 'auth-session', value: token, url: baseURL! }]);
+		await page.goto('/cards');
+		await page
+			.getByRole('link', { name: /^Browse \S/ })
+			.first()
+			.click();
+		await page.waitForURL(/\/cards\/browse\?deck=/);
+		const deck = new URL(page.url()).searchParams.get('deck')!;
+		await expect(page.getByRole('link', { name: 'Study', exact: true })).toHaveAttribute(
+			'href',
+			`/cards/study?deck=${encodeURIComponent(deck)}`
+		);
+	});
+
 	// Runs after the round above, so the dashboard has a deck to show.
 	test('signed-in pages fit a phone screen', async ({ page, context, baseURL }) => {
 		await context.addCookies([{ name: 'auth-session', value: token, url: baseURL! }]);
