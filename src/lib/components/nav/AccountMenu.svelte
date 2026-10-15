@@ -7,23 +7,22 @@
 
 	let { email }: { email: string } = $props();
 
-	let open = $state(false);
 	let root: HTMLDetailsElement | undefined = $state();
-	afterNavigate(() => (open = false));
+	afterNavigate(() => root && (root.open = false));
 </script>
 
 <!-- details, so the menu and its Log out form work before hydration and without JS. -->
 <!-- pointerdown: iOS sends no click to the window for a tap on plain content. -->
 <svelte:window
 	onpointerdown={(e) => {
-		if (open && e.target instanceof Node && !root?.contains(e.target)) open = false;
+		if (root?.open && e.target instanceof Node && !root.contains(e.target)) root.open = false;
 	}}
 	onkeydown={(e) => {
-		if (open && e.key === 'Escape') open = false;
+		if (root?.open && e.key === 'Escape') root.open = false;
 	}}
 />
 
-<details class="relative" bind:open bind:this={root}>
+<details class="relative" bind:this={root}>
 	<summary
 		class="btn btn-ghost text-muted hover:text-fg size-11 list-none p-0 [&::-webkit-details-marker]:hidden"
 		aria-label="Account"

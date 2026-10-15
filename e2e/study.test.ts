@@ -153,8 +153,29 @@ test.describe('study round', () => {
 			);
 			await page.getByLabel('Account').click();
 			// A trial click hit-tests the button: it fails if the page paints over the menu.
-			await page.getByRole('button', { name: 'Log out' }).click({ trial: true, timeout: 2000 });
+			const logOut = page.getByRole('button', { name: 'Log out' });
+			await logOut.click({ trial: true, timeout: 2000 });
 			await page.keyboard.press('Escape');
+			await expect(logOut).toBeHidden();
+			// A tap on plain content closes it. x 4 is the page gutter, clear of the panel.
+			await page.getByLabel('Account').click();
+			await expect(logOut).toBeVisible();
+			await page.mouse.click(4, 400);
+			await expect(logOut).toBeHidden();
+
+			const tabs = page.getByRole('navigation', { name: 'Views' });
+			await tabs.getByRole('link', { name: 'Browse' }).click();
+			await page.waitForURL(/\/cards\/browse/);
+			await expect(tabs.getByRole('link', { name: 'Browse' })).toHaveAttribute(
+				'aria-current',
+				'page'
+			);
+			// The layout outlives the page, so the menu must close on navigation itself.
+			await page.getByLabel('Account').click();
+			await expect(logOut).toBeVisible();
+			await page.goBack();
+			await page.waitForURL(/\/cards$/);
+			await expect(logOut).toBeHidden();
 
 			await page.getByRole('link', { name: 'Details' }).first().click();
 			await page.waitForURL(/\/cards\/deck/);
