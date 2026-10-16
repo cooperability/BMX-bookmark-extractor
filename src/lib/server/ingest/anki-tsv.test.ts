@@ -102,6 +102,28 @@ describe('the real Anki exports', () => {
 	});
 });
 
+describe('the AI-made decks', () => {
+	const AI_DECKS = {
+		'source_data/Software Knowledge (AI-made).txt': 184,
+		'source_data/Personal Finance and Career Growth (AI-made).txt': 149
+	};
+
+	it.each(Object.entries(AI_DECKS))('%s parses to %i labelled cards', (path, count) => {
+		const { notes, warnings } = parseAnkiExport(read(path), OWNER);
+
+		expect(warnings).toEqual([]);
+		expect(notes).toHaveLength(count);
+		expect(new Set(notes.map((n) => n.ankiGuid)).size).toBe(count);
+		for (const n of notes) {
+			// The deck name is the only place the app shows who wrote a card.
+			expect(n.deck).toMatch(/ \(AI-made\)$/);
+			// Rounds grade per tag, so a second tag would score one card in two areas.
+			expect(n.tags).toHaveLength(1);
+			expect(n.back).not.toBe('');
+		}
+	});
+});
+
 describe('the preamble drives column mapping', () => {
 	it('follows declared positions instead of assuming them', () => {
 		// Same data, columns reordered, declarations updated to match.
