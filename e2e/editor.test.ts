@@ -345,7 +345,7 @@ test.describe('card editor', () => {
 		const deck = 'E2E Editor format';
 		// The completer offers the user's own tags.
 		await sql`insert into nodes (id, user_id, deck, front, back, tags) values
-			('e2e-format-seed', ${USER_ID}, ${deck}, 'seed', 'b', ${['Biology::Cells', 'chem']})`;
+			('e2e-format-seed', ${USER_ID}, ${deck}, 'seed', 'b', ${['Biology::Cells', 'chem', 'cellar', 'Accelerate']})`;
 		await page.goto(`/cards/browse?new=1&deck=${encodeURIComponent(deck)}`);
 		await page.waitForLoadState('networkidle');
 		const bar = page.getByRole('toolbar', { name: 'Formatting' });
@@ -375,6 +375,20 @@ test.describe('card editor', () => {
 		await expect(front.locator('strike, s')).toHaveCount(0);
 		await tool('Redo edit (Ctrl+Shift+Z)').click();
 		await expect(front.locator('strike, s')).toHaveText('alpha');
+
+		// Tab from a field leads away from the bar, so Alt+F10 takes the keyboard into it.
+		await page.keyboard.press('ControlOrMeta+a');
+		await page.keyboard.press('Alt+F10');
+		await expect(page.getByRole('button', { name: 'Text styles and indent' })).toBeFocused();
+		await page.keyboard.press('Tab');
+		await page.keyboard.press('Tab');
+		await page.keyboard.press('Tab');
+		await expect(tool('Bold (Ctrl+B)')).toBeFocused();
+		await page.keyboard.press('Enter');
+		await expect(front.locator('b, strong')).toHaveText('alpha');
+		await expect(front).toBeFocused();
+		await page.keyboard.press('ControlOrMeta+z');
+		await expect(front.locator('b, strong')).toHaveCount(0);
 
 		// Text styles, and Escape closes their menu, not the card.
 		await page.getByRole('button', { name: 'Text styles and indent' }).click();
@@ -442,19 +456,31 @@ test.describe('card editor', () => {
 		await page.keyboard.press('ControlOrMeta+k');
 		await address.fill('javascript:alert(1)');
 		await expect(page.getByRole('button', { name: 'Add link' })).toBeDisabled();
+		// A port is no scheme: a bare host with one gets https.
+		await address.fill('localhost:5173');
+		await expect(page.getByRole('button', { name: 'Add link' })).toBeEnabled();
 		await address.press('Escape');
 		await expect(page).toHaveURL(/new=1/);
 		await expect(back).toBeFocused();
+		// The link box belongs to the field it opened from: moving to the other one closes it.
+		await page.keyboard.press('ControlOrMeta+k');
+		await expect(address).toBeVisible();
+		await front.click();
+		await expect(address).toHaveCount(0);
 
-		// The completer: a `::` part matches, arrows pick, and a typed case adopts the stored one.
+		// The completer ranks a prefix, then a `::` part, then a substring. Arrows pick,
+		// and a typed case adopts the stored one.
 		const tags = page.locator('#edit-tags');
 		await tags.click();
 		await expect(bar).toBeVisible();
 		await expect(tool('Bold (Ctrl+B)')).toBeDisabled();
 		await tags.pressSequentially('cel');
 		await expect(page.locator('#edit-tags-list').getByRole('option')).toHaveText([
-			'Biology::Cells'
+			'cellar',
+			'Biology::Cells',
+			'Accelerate'
 		]);
+		await tags.press('ArrowDown');
 		await tags.press('ArrowDown');
 		await tags.press('Enter');
 		await tags.pressSequentially('CHEM ');
@@ -466,14 +492,128 @@ test.describe('card editor', () => {
 		await expect(tags).toBeFocused();
 		await tags.press('Enter');
 
+		// A half-typed address left in the link box is no URL the form checks, so the card saves.
+		await back.click();
+		await page.keyboard.press('ControlOrMeta+k');
+		await address.fill('example.com');
+		await back.click();
 		await page.keyboard.press('ControlOrMeta+Enter');
 		await expect(page.getByText(`Added to ${deck}.`)).toBeVisible();
 		const [stored] =
-			await sql`select front, back, tags from nodes where user_id = ${USER_ID} and deck = ${deck} and id <> 'e2e-format-seed'`;
+			await sql`select front, back, tags from nodes where user_id = ${USER_ID} and kind = 'card' and deck = ${deck} and id <> 'e2e-format-seed'`;
 		expect(stored.front).toMatch(/<h3>.*<(strike|s)>.*alpha/);
 		expect(stored.front).toContain('<mark>');
 		expect(stored.back).toContain('<ul class="dashed">');
 		expect(stored.tags).toEqual(['Biology::Cells', 'chem']);
+
+		// Ctrl+Enter inside the link box saves the card too.
+		await typeInto(page, '#edit-front', 'second');
+		await page.keyboard.press('ControlOrMeta+k');
+		await address.fill('example.com');
+		await address.press('ControlOrMeta+Enter');
+		// A saved new card clears the editor for the next one.
+		await expect(front).toHaveText('');
+		const [{ n }] =
+			await sql`select count(*)::int as n from nodes where user_id = ${USER_ID} and kind = 'card' and deck = ${deck}`;
+		expect(n).toBe(3);
+		expect(dialogs).toEqual([]);
+		expect(errors).toEqual([]);
+	});
+
+	test('the other text styles, shortcuts, link kinds and completer keys', async ({
+		page,
+		context,
+		baseURL
+	}) => {
+		const errors: string[] = [];
+		page.on('pageerror', (e) => errors.push(e.message));
+		const dialogs: string[] = [];
+		page.on('dialog', (d) => {
+			dialogs.push(d.message());
+			void d.dismiss();
+		});
+		await page.setViewportSize({ width: 1440, height: 900 });
+		await context.addCookies([{ name: 'auth-session', value: token, url: baseURL! }]);
+		await sql`insert into nodes (id, user_id, deck, front, back, tags) values
+			('e2e-keys-seed', ${USER_ID}, 'E2E Editor more', 'seed', 'b', ${['qxone', 'qxtwo', 'qyak']})`;
+		await page.goto('/cards/browse?new=1');
+		await page.waitForLoadState('networkidle');
+		const bar = page.getByRole('toolbar', { name: 'Formatting' });
+		const tool = (name: string) => bar.getByRole('button', { name, exact: true });
+		const styles = page.getByRole('button', { name: 'Text styles and indent' });
+		const style = (name: string) =>
+			page.getByRole('group', { name: 'Text styles' }).getByRole('button', { name, exact: true });
+		const front = page.locator('div#edit-front');
+		const back = page.locator('div#edit-back');
+
+		await typeInto(page, '#edit-front', 'line');
+		await styles.click();
+		await style('Subheading').click();
+		await expect(front.locator('h4')).toHaveText('line');
+		await styles.click();
+		await style('Monospaced').click();
+		await expect(front.locator('pre')).toHaveText('line');
+		await styles.click();
+		await style('Body').click();
+		await expect(front.locator('h4, pre')).toHaveCount(0);
+		await expect(front).toHaveText('line');
+
+		// The menu's Indent and Outdent, for a phone with no Tab key.
+		await tool('Bulleted list').click();
+		await page.keyboard.press('End');
+		await page.keyboard.press('Enter');
+		await page.keyboard.type('sub');
+		await styles.click();
+		await style('Indent ⇥').click();
+		await expect(front.locator('li ul, ul ul')).toHaveCount(1);
+		await style('⇤ Outdent').click();
+		await expect(front.locator('li ul, ul ul')).toHaveCount(0);
+		await page.keyboard.press('Escape');
+
+		// Anki's subscript and superscript keys.
+		await page.keyboard.press('Shift+Home');
+		await page.keyboard.press('ControlOrMeta+Equal');
+		await expect(front.locator('sub')).toHaveText('sub');
+		await page.keyboard.press('ControlOrMeta+z');
+		await expect(front.locator('sub')).toHaveCount(0);
+		await page.keyboard.press('ControlOrMeta+Shift+Equal');
+		await expect(front.locator('sup')).toHaveText('sub');
+
+		// A bare address at a caret goes in as a mail link, its text the address.
+		await back.click();
+		await page.keyboard.press('ControlOrMeta+k');
+		const address = page.getByLabel('Link address');
+		await address.fill('name@example.com');
+		await address.press('Enter');
+		await expect(back.locator('a[href="mailto:name@example.com"]')).toHaveText('name@example.com');
+
+		// Focus follows the HTML source toggle both ways, so the bar keeps its field.
+		await page.keyboard.press('ControlOrMeta+Shift+x');
+		await expect(page.locator('textarea#edit-back')).toBeFocused();
+		await page.keyboard.press('ControlOrMeta+Shift+x');
+		await expect(back).toBeFocused();
+
+		// ArrowUp from no pick wraps to the last match. Tab and Space take the pick, and
+		// Escape closes the list, not the card.
+		const tags = page.locator('#edit-tags');
+		const options = page.locator('#edit-tags-list').getByRole('option');
+		await tags.click();
+		await tags.pressSequentially('qx');
+		await expect(options).toHaveText(['qxone', 'qxtwo']);
+		await tags.press('ArrowUp');
+		await expect(options.filter({ hasText: 'qxtwo' })).toHaveAttribute('aria-selected', 'true');
+		await tags.press('Tab');
+		await expect(tags).toBeFocused();
+		await tags.pressSequentially('qx');
+		await tags.press('ArrowDown');
+		await tags.press(' ');
+		const chips = page.getByRole('button', { name: /^Edit tag / });
+		await expect(chips).toHaveText(['qxtwo', 'qxone']);
+		await tags.pressSequentially('qy');
+		await expect(options).toHaveText(['qyak']);
+		await tags.press('Escape');
+		await expect(page.locator('#edit-tags-list')).toBeHidden();
+		await expect(page).toHaveURL(/new=1/);
 		expect(dialogs).toEqual([]);
 		expect(errors).toEqual([]);
 	});
@@ -491,15 +631,22 @@ test.describe('card editor', () => {
 		await expect(bar).toBeHidden();
 		await page.locator('div#edit-front').click();
 		await expect(bar).toBeVisible();
-		// One row that scrolls sideways, never a wrap that eats the screen.
+		// One row that scrolls sideways, never a wrap that eats the screen. The sheet clips
+		// what spills, so the bar's own edge is what shows a row too wide for the phone.
 		const box = await bar.boundingBox();
 		expect(box!.height).toBeLessThan(60);
-		await page.locator('#edit-deck').click();
-		await expect(bar).toBeHidden();
+		expect(box!.x + box!.width).toBeLessThanOrEqual(390);
 		const overflow = await page.evaluate(
 			() => document.documentElement.scrollWidth - document.documentElement.clientWidth
 		);
 		expect(overflow).toBe(0);
+		// A tap that misses a button, on a gap or a separator, keeps the field's focus.
+		const gap = await bar.locator('span[aria-hidden="true"]').first().boundingBox();
+		await page.mouse.click(gap!.x + gap!.width / 2, gap!.y + gap!.height / 2);
+		await expect(page.locator('div#edit-front')).toBeFocused();
+		await expect(bar).toBeVisible();
+		await page.locator('#edit-deck').click();
+		await expect(bar).toBeHidden();
 	});
 
 	test('a re-import keeps a card edited here, and says so', async ({ page, context, baseURL }) => {

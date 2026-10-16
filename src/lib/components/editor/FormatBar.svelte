@@ -14,6 +14,7 @@
 	let panel = $state<'styles' | 'link' | null>(null);
 	let url = $state('');
 	let linkInput = $state<HTMLInputElement>();
+	let toolbar = $state<HTMLElement>();
 	// The field's selection while the link box has focus.
 	let saved: Range | null = null;
 
@@ -58,10 +59,10 @@
 	}
 
 	$effect(() => {
-		if (!field) {
-			panel = null;
-			return;
-		}
+		// A panel acts on the field it opened from, so a move to another field closes it.
+		panel = null;
+		saved = null;
+		if (!field) return;
 		track();
 		document.addEventListener('selectionchange', track);
 		return () => document.removeEventListener('selectionchange', track);
@@ -188,19 +189,17 @@
 	}
 
 	// The sanitizer keeps https, http and mailto links only. A bare address gets a scheme.
+	// A colon before a digit is a port, as in localhost:5173, not a scheme.
 	const href = $derived.by(() => {
 		const u = url.trim();
 		if (!u) return null;
-		const full = /^[a-z][a-z\d+.-]*:/i.test(u)
+		const full = /^[a-z][a-z\d+.-]*:(?!\d)/i.test(u)
 			? u
 			: /^[^\s/@]+@[^\s/@]+$/.test(u)
 				? `mailto:${u}`
 				: `https://${u}`;
 		return /^(https?:\/\/[^\s/]|mailto:\S)/i.test(full) ? full : null;
 	});
-
-	// Safari focuses no clicked button, so a click would blur the link box to nothing and close the bar.
-	const keep = (e: MouseEvent) => e.preventDefault();
 
 	function openLink() {
 		const r = range();
@@ -246,6 +245,8 @@
 	}
 
 	// Anki's field shortcuts. Ctrl+B, I and U, and undo and redo, are the browser's own.
+	// Tab from a field goes to the tags, past which the bar is disabled, so Alt+F10, the
+	// usual editor key for a toolbar, takes the keyboard into the bar.
 	function onkeydown(e: KeyboardEvent) {
 		const mod = e.ctrlKey || e.metaKey;
 		const k = e.key.toLowerCase();
@@ -260,7 +261,9 @@
 							? () => run('subscript')
 							: mod && !e.shiftKey && k === 'k'
 								? openLink
-								: null;
+								: e.altKey && e.key === 'F10'
+									? () => toolbar?.querySelector('button')?.focus()
+									: null;
 		if (!act) return;
 		e.preventDefault();
 		act();
@@ -328,8 +331,17 @@
 	const pressed = (key?: string) => (key ? Boolean(key === list || on[key]) : undefined);
 </script>
 
-<!-- Buttons keep focus in the field: a mousedown that moved it would drop the selection first. -->
-<div data-format-bar class="w-full space-y-2 {field ? '' : 'max-lg:hidden'}">
+<!-- A press anywhere on the bar keeps focus where it is: a mousedown that moved it would drop the
+	field's selection first, and Safari focuses no clicked button, so the field would blur to nothing
+	and the bar would close. Only the link box takes focus from a press. -->
+<!-- svelte-ignore a11y_no_static_element_interactions -->
+<div
+	data-format-bar
+	class="w-full space-y-2 {field ? '' : 'max-lg:hidden'}"
+	onmousedown={(e) => {
+		if (e.target !== linkInput) e.preventDefault();
+	}}
+>
 	{#if panel === 'styles'}
 		<div class="flex flex-wrap gap-1" role="group" aria-label="Text styles">
 			{#each STYLES as s (s.tag)}
@@ -338,7 +350,6 @@
 					class="btn min-h-11 px-3 py-1 text-sm lg:min-h-8 {s.cls}"
 					aria-pressed={styled(s.tag)}
 					class:!bg-accent-soft={styled(s.tag)}
-					onmousedown={(e) => e.preventDefault()}
 					onclick={() => style(s.tag)}>{s.label}</button
 				>
 			{/each}
@@ -347,7 +358,6 @@
 				class="btn min-h-11 px-3 py-1 text-sm lg:min-h-8"
 				title="Outdent (Shift+Tab)"
 				disabled={!list}
-				onmousedown={(e) => e.preventDefault()}
 				onclick={() => indent(true)}>⇤ Outdent</button
 			>
 			<button
@@ -355,7 +365,6 @@
 				class="btn min-h-11 px-3 py-1 text-sm lg:min-h-8"
 				title="Indent (Tab)"
 				disabled={!list}
-				onmousedown={(e) => e.preventDefault()}
 				onclick={() => indent(false)}>Indent ⇥</button
 			>
 		</div>
@@ -366,7 +375,7 @@
 				bind:this={linkInput}
 				id="format-link"
 				class="input min-h-11 min-w-0 flex-1 text-sm lg:min-h-8 lg:py-1"
-				type="url"
+				type="text"
 				inputmode="url"
 				autocomplete="off"
 				autocapitalize="off"
@@ -376,8 +385,10 @@
 				aria-invalid={url.trim() !== '' && !href}
 				bind:value={url}
 				onkeydown={(e) => {
-					// Enter would submit the card, and Escape would close it.
-					if (e.key === 'Enter') {
+					// Enter would submit the card, and Escape would close it. Ctrl+Enter still
+					// saves: applying the link first would close the box, and the editor ignores
+					// a key from an element no longer in it.
+					if (e.key === 'Enter' && !e.ctrlKey && !e.metaKey) {
 						e.preventDefault();
 						applyLink();
 					} else if (e.key === 'Escape') {
@@ -390,27 +401,23 @@
 				type="button"
 				class="btn btn-primary min-h-11 px-3 py-1 text-sm lg:min-h-8"
 				disabled={!href}
-				onmousedown={keep}
 				onclick={applyLink}>{on.link ? 'Update' : 'Add link'}</button
 			>
 			{#if on.link}
-				<button
-					type="button"
-					class="btn min-h-11 px-3 py-1 text-sm lg:min-h-8"
-					onmousedown={keep}
-					onclick={unlink}>Remove</button
+				<button type="button" class="btn min-h-11 px-3 py-1 text-sm lg:min-h-8" onclick={unlink}
+					>Remove</button
 				>
 			{/if}
 			<button
 				type="button"
 				class="btn btn-ghost min-h-11 px-3 py-1 text-sm lg:min-h-8"
-				onmousedown={keep}
 				onclick={closeLink}>Cancel</button
 			>
 		</div>
 	{/if}
 
 	<div
+		bind:this={toolbar}
 		class="-mx-1 flex gap-1 overflow-x-auto px-1 max-lg:[scrollbar-width:none] lg:flex-wrap"
 		role="toolbar"
 		aria-label="Formatting"
@@ -424,7 +431,6 @@
 			aria-expanded={panel === 'styles'}
 			class:!bg-accent-soft={panel === 'styles'}
 			disabled={!field}
-			onmousedown={(e) => e.preventDefault()}
 			onclick={() => (panel = panel === 'styles' ? null : 'styles')}>Aa</button
 		>
 		{#each TOOLS as t, i (typeof t === 'string' ? i : t.title)}
@@ -440,7 +446,6 @@
 					aria-label={t.title}
 					aria-pressed={pressed(t.key)}
 					disabled={!field}
-					onmousedown={(e) => e.preventDefault()}
 					onclick={t.on}>{t.label}</button
 				>
 			{/if}
