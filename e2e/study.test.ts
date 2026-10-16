@@ -219,6 +219,11 @@ test.describe('study round', () => {
 			const shown = (row: string) => page.locator(`${row} > :is(th, td):visible`);
 			await expect(shown('thead tr')).toHaveCount(3);
 			await expect(shown('tbody tr:first-child')).toHaveCount(3);
+
+			// A round is a focus mode: the tab bar steps aside.
+			await page.getByRole('link', { name: 'Study', exact: true }).click();
+			await page.waitForURL(/\/cards\/study/);
+			await expect(page.getByRole('navigation', { name: 'Views' })).toBeHidden();
 		}
 	});
 
@@ -279,6 +284,40 @@ test.describe('study round', () => {
 		await page.waitForURL(/\/cards\?deleted=/);
 		await expect(page.getByRole('status')).toContainText('Deleted');
 		await expect(page.getByText('No decks yet')).toBeVisible();
+	});
+
+	// Its own deck, so the deck deleted above is not needed and no other test sees this one.
+	test('a tap on a link or a text selection in the card does not reveal it', async ({
+		page,
+		context,
+		baseURL
+	}) => {
+		await context.addCookies([{ name: 'auth-session', value: token, url: baseURL! }]);
+		const front = '<p>See <a href="#source">the source</a> for this long enough fact.</p>';
+		await sql`insert into nodes (id, user_id, deck, front, back, tags)
+			values (${`${USER_ID}-link`}, ${USER_ID}, 'E2E Links', ${front}, 'Back', ${[]})`;
+		await page.goto('/cards/study?deck=E2E%20Links');
+		await expect(page.getByRole('button', { name: /Show answer/ })).toBeEnabled();
+		const again = page.getByRole('button', { name: /Again/ });
+		// A flip renders on the next microtask, so a frame later it would show.
+		const settled = () => page.evaluate(() => new Promise((r) => requestAnimationFrame(r)));
+
+		await page.getByRole('link', { name: 'the source' }).click();
+		await settled();
+		expect(await again.isVisible(), 'a link in the card').toBe(false);
+
+		const text = (await page.locator('.card-html p').first().boundingBox())!;
+		const y = text.y + text.height / 2;
+		await page.mouse.move(text.x + 2, y);
+		await page.mouse.down();
+		await page.mouse.move(text.x + text.width - 2, y, { steps: 5 });
+		await page.mouse.up();
+		await settled();
+		expect(await again.isVisible(), 'a text selection').toBe(false);
+
+		await page.evaluate(() => getSelection()?.removeAllRanges());
+		await page.locator('.scene').click({ position: { x: 8, y: 8 } });
+		await expect(again).toBeVisible();
 	});
 
 	// Also covers a file chosen before hydration: the server-rendered form must submit.

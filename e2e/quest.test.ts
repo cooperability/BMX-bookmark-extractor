@@ -158,6 +158,23 @@ test.describe('quest', () => {
 			for (const b of await page.locator('button.door, button.map-btn').all()) {
 				expect((await b.boundingBox())!.height).toBeGreaterThanOrEqual(44);
 			}
+			// The sticky Next bar rides on the tab bar, not under it.
+			const tabs = (await page.getByRole('navigation', { name: 'Views' }).boundingBox())!;
+			const next = (await page.getByRole('button', { name: /Next ·/ }).boundingBox())!;
+			expect(next.y + next.height, `Next above the tab bar at ${width}px`).toBeLessThanOrEqual(
+				tabs.y
+			);
+			// The map can grow for a closer look.
+			const map = page.getByRole('region', { name: 'Map' });
+			const before = (await map.boundingBox())!.height;
+			await page.getByRole('button', { name: 'Larger map' }).click();
+			await expect(page.getByRole('button', { name: 'Larger map' })).toHaveAttribute(
+				'aria-pressed',
+				'true'
+			);
+			await expect
+				.poll(async () => (await map.boundingBox())!.height)
+				.toBeGreaterThan(before * 1.4);
 		}
 	});
 
