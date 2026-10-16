@@ -1,5 +1,7 @@
 <script lang="ts">
 	import type { MapNode } from '$lib/quest/types';
+	import ChevronDown from '@lucide/svelte/icons/chevron-down';
+	import Search from '@lucide/svelte/icons/search';
 
 	let {
 		nodes,
@@ -39,13 +41,16 @@
 <details class="panel group">
 	<summary class="flex min-h-11 cursor-pointer items-center justify-between px-4 select-none">
 		<span class="eyebrow">Travel · {places.length} places</span>
-		<span class="text-muted transition group-open:rotate-45" aria-hidden="true">+</span>
+		<ChevronDown class="text-muted size-4 transition-transform group-open:rotate-180" />
 	</summary>
 	<div class="px-4 pb-4">
-		<label class="block">
+		<label class="relative block">
 			<span class="sr-only">Find a place</span>
+			<Search
+				class="text-muted pointer-events-none absolute top-1/2 left-3.5 size-4 -translate-y-1/2"
+			/>
 			<input
-				class="input min-h-11 text-sm"
+				class="input min-h-11 pl-10 text-sm"
 				type="search"
 				placeholder="Find a place"
 				bind:value={query}

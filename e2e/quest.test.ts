@@ -89,6 +89,11 @@ test.describe('quest', () => {
 		// Inside the card's room; the recall counts, and its tags are found.
 		await expect(page.getByText('Recall now')).toBeVisible();
 		await expect(page.locator('dl.stats')).toContainText('1/3');
+		// The card's room leads back to a round in its deck.
+		await expect(page.getByRole('link', { name: 'Study this deck' })).toHaveAttribute(
+			'href',
+			'/cards/study?deck=E2E%20Deck'
+		);
 
 		// The review went through the one write path, tagged as Quest.
 		const [log] =

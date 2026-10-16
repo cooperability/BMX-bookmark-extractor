@@ -2,6 +2,15 @@
 	import { resolve } from '$app/paths';
 	import { percent, reopens } from '$lib/quest/format';
 	import { VIA_LABEL, type Door, type Room } from '$lib/quest/types';
+	import StudyLink from '$lib/components/deck/StudyLink.svelte';
+	import ArrowRight from '@lucide/svelte/icons/arrow-right';
+	import ChevronDown from '@lucide/svelte/icons/chevron-down';
+	import Circle from '@lucide/svelte/icons/circle';
+	import Clock from '@lucide/svelte/icons/clock';
+	import Lock from '@lucide/svelte/icons/lock';
+	import Pencil from '@lucide/svelte/icons/pencil';
+	import Play from '@lucide/svelte/icons/play';
+	import RotateCcw from '@lucide/svelte/icons/rotate-ccw';
 
 	let {
 		room,
@@ -119,7 +128,9 @@
 				onclick={() => (showCard = !showCard)}
 			>
 				<span class="eyebrow">The card</span>
-				<span class="text-muted" aria-hidden="true">{showCard ? '−' : '+'}</span>
+				<ChevronDown
+					class="text-muted size-4 transition-transform {showCard ? 'rotate-180' : ''}"
+				/>
 			</button>
 			{#if showCard}
 				<!-- Card HTML is DOMPurify-sanitized (cards/sanitize.ts) on every write, before it is stored. -->
@@ -138,12 +149,21 @@
 						{#each room.tags as tag (tag)}<span class="chip">{tag}</span>{/each}
 					</div>
 				{/if}
-				<!-- The run keeps the room, so Save lands the player back in it. -->
-				<a
-					href="{resolve('/cards/browse')}?card={room.id}&return=%2Fquest"
-					class="text-muted hover:text-fg mt-3 inline-flex min-h-11 items-center text-sm"
-					>Edit card →</a
-				>
+				<div class="mt-3 flex flex-wrap gap-x-4">
+					<!-- The run keeps the room, so Save lands the player back in it. -->
+					<a
+						href="{resolve('/cards/browse')}?card={room.id}&return=%2Fquest"
+						class="text-muted hover:text-fg inline-flex min-h-11 items-center gap-1.5 text-sm"
+						><Pencil class="size-3.5" /> Edit card</a
+					>
+					{#if room.deck}
+						<StudyLink
+							deck={room.deck}
+							class="text-muted hover:text-fg inline-flex min-h-11 items-center gap-1.5 text-sm"
+							><Play class="size-3.5" /> Study this deck</StudyLink
+						>
+					{/if}
+				</div>
 			{/if}
 		</div>
 	{/if}
@@ -179,22 +199,15 @@
 						>
 							<span class="icon" aria-hidden="true">
 								{#if d.facet !== 'card'}
-									<svg viewBox="0 0 16 16"><path d="M3 8h9M9 4l4 4-4 4" /></svg>
+									<ArrowRight class="size-4" />
 								{:else if d.status === 'open' && d.due}
-									<svg viewBox="0 0 16 16"><path d="M13 8a5 5 0 1 1-1.5-3.6M13 2.5v2.5h-2.5" /></svg
-									>
+									<RotateCcw class="size-4" />
 								{:else if d.status === 'open'}
-									<svg viewBox="0 0 16 16"><circle cx="8" cy="8" r="4.5" /></svg>
+									<Circle class="size-3 fill-current" />
 								{:else if d.status === 'locked'}
-									<svg viewBox="0 0 16 16"
-										><rect x="3.5" y="7" width="9" height="6.5" rx="1.5" /><path
-											d="M5.5 7V5a2.5 2.5 0 0 1 5 0v2"
-										/></svg
-									>
+									<Lock class="size-4" />
 								{:else}
-									<svg viewBox="0 0 16 16"
-										><circle cx="8" cy="8" r="5.5" /><path d="M8 5v3.2l2 1.3" /></svg
-									>
+									<Clock class="size-4" />
 								{/if}
 							</span>
 							<span class="min-w-0 flex-1">
@@ -265,20 +278,8 @@
 		border-radius: 9999px;
 		background: var(--surface-2);
 	}
-	.icon svg {
-		height: 1rem;
-		width: 1rem;
-		fill: none;
-		stroke: currentColor;
-		stroke-width: 1.6;
-		stroke-linecap: round;
-		stroke-linejoin: round;
-	}
 	.status-open .icon {
 		color: var(--good);
-	}
-	.status-open:not(.due) .icon circle {
-		fill: currentColor;
 	}
 	.status-open.due .icon {
 		color: var(--hard);

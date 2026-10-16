@@ -71,7 +71,9 @@ test.describe('study round', () => {
 		await page.getByRole('button', { name: 'Import deck' }).click();
 		await expect(page.getByText('Imported 137 cards.')).toBeVisible();
 
-		await page.getByRole('link', { name: 'Study' }).first().click();
+		// New cards are not due, so Up next offers a round in the new deck by name.
+		await expect(page.getByText('All caught up')).toBeVisible();
+		await page.getByRole('link', { name: /^Study \S/ }).click();
 		const counter = page.locator('header .font-mono').first();
 		await expect(counter).toHaveText('0 / 20');
 
@@ -89,8 +91,8 @@ test.describe('study round', () => {
 		expect(tick).toBe('none');
 
 		// Each rating shows the interval it would schedule. A new card: minutes for
-		// Again, days for Easy.
-		await page.keyboard.press('Space');
+		// Again, days for Easy. A tap on the question reveals it, clear of any link inside.
+		await page.locator('.scene').click({ position: { x: 8, y: 8 } });
 		await expect(page.getByRole('button', { name: /Again/ })).toContainText(/\d+m/);
 		await expect(page.getByRole('button', { name: /Easy/ })).toContainText(/\d+d/);
 		await Promise.all([
@@ -123,10 +125,33 @@ test.describe('study round', () => {
 		// First attempts only: 19 of 20 recalled.
 		await expect(page.getByText('Round score')).toBeVisible();
 		await expect(page.getByText('95%').first()).toBeVisible();
+		await expect(page.getByRole('link', { name: 'Explore the map' })).toHaveAttribute(
+			'href',
+			'/quest'
+		);
 
 		await page.getByRole('button', { name: 'Next round' }).click();
 		await expect(counter).toHaveText('0 / 20');
 		expect(errors).toEqual([]);
+	});
+
+	test('a deck card opens Browse on its deck, and Browse offers to study it', async ({
+		page,
+		context,
+		baseURL
+	}) => {
+		await context.addCookies([{ name: 'auth-session', value: token, url: baseURL! }]);
+		await page.goto('/cards');
+		await page
+			.getByRole('link', { name: /^Browse \S/ })
+			.first()
+			.click();
+		await page.waitForURL(/\/cards\/browse\?deck=/);
+		const deck = new URL(page.url()).searchParams.get('deck')!;
+		await expect(page.getByRole('link', { name: 'Study', exact: true })).toHaveAttribute(
+			'href',
+			`/cards/study?deck=${encodeURIComponent(deck)}`
+		);
 	});
 
 	// Runs after the round above, so the dashboard has a deck to show.
@@ -138,20 +163,84 @@ test.describe('study round', () => {
 		for (const width of [375, 320]) {
 			await page.setViewportSize({ width, height: 800 });
 			await page.goto('/cards');
-			await expect(page.getByRole('button', { name: 'Log out' })).toBeVisible();
+			await expect(page.getByRole('navigation', { name: 'Views' })).toBeVisible();
 			expect(await overflow(), `/cards at ${width}px`).toBe(0);
-			// A squeezed row wraps Log out instead of overflowing, so check the items too.
-			const button = (await page.getByRole('button', { name: 'Log out' }).boundingBox())!;
+			// A squeezed top bar wraps instead of overflowing, so check the items too.
+			const account = (await page.getByLabel('Account').boundingBox())!;
 			const toggle = (await page.getByRole('group', { name: 'Theme' }).boundingBox())!;
-			expect(button.height, `Log out on one line at ${width}px`).toBeLessThan(48);
-			expect(toggle.x + toggle.width, `toggle inside the gutter at ${width}px`).toBeLessThanOrEqual(
-				width - 16
+			expect(account.y + account.height, `top bar on one line at ${width}px`).toBeLessThan(56);
+			expect(
+				account.x + account.width,
+				`account menu inside the gutter at ${width}px`
+			).toBeLessThanOrEqual(width - 16);
+			expect(toggle.x + toggle.width, `toggle left of the menu at ${width}px`).toBeLessThanOrEqual(
+				account.x
 			);
+			await page.getByLabel('Account').click();
+			// A trial click hit-tests the button: it fails if the page paints over the menu.
+			const logOut = page.getByRole('button', { name: 'Log out' });
+			await logOut.click({ trial: true, timeout: 2000 });
+			await page.keyboard.press('Escape');
+			await expect(logOut).toBeHidden();
+			// A tap on plain content closes it. x 4 is the page gutter, clear of the panel.
+			await page.getByLabel('Account').click();
+			await expect(logOut).toBeVisible();
+			await page.mouse.click(4, 400);
+			await expect(logOut).toBeHidden();
+
+			const tabs = page.getByRole('navigation', { name: 'Views' });
+			await tabs.getByRole('link', { name: 'Browse' }).click();
+			await page.waitForURL(/\/cards\/browse/);
+			await expect(tabs.getByRole('link', { name: 'Browse' })).toHaveAttribute(
+				'aria-current',
+				'page'
+			);
+			// The layout outlives the page, so the menu must close on navigation itself.
+			await page.getByLabel('Account').click();
+			await expect(logOut).toBeVisible();
+			await page.goBack();
+			await page.waitForURL(/\/cards$/);
+			await expect(logOut).toBeHidden();
 
 			await page.getByRole('link', { name: 'Details' }).first().click();
 			await page.waitForURL(/\/cards\/deck/);
 			expect(await overflow(), `deck page at ${width}px`).toBe(0);
+			// Reviewed and Stability drop out, each header with its cells.
+			await expect(page.getByRole('columnheader', { name: 'Reviewed' })).toBeHidden();
+			const shown = (row: string) => page.locator(`${row} > :is(th, td):visible`);
+			await expect(shown('thead tr')).toHaveCount(3);
+			await expect(shown('tbody tr:first-child')).toHaveCount(3);
 		}
+	});
+
+	test('Browse folds its filters behind one button on a phone', async ({
+		page,
+		context,
+		baseURL
+	}) => {
+		await context.addCookies([{ name: 'auth-session', value: token, url: baseURL! }]);
+		await page.setViewportSize({ width: 375, height: 800 });
+		// Slow the scripts: the server-rendered page must fold them already, or the card
+		// list jumps up at hydration.
+		await page.route('**/_app/immutable/**/*.js', async (route) => {
+			await new Promise((r) => setTimeout(r, 2000));
+			await route.continue();
+		});
+		await page.goto('/cards/browse?state=new', { waitUntil: 'commit' });
+		const deck = page.locator('#browse-deck');
+		await expect(deck).toBeAttached();
+		// Unstyled, everything would read as hidden.
+		await page.waitForFunction(() =>
+			[...document.querySelectorAll<HTMLLinkElement>('link[rel=stylesheet]')].every((l) => l.sheet)
+		);
+		// Checked once, not retried: a retry would pass on the fold hydration makes.
+		expect(await deck.isVisible()).toBe(false);
+
+		const filters = page.getByRole('button', { name: 'Filters, 1 set' });
+		await expect(filters).toBeEnabled();
+		await filters.click();
+		await expect(filters).toHaveAttribute('aria-expanded', 'true');
+		await expect(deck).toBeVisible();
 	});
 
 	// Runs last among the signed-in tests: it removes the deck the others use.
@@ -180,6 +269,26 @@ test.describe('study round', () => {
 			);
 			await page.getByRole('button', { name: 'Import deck' }).click();
 			await expect(page.getByText('Imported 137 cards.')).toBeVisible();
+		});
+
+		test('Browse shows its filters on a phone', async ({ page, context, baseURL }) => {
+			await context.addCookies([{ name: 'auth-session', value: token, url: baseURL! }]);
+			await page.setViewportSize({ width: 375, height: 800 });
+			await page.goto('/cards/browse');
+			await expect(page.locator('#browse-deck')).toBeVisible();
+			await expect(page.getByRole('button', { name: /^Filters/ })).toBeHidden();
+		});
+
+		// Runs last: it ends the session the other tests sign in with.
+		test('logs out from the account menu', async ({ page, context, baseURL }) => {
+			await context.addCookies([{ name: 'auth-session', value: token, url: baseURL! }]);
+			await page.setViewportSize({ width: 375, height: 800 });
+			await page.goto('/cards');
+			await page.getByLabel('Account').click();
+			await page.getByRole('button', { name: 'Log out' }).click();
+			await expect(page).toHaveURL('/login');
+			const [{ n }] = await sql`select count(*)::int as n from session where user_id = ${USER_ID}`;
+			expect(n).toBe(0);
 		});
 	});
 });

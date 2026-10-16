@@ -2,13 +2,23 @@
 	import { resolve } from '$app/paths';
 	import { fly, fade } from 'svelte/transition';
 	import { prefersReducedMotion } from 'svelte/motion';
+	import Layers from '@lucide/svelte/icons/layers';
+	import MapIcon from '@lucide/svelte/icons/map';
+	import RotateCw from '@lucide/svelte/icons/rotate-cw';
 	import { pct, type Grades } from './ratings';
 
 	let {
 		grades,
 		priorScore,
-		onnext
-	}: { grades: Grades; priorScore: number | null; onnext: () => void } = $props();
+		onnext,
+		quest = false
+	}: {
+		grades: Grades;
+		priorScore: number | null;
+		onnext: () => void;
+		/** Offer the map as the next stop. Off for the signed-out demo. */
+		quest?: boolean;
+	} = $props();
 
 	const still = $derived(prefersReducedMotion.current);
 	const delta = $derived(
@@ -113,7 +123,16 @@
 	{/if}
 
 	<div class="flex flex-col gap-3 sm:flex-row">
-		<button class="btn btn-primary py-3 sm:flex-1" onclick={onnext}>Next round</button>
-		<a href={resolve('/cards')} class="btn py-3 sm:flex-1">Back to decks</a>
+		<button class="btn btn-primary min-h-12 text-base sm:flex-1" onclick={onnext}
+			><RotateCw class="size-4" /> Next round</button
+		>
+		<a href={resolve('/cards')} class="btn min-h-12 text-base sm:flex-1"
+			><Layers class="size-4" /> Back to decks</a
+		>
+		{#if quest}
+			<a href={resolve('/quest')} class="btn min-h-12 text-base sm:flex-1"
+				><MapIcon class="size-4" /> Explore the map</a
+			>
+		{/if}
 	</div>
 </section>

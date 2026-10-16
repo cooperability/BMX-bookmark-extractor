@@ -133,7 +133,14 @@
 	{:else if current}
 		{#key `${current.card.id}:${current.repeats}`}
 			<div in:fly={{ x: still ? 0 : 24, duration: still ? 0 : 220 }}>
-				<Flashcard card={current.card} {flipped} />
+				<Flashcard
+					card={current.card}
+					{flipped}
+					onflip={() => {
+						flipped = true;
+						keepFocus();
+					}}
+				/>
 			</div>
 		{/key}
 		<RatingBar
