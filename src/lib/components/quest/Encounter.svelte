@@ -7,6 +7,7 @@
 	import { studyKey } from '$lib/components/study/keys';
 	import { reopens } from '$lib/quest/format';
 	import type { EncounterCard, Outcome } from '$lib/quest/types';
+	import ArrowLeft from '@lucide/svelte/icons/arrow-left';
 
 	let {
 		encounter,
@@ -106,7 +107,7 @@
 				disabled={busy}
 				onclick={() => onclose(outcome)}
 			>
-				<span aria-hidden="true">←</span>
+				<ArrowLeft class="size-4" />
 				{outcome || expired ? 'Back' : 'Later'}
 			</button>
 			<p id="encounter-title" class="flex-1 text-center text-sm font-medium">{heading}</p>
@@ -239,7 +240,7 @@
 				</div>
 			{:else}
 				<div in:fly={{ y: still ? 0 : 12, duration: still ? 0 : 200 }}>
-					<Flashcard card={encounter} {flipped} />
+					<Flashcard card={encounter} {flipped} onflip={() => (flipped = true)} />
 				</div>
 				<div class="bg-bg/85 pb-safe sticky bottom-0 -mx-4 mt-auto px-4 pt-3 backdrop-blur">
 					{#if failed}

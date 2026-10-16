@@ -11,6 +11,7 @@
 	import { STAY } from './forms';
 	import RichField from './RichField.svelte';
 	import TagInput from './TagInput.svelte';
+	import ArrowLeft from '@lucide/svelte/icons/arrow-left';
 
 	type Saved = {
 		id: string;
@@ -182,7 +183,7 @@
 			class="btn btn-ghost text-muted -ml-2 min-h-11 px-2 lg:min-h-0"
 			data-sveltekit-noscroll
 			aria-label="Close editor"
-			title="Close (Esc)"><span aria-hidden="true">←</span><span class="lg:hidden">Cards</span></a
+			title="Close (Esc)"><ArrowLeft class="size-4" /><span class="lg:hidden">Cards</span></a
 		>
 		<h2 class="min-w-0 flex-1 truncate font-semibold">
 			{card ? 'Edit card' : 'New card'}

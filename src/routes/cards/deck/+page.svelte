@@ -5,6 +5,10 @@
 	import CardBrowser from '$lib/components/deck/CardBrowser.svelte';
 	import StatTile from '$lib/components/deck/StatTile.svelte';
 	import StudyLink from '$lib/components/deck/StudyLink.svelte';
+	import ArrowLeft from '@lucide/svelte/icons/arrow-left';
+	import Library from '@lucide/svelte/icons/library';
+	import Play from '@lucide/svelte/icons/play';
+	import Plus from '@lucide/svelte/icons/plus';
 
 	let { data, form } = $props();
 
@@ -68,27 +72,42 @@
 		{ key: 'stability', label: 'Stability', num: true },
 		{ key: 'score', label: 'Standing', num: true }
 	];
+	// Dropped below sm, so the table fits a phone without a sideways scroll. One rule
+	// for the header and its cells, so the two cannot fall out of line.
+	const wide = (k: Key) => (k === 'reviewed' || k === 'stability' ? 'max-sm:hidden' : '');
 </script>
 
 <svelte:head>
 	<title>{data.deck} · Remediate</title>
 </svelte:head>
 
-<main class="mx-auto max-w-6xl px-4 py-8 sm:py-10">
-	<a href={resolve('/cards')} class="text-muted hover:text-fg text-sm">← Decks</a>
-	<header class="mt-3 flex flex-wrap items-end justify-between gap-4">
+<main class="mx-auto max-w-6xl px-4 py-6 sm:py-10">
+	<a
+		href={resolve('/cards')}
+		class="text-muted hover:text-fg -ml-1 inline-flex min-h-11 items-center gap-1.5 text-sm sm:min-h-0"
+		><ArrowLeft class="size-4" /> Decks</a
+	>
+	<header class="mt-2 flex flex-wrap items-end justify-between gap-4 sm:mt-3">
 		<div class="min-w-0">
 			<p class="eyebrow">Deck</p>
 			<h1 class="mt-1 text-3xl font-bold tracking-tight break-words">{data.deck}</h1>
 		</div>
-		<div class="flex flex-wrap gap-2">
-			<a href="{resolve('/cards/browse')}?deck={encodeURIComponent(data.deck)}&new=1" class="btn"
-				>New card</a
+		<!-- Phones: Study spans the row first, the editing pair shares the next. -->
+		<div class="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto sm:flex-wrap">
+			<StudyLink
+				deck={data.deck}
+				class="btn btn-primary col-span-2 min-h-12 px-6 text-base sm:order-last sm:min-h-0 sm:text-sm"
 			>
-			<a href="{resolve('/cards/browse')}?deck={encodeURIComponent(data.deck)}" class="btn"
-				>Browse &amp; edit</a
+				<Play class="size-4 fill-current" /> Study
+			</StudyLink>
+			<a
+				href="{resolve('/cards/browse')}?deck={encodeURIComponent(data.deck)}&new=1"
+				class="btn min-h-11 sm:min-h-0"><Plus class="size-4" /> New card</a
 			>
-			<StudyLink deck={data.deck} class="btn btn-primary px-6" />
+			<a
+				href="{resolve('/cards/browse')}?deck={encodeURIComponent(data.deck)}"
+				class="btn min-h-11 sm:min-h-0"><Library class="size-4" /> Browse &amp; edit</a
+			>
 		</div>
 	</header>
 
@@ -155,7 +174,7 @@
 					<tr>
 						{#each COLUMNS as c (c.key)}
 							<th
-								class="px-5 py-2 font-medium {c.num ? 'text-right' : ''}"
+								class="px-5 py-2 font-medium {c.num ? 'text-right' : ''} {wide(c.key)}"
 								aria-sort={sortKey === c.key ? (desc ? 'descending' : 'ascending') : 'none'}
 							>
 								<button class="eyebrow hover:text-fg text-[10px]" onclick={() => sortBy(c.key)}>
@@ -175,8 +194,8 @@
 								</span>
 							</td>
 							<td class="px-5 py-2 text-right font-mono">{r.cards}</td>
-							<td class="px-5 py-2 text-right font-mono">{r.reviewed}</td>
-							<td class="px-5 py-2 text-right font-mono">
+							<td class="px-5 py-2 text-right font-mono {wide('reviewed')}">{r.reviewed}</td>
+							<td class="px-5 py-2 text-right font-mono {wide('stability')}">
 								{r.stability === null ? '–' : `${r.stability.toFixed(1)}d`}
 							</td>
 							<td

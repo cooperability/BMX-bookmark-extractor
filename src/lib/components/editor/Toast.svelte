@@ -5,6 +5,7 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
 	import { STAY } from './forms';
+	import X from '@lucide/svelte/icons/x';
 
 	let {
 		toast,
@@ -16,7 +17,7 @@
 </script>
 
 <div
-	class="panel fixed bottom-[max(1rem,env(safe-area-inset-bottom))] left-1/2 z-40 flex w-[min(28rem,calc(100vw-2rem))] -translate-x-1/2 items-center gap-3 px-4 py-3 text-sm shadow-lg"
+	class="panel fixed bottom-[max(calc(var(--tabbar-h,0px)+1rem),env(safe-area-inset-bottom))] left-1/2 z-40 flex w-[min(28rem,calc(100vw-2rem))] -translate-x-1/2 items-center gap-3 px-4 py-3 text-sm shadow-lg"
 	role="status"
 >
 	<span class="min-w-0 flex-1">{toast.message}</span>
@@ -43,8 +44,8 @@
 		</form>
 	{/if}
 	<button
-		class="text-muted hover:text-fg min-h-11 px-1 lg:min-h-0"
+		class="text-muted hover:text-fg grid min-h-11 place-items-center px-1 lg:min-h-0"
 		aria-label="Dismiss"
-		onclick={ondismiss}>×</button
+		onclick={ondismiss}><X class="size-4" /></button
 	>
 </div>

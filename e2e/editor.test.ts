@@ -96,6 +96,17 @@ test.describe('card editor', () => {
 			await page.getByRole('button', { name: /^Save/ }).click();
 			await expect(page.getByText('Saved.')).toBeVisible();
 
+			if (width >= 1024) {
+				// Escape in the account menu closes the menu, not the card beside it, and
+				// hands focus back to the button that opened it.
+				await page.getByLabel('Account').click();
+				await page.getByRole('button', { name: 'Log out' }).focus();
+				await page.keyboard.press('Escape');
+				await expect(page.getByRole('button', { name: 'Log out' })).toBeHidden();
+				await expect(page).toHaveURL(/[?&]card=/);
+				await expect(page.getByLabel('Account')).toBeFocused();
+			}
+
 			// Ctrl+Delete in a field deletes a word, never the card. A save after it
 			// is the barrier: a delete it fired would have been sent first.
 			const deletes: string[] = [];
