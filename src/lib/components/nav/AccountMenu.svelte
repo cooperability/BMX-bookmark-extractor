@@ -8,7 +8,10 @@
 	let { email }: { email: string } = $props();
 
 	let root: HTMLDetailsElement | undefined = $state();
-	afterNavigate(() => root && (root.open = false));
+	// Not on enter: that is hydration, and a menu opened before it must stay open.
+	afterNavigate(({ type }) => {
+		if (type !== 'enter' && root) root.open = false;
+	});
 </script>
 
 <!-- details, so the menu and its Log out form work before hydration and without JS. -->

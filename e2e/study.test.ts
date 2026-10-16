@@ -154,6 +154,15 @@ test.describe('study round', () => {
 		);
 	});
 
+	test('Up next counts the cards due and offers their deck', async ({ page, context, baseURL }) => {
+		await context.addCookies([{ name: 'auth-session', value: token, url: baseURL! }]);
+		await sql`update review_state set due = now() - interval '1 minute' where user_id = ${USER_ID}`;
+		await page.goto('/cards');
+		await expect(page.getByText(/^\d+ cards due$/)).toBeVisible();
+		await expect(page.getByText(/^Start with/)).toContainText(/,\s+\d+ due\./);
+		await expect(page.getByRole('link', { name: /^Study \S/ })).toBeVisible();
+	});
+
 	// Runs after the round above, so the dashboard has a deck to show.
 	test('signed-in pages fit a phone screen', async ({ page, context, baseURL }) => {
 		await context.addCookies([{ name: 'auth-session', value: token, url: baseURL! }]);
@@ -210,7 +219,28 @@ test.describe('study round', () => {
 			const shown = (row: string) => page.locator(`${row} > :is(th, td):visible`);
 			await expect(shown('thead tr')).toHaveCount(3);
 			await expect(shown('tbody tr:first-child')).toHaveCount(3);
+
+			// A round is a focus mode: the tab bar steps aside.
+			await page.getByRole('link', { name: 'Study', exact: true }).click();
+			await page.waitForURL(/\/cards\/study/);
+			await expect(page.getByRole('navigation', { name: 'Views' })).toBeHidden();
 		}
+	});
+
+	// The details element opens natively before hydration. Hydration must not shut it
+	// under the thumb that opened it. Slow the scripts so the tap lands first every run.
+	test('account menu opened before hydration stays open', async ({ page, context, baseURL }) => {
+		await context.addCookies([{ name: 'auth-session', value: token, url: baseURL! }]);
+		await page.route('**/_app/immutable/**/*.js', async (route) => {
+			await new Promise((r) => setTimeout(r, 2000));
+			await route.continue();
+		});
+		await page.goto('/cards', { waitUntil: 'commit' });
+		await page.getByLabel('Account').click();
+		const logOut = page.getByRole('button', { name: 'Log out' });
+		await expect(logOut).toBeVisible();
+		await page.waitForLoadState('networkidle');
+		await expect(logOut).toBeVisible();
 	});
 
 	test('Browse folds its filters behind one button on a phone', async ({
@@ -254,6 +284,40 @@ test.describe('study round', () => {
 		await page.waitForURL(/\/cards\?deleted=/);
 		await expect(page.getByRole('status')).toContainText('Deleted');
 		await expect(page.getByText('No decks yet')).toBeVisible();
+	});
+
+	// Its own deck, so the deck deleted above is not needed and no other test sees this one.
+	test('a tap on a link or a text selection in the card does not reveal it', async ({
+		page,
+		context,
+		baseURL
+	}) => {
+		await context.addCookies([{ name: 'auth-session', value: token, url: baseURL! }]);
+		const front = '<p>See <a href="#source">the source</a> for this long enough fact.</p>';
+		await sql`insert into nodes (id, user_id, deck, front, back, tags)
+			values (${`${USER_ID}-link`}, ${USER_ID}, 'E2E Links', ${front}, 'Back', ${[]})`;
+		await page.goto('/cards/study?deck=E2E%20Links');
+		await expect(page.getByRole('button', { name: /Show answer/ })).toBeEnabled();
+		const again = page.getByRole('button', { name: /Again/ });
+		// A flip renders on the next microtask, so a frame later it would show.
+		const settled = () => page.evaluate(() => new Promise((r) => requestAnimationFrame(r)));
+
+		await page.getByRole('link', { name: 'the source' }).click();
+		await settled();
+		expect(await again.isVisible(), 'a link in the card').toBe(false);
+
+		const text = (await page.locator('.card-html p').first().boundingBox())!;
+		const y = text.y + text.height / 2;
+		await page.mouse.move(text.x + 2, y);
+		await page.mouse.down();
+		await page.mouse.move(text.x + text.width - 2, y, { steps: 5 });
+		await page.mouse.up();
+		await settled();
+		expect(await again.isVisible(), 'a text selection').toBe(false);
+
+		await page.evaluate(() => getSelection()?.removeAllRanges());
+		await page.locator('.scene').click({ position: { x: 8, y: 8 } });
+		await expect(again).toBeVisible();
 	});
 
 	// Also covers a file chosen before hydration: the server-rendered form must submit.

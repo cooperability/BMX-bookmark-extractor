@@ -186,7 +186,8 @@
 	const filtered = $derived(Boolean(p.q || p.tag || p.state || p.flag !== null));
 	// Phones fold the five selects behind one button; the badge says how many are set.
 	// The fold is CSS from the first paint, so the list does not jump at hydration.
-	// Without JS (noscript) the button could not open it, so the selects stay out.
+	// Without JS the button cannot open them, so the selects stay visible. Hidden is the
+	// default and noscript the exception: a browser without the scripting feature folds.
 	let filtersOpen = $state(false);
 	let hydrated = $state(false);
 	onMount(() => (hydrated = true));
@@ -292,7 +293,7 @@
 							name={f.id}
 							class="input min-h-11 min-w-0 text-sm {f.id === 'deck'
 								? 'col-span-2 sm:col-span-1'
-								: ''} {filtersOpen ? '' : 'max-sm:not-noscript:hidden'}"
+								: ''} {filtersOpen ? '' : 'max-sm:hidden noscript:max-sm:block'}"
 							onchange={(e) => submitSoon(e.currentTarget.form)}
 						>
 							{#if f.all !== null}<option value="" selected={!f.value}>{f.all}</option>{/if}

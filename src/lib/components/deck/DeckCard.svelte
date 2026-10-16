@@ -26,9 +26,9 @@
 	const pct = (n: number | null | undefined) => (n == null ? '–' : `${Math.round(n * 100)}%`);
 </script>
 
-<article class="panel hover:border-accent flex flex-col gap-4 p-5 transition">
+<article class="panel hover:border-accent flex min-w-0 flex-col gap-4 p-5 transition">
 	<div class="flex items-start justify-between gap-3">
-		<h2 class="leading-snug font-semibold break-words">{deck}</h2>
+		<h2 class="min-w-0 leading-snug font-semibold break-words">{deck}</h2>
 		{#if due > 0}
 			<span class="chip bg-accent-soft text-fg shrink-0 border-transparent font-mono"
 				>{due} due</span

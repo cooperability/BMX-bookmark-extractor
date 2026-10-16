@@ -109,6 +109,22 @@ test.describe('quest', () => {
 		// A reload lands in the same place: position persists server-side (QST-4).
 		await page.reload();
 		await expect(page.getByRole('heading', { name: 'E2E Deck' })).toBeVisible();
+
+		// Escape in the account menu closes the menu and leaves the node picked on the map.
+		// The map centres on the player's room, so a tap at its middle picks that node.
+		await page.getByRole('button', { name: 'Center on your room' }).click();
+		const map = (await page.getByRole('img', { name: /Map of what you know/ }).boundingBox())!;
+		const close = page.getByRole('button', { name: 'Close', exact: true });
+		await expect(async () => {
+			if (!(await close.isVisible()))
+				await page.mouse.click(map.x + map.width / 2, map.y + map.height / 2);
+			await expect(close).toBeVisible({ timeout: 1000 });
+		}).toPass();
+		await page.getByLabel('Account').click();
+		await expect(page.getByRole('button', { name: 'Log out' })).toBeVisible();
+		await page.keyboard.press('Escape');
+		await expect(page.getByRole('button', { name: 'Log out' })).toBeHidden();
+		await expect(close).toBeVisible();
 		expect(errors).toEqual([]);
 	});
 
@@ -142,6 +158,23 @@ test.describe('quest', () => {
 			for (const b of await page.locator('button.door, button.map-btn').all()) {
 				expect((await b.boundingBox())!.height).toBeGreaterThanOrEqual(44);
 			}
+			// The sticky Next bar rides on the tab bar, not under it.
+			const tabs = (await page.getByRole('navigation', { name: 'Views' }).boundingBox())!;
+			const next = (await page.getByRole('button', { name: /Next ·/ }).boundingBox())!;
+			expect(next.y + next.height, `Next above the tab bar at ${width}px`).toBeLessThanOrEqual(
+				tabs.y
+			);
+			// The map can grow for a closer look.
+			const map = page.getByRole('region', { name: 'Map' });
+			const before = (await map.boundingBox())!.height;
+			await page.getByRole('button', { name: 'Larger map' }).click();
+			await expect(page.getByRole('button', { name: 'Larger map' })).toHaveAttribute(
+				'aria-pressed',
+				'true'
+			);
+			await expect
+				.poll(async () => (await map.boundingBox())!.height)
+				.toBeGreaterThan(before * 1.4);
 		}
 	});
 
