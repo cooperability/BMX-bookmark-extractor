@@ -154,6 +154,15 @@ test.describe('study round', () => {
 		);
 	});
 
+	test('Up next counts the cards due and offers their deck', async ({ page, context, baseURL }) => {
+		await context.addCookies([{ name: 'auth-session', value: token, url: baseURL! }]);
+		await sql`update review_state set due = now() - interval '1 minute' where user_id = ${USER_ID}`;
+		await page.goto('/cards');
+		await expect(page.getByText(/^\d+ cards due$/)).toBeVisible();
+		await expect(page.getByText(/^Start with/)).toContainText(/,\s+\d+ due\./);
+		await expect(page.getByRole('link', { name: /^Study \S/ })).toBeVisible();
+	});
+
 	// Runs after the round above, so the dashboard has a deck to show.
 	test('signed-in pages fit a phone screen', async ({ page, context, baseURL }) => {
 		await context.addCookies([{ name: 'auth-session', value: token, url: baseURL! }]);
